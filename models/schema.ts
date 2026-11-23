@@ -46,6 +46,22 @@ import Cart from "./Pet/Store/Cart/Cart";
 import Order from "./Pet/Store/Order/Order";
 import Payment from "./Pet/Store/Payment/Payment";
 import PaymentMethod from "./Pet/Store/PaymentMethod/PaymentMethod";
+import StoreCategory from "./Pet/Store/StoreCategory/StoreCategory";
+import StoreCoupon from "./Pet/Store/StoreCoupon/StoreCoupon";
+import StoreCouponRedemption from "./Pet/Store/StoreCouponRedemption/StoreCouponRedemption";
+import StoreBrand from "./Pet/Store/StoreBrand/StoreBrand";
+import StoreProduct from "./Pet/Store/StoreProduct/StoreProduct";
+import StoreProductVariant from "./Pet/Store/StoreProductVariant/StoreProductVariant";
+import StoreProductImage from "./Pet/Store/StoreProductImage/StoreProductImage";
+import StoreProductReview from "./Pet/Store/StoreProductReview/StoreProductReview";
+import StoreWishlistItem from "./Pet/Store/StoreWishlistItem/StoreWishlistItem";
+import StoreAddress from "./Pet/Store/StoreAddress/StoreAddress";
+import StoreOrder from "./Pet/Store/StoreOrder/StoreOrder";
+import StoreOrderItem from "./Pet/Store/StoreOrderItem/StoreOrderItem";
+import StoreOrderEvent from "./Pet/Store/StoreOrderEvent/StoreOrderEvent";
+import StorePayment from "./Pet/Store/StorePayment/StorePayment";
+import StoreShipment from "./Pet/Store/StoreShipment/StoreShipment";
+import StoreSettings from "./Pet/Store/StoreSettings/StoreSettings";
 import TokenNotification from "./TokenNotification/TokenNotification";
 import Notification from "./Notification/Notification";
 import Ad from "./Pet/Ad/Ad";
@@ -177,6 +193,22 @@ export default withActivityHooks({
   SaasWorkspaceCrmStatus,
   Schedule,
   SocialMedia,
+  StoreAddress,
+  StoreBrand,
+  StoreCategory,
+  StoreCoupon,
+  StoreCouponRedemption,
+  StoreOrder,
+  StoreOrderEvent,
+  StoreOrderItem,
+  StorePayment,
+  StoreProduct,
+  StoreProductImage,
+  StoreProductReview,
+  StoreProductVariant,
+  StoreSettings,
+  StoreShipment,
+  StoreWishlistItem,
   SystemRelease,
   Tag,
   TechBusinessLead,

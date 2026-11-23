@@ -199,6 +199,17 @@ var ACTIVITY_EVENT = {
   PET_PLACE_VERIFIED: "pet.place_verified",
   PET_REVIEW_ADDED: "pet.review_added",
   PET_REVIEW_DELETED: "pet.review_deleted",
+  // Store: a shopper reviewed a product (never the text: ids, length and rating only).
+  PET_STORE_REVIEW_ADDED: "pet.store_review_added",
+  PET_STORE_REVIEW_DELETED: "pet.store_review_deleted",
+  // Store orders: placed and cancelled by the shopper; reviewed, shipped, cancelled and refunded by an admin.
+  PET_STORE_ORDER_PLACED: "pet.store_order_placed",
+  PET_STORE_ORDER_CANCELLED: "pet.store_order_cancelled",
+  PET_STORE_TRANSFER_PROOF_UPLOADED: "pet.store_transfer_proof_uploaded",
+  ADMIN_STORE_TRANSFER_REVIEWED: "admin.store_transfer_reviewed",
+  ADMIN_STORE_SHIPMENT_UPDATED: "admin.store_shipment_updated",
+  ADMIN_STORE_ORDER_CANCELLED: "admin.store_order_cancelled",
+  ADMIN_STORE_ORDER_REFUNDED: "admin.store_order_refunded",
   // Eventos (campañas, jornadas): publicar, editar, revisar (admin) y cancelar.
   PET_EVENT_SUBMITTED: "pet.event_submitted",
   PET_EVENT_UPDATED: "pet.event_updated",
@@ -604,9 +615,9 @@ function sessionPermissions(session2) {
 function hasPermission(session2, key, legacyFallback) {
   if (!session2?.data) return false;
   if (hasRole(session2, ["admin" /* ADMIN */, "admin_company" /* ADMIN_COMPANY */])) return true;
-  const list103 = sessionPermissions(session2);
-  if (list103 == null) return legacyFallback();
-  return list103.includes(key);
+  const list119 = sessionPermissions(session2);
+  if (list119 == null) return legacyFallback();
+  return list119.includes(key);
 }
 
 // utils/access/tenant.ts
@@ -687,8 +698,8 @@ function header(req, name) {
   return firstHeader(req?.headers?.[name])?.trim() || void 0;
 }
 function cleanIp(value) {
-  const clean5 = (value ?? "").trim().replace(/^::ffff:/, "").slice(0, MAX_IP);
-  return clean5 || null;
+  const clean6 = (value ?? "").trim().replace(/^::ffff:/, "").slice(0, MAX_IP);
+  return clean6 || null;
 }
 function requestIp(req) {
   if (!req) return null;
@@ -783,15 +794,15 @@ function scrubValue(value, depth) {
 }
 function scrubMetadata(metadata) {
   if (!metadata) return null;
-  const clean5 = scrubValue(metadata, 0);
+  const clean6 = scrubValue(metadata, 0);
   try {
-    if (JSON.stringify(clean5).length > MAX_METADATA_BYTES) {
-      return { truncated: true, keys: Object.keys(clean5).slice(0, MAX_ARRAY) };
+    if (JSON.stringify(clean6).length > MAX_METADATA_BYTES) {
+      return { truncated: true, keys: Object.keys(clean6).slice(0, MAX_ARRAY) };
     }
   } catch {
     return null;
   }
-  return clean5;
+  return clean6;
 }
 function resolveSource(context, companyId) {
   const session2 = context.session;
@@ -812,9 +823,9 @@ function warnOnce(type, error) {
     error instanceof Error ? error.message : error
   );
 }
-function truncate(text89, max) {
-  if (!text89) return null;
-  return text89.length > max ? `${text89.slice(0, max - 1)}\u2026` : text89;
+function truncate(text106, max) {
+  if (!text106) return null;
+  return text106.length > max ? `${text106.slice(0, max - 1)}\u2026` : text106;
 }
 async function logActivity(context, input) {
   try {
@@ -914,8 +925,8 @@ function changedFieldNames(before, after, ignore = /* @__PURE__ */ new Set()) {
   return [...names];
 }
 function idsOf(value) {
-  const list103 = Array.isArray(value) ? value : value ? [value] : [];
-  return list103.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
+  const list119 = Array.isArray(value) ? value : value ? [value] : [];
+  return list119.map((entry) => entry && typeof entry === "object" ? entry.id : null).filter((id) => typeof id === "string");
 }
 function relationInput(value) {
   if (!value || typeof value !== "object") return null;
@@ -930,8 +941,8 @@ function relationInput(value) {
 }
 function fullName(person) {
   if (!person) return null;
-  const text89 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
-  return text89 || null;
+  const text106 = [person.name, person.lastName].filter(Boolean).join(" ").trim();
+  return text106 || null;
 }
 async function leadName(context, leadId) {
   if (!leadId) return null;
@@ -972,8 +983,8 @@ async function columnNames(context, ids) {
 function log(context, input) {
   return logActivity(context, input);
 }
-function quoted(text89, fallback) {
-  return text89 ? `"${text89}"` : fallback;
+function quoted(text106, fallback) {
+  return text106 ? `"${text106}"` : fallback;
 }
 async function logCardMove(args, entityType, label) {
   const { originalItem: before, item: after, context } = args;
@@ -2546,6 +2557,10 @@ var PAW_ACTION = {
   RESCUE_VERIFIED: "rescue_verified",
   PLACE_VERIFIED: "place_verified",
   REFERRAL: "referral",
+  /** Store: a product bought on Kadesh was delivered. */
+  PURCHASE: "purchase",
+  /** Store: review of a product the person bought and received. */
+  PRODUCT_REVIEW: "product_review",
   STREAK_BONUS: "streak_bonus",
   ADMIN_ADJUST: "admin_adjust"
 };
@@ -2570,7 +2585,11 @@ var PAW_RULES = {
   [PAW_ACTION.FIRST_HEALTH_RECORD]: { points: 5, dailyCap: null, globalCap: false, streak: false },
   [PAW_ACTION.RESCUE_VERIFIED]: { points: 50, dailyCap: null, globalCap: false, streak: false },
   [PAW_ACTION.PLACE_VERIFIED]: { points: 30, dailyCap: null, globalCap: false, streak: false },
-  [PAW_ACTION.REFERRAL]: { points: 20, dailyCap: 1, globalCap: false, streak: false }
+  [PAW_ACTION.REFERRAL]: { points: 20, dailyCap: 1, globalCap: false, streak: false },
+  // Store. Per order line, not per unit, and only once it is delivered. Outside the global cap and
+  // the streak: both are about helping, and buying must not eat into them.
+  [PAW_ACTION.PURCHASE]: { points: 10, dailyCap: 3, globalCap: false, streak: false },
+  [PAW_ACTION.PRODUCT_REVIEW]: { points: 5, dailyCap: 3, globalCap: false, streak: false }
 };
 var GLOBAL_CAPPED_ACTIONS = Object.entries(PAW_RULES).filter(([, rule]) => rule.globalCap).map(([action]) => action);
 var GLOBAL_DAILY_CAP = 60;
@@ -2580,6 +2599,7 @@ var COMMENT_MIN_LENGTH = 20;
 var SIGHTING_STRIKE_LIMIT = 3;
 var SIGHTING_STRIKE_DAYS = 30;
 var ADMIN_ADJUST_MAX = 5e3;
+var PURCHASE_MIN_LINE_CENTS = 100 * 100;
 var LEADERBOARD_MAX_TAKE = 50;
 var LEADERBOARD_DEFAULT_TAKE = 20;
 var LEADERBOARD_CACHE_MS = 10 * 60 * 1e3;
@@ -2699,7 +2719,23 @@ var NOTIFICATION_TYPE = {
   /** Alguien recibió la mascota que traspasaste con un código. Va a quien lo generó (o al espacio). */
   PET_TRANSFER_REDEEMED: "pet.transfer_redeemed",
   /** La persona juntó suficientes huellitas para subir de nivel. Va a ella. */
-  PAWS_LEVEL_UP: "paws.level_up"
+  PAWS_LEVEL_UP: "paws.level_up",
+  /** Store: the order was paid (card charged or transfer approved). Goes to the buyer. */
+  STORE_ORDER_PAID: "store.order_paid",
+  /** Store: a package of the order left. Goes to the buyer. */
+  STORE_ORDER_SHIPPED: "store.order_shipped",
+  /** Store: every package of the order was delivered. Goes to the buyer. */
+  STORE_ORDER_DELIVERED: "store.order_delivered",
+  /** Store: the order was cancelled (expired unpaid, by an admin, or refunded). Goes to the buyer. */
+  STORE_ORDER_CANCELLED: "store.order_cancelled",
+  /** Store: the transfer proof could not be confirmed. Goes to the buyer. */
+  STORE_TRANSFER_REJECTED: "store.transfer_rejected",
+  /** Store: a paid order waits to be fulfilled. Goes to platform admins. */
+  STORE_ADMIN_ORDER_PAID: "store.admin_order_paid",
+  /** Store: a transfer proof waits for review. Goes to platform admins. */
+  STORE_ADMIN_TRANSFER_REVIEW: "store.admin_transfer_review",
+  /** Store: money arrived for an order that was already cancelled. Goes to platform admins. */
+  STORE_ADMIN_PAID_AFTER_CANCEL: "store.admin_paid_after_cancel"
 };
 var PUSH_DELIVERY = {
   /** Expo aceptó el mensaje para todos sus dispositivos. */
@@ -2754,8 +2790,8 @@ async function run(label, work) {
   }
 }
 function deliveryDetail(value) {
-  const text89 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
-  return text89.length > DETAIL_MAX ? `${text89.slice(0, DETAIL_MAX - 1)}\u2026` : text89;
+  const text106 = (value instanceof Error ? value.message : String(value ?? "")).replace(/\s+/g, " ").trim();
+  return text106.length > DETAIL_MAX ? `${text106.slice(0, DETAIL_MAX - 1)}\u2026` : text106;
 }
 async function recordDelivery(prisma, ids, data) {
   const unique = [...new Set(ids.filter(Boolean))];
@@ -2834,8 +2870,8 @@ async function checkReceipts(context, ticketTokens) {
         body: JSON.stringify({ ids: ids.slice(start, start + 1e3) })
       });
       if (!response.ok) continue;
-      const json17 = await response.json();
-      for (const [id, receipt] of Object.entries(json17.data ?? {})) {
+      const json19 = await response.json();
+      for (const [id, receipt] of Object.entries(json19.data ?? {})) {
         if (receipt.status === "error" && receipt.details?.error === "DeviceNotRegistered") {
           const token = ticketTokens.get(id);
           if (token) dead.push(token);
@@ -2910,8 +2946,8 @@ async function sendPushToUsers(context, userIds, message, notificationIds) {
         console.error("[push] Expo respondi\xF3", response.status, await response.text().catch(() => ""));
         continue;
       }
-      const json17 = await response.json();
-      (json17.data ?? []).forEach((ticket, index) => {
+      const json19 = await response.json();
+      (json19.data ?? []).forEach((ticket, index) => {
         const token = batch[index];
         if (!token) return;
         const push = byUser.get(ownerOf.get(token) ?? "");
@@ -3193,7 +3229,7 @@ async function sendWhatsAppTemplateMessage({
             components: [
               {
                 type: "body",
-                parameters: bodyParams.map((text89) => ({ type: "text", text: text89 }))
+                parameters: bodyParams.map((text106) => ({ type: "text", text: text106 }))
               }
             ]
           } : {}
@@ -3585,9 +3621,9 @@ function logPlatformWhatsappStatus() {
   );
 }
 function templateParam(value) {
-  const clean5 = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
-  if (!clean5) return PARAM_FALLBACK;
-  return clean5.length > PARAM_MAX_LENGTH ? `${clean5.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean5;
+  const clean6 = (value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!clean6) return PARAM_FALLBACK;
+  return clean6.length > PARAM_MAX_LENGTH ? `${clean6.slice(0, PARAM_MAX_LENGTH - 1)}\u2026` : clean6;
 }
 function toWhatsappNumber(raw) {
   if (!raw) return null;
@@ -3826,8 +3862,8 @@ function warnOnce2(what, error) {
   console.warn(`[paws] ${what}:`, error instanceof Error ? error.message : error);
 }
 function isDuplicateKey(error) {
-  const text89 = error instanceof Error ? `${error.message} ${error.code ?? ""}` : String(error);
-  return /23505|unique constraint|duplicate key/i.test(text89);
+  const text106 = error instanceof Error ? `${error.message} ${error.code ?? ""}` : String(error);
+  return /23505|unique constraint|duplicate key/i.test(text106);
 }
 async function runAward(context, params) {
   const prisma = prismaOf3(context);
@@ -4355,6 +4391,61 @@ async function pawsOnPlaceVerification(context, input) {
     referenceType: "PetPlace",
     referenceId: input.placeId
   });
+}
+async function pawsOnStoreShipmentDelivered(context, shipmentId) {
+  if (!pawsEnabled()) return;
+  try {
+    const items = await prismaOf4(context).storeOrderItem.findMany({
+      where: { shipmentId },
+      take: 50,
+      select: {
+        id: true,
+        totalCents: true,
+        discountCents: true,
+        order: { select: { userId: true, paymentStatus: true } }
+      }
+    });
+    if (items instanceof Error) throw items;
+    for (const item of items) {
+      const userId = item.order?.userId;
+      if (!userId || item.order?.paymentStatus !== "paid") continue;
+      if (item.totalCents - (Number(item.discountCents) || 0) < PURCHASE_MIN_LINE_CENTS) continue;
+      await awardPaws(context, {
+        userId,
+        action: PAW_ACTION.PURCHASE,
+        sourceKey: `purchase:${item.id}`,
+        referenceType: "StoreOrderItem",
+        referenceId: item.id
+      });
+    }
+  } catch (error) {
+    warn("store purchase", error);
+  }
+}
+async function pawsOnStorePurchaseUndone(context, where) {
+  if (!pawsEnabled()) return;
+  try {
+    const items = await prismaOf4(context).storeOrderItem.findMany({ where, take: 200, select: { id: true } });
+    if (items instanceof Error) throw items;
+    for (const item of items) await reversePaws(context, `purchase:${item.id}`);
+  } catch (error) {
+    warn("store purchase undone", error);
+  }
+}
+async function pawsOnStoreProductReview(context, input) {
+  if (!pawsEnabled() || !input.userId || !input.productId) return;
+  try {
+    await setPawAward(context, {
+      userId: input.userId,
+      action: PAW_ACTION.PRODUCT_REVIEW,
+      sourceKey: `product_review:${input.userId}:${input.productId}`,
+      referenceType: "StoreProduct",
+      referenceId: input.productId,
+      shouldHave: input.shouldHave
+    });
+  } catch (error) {
+    warn("store product review", error);
+  }
 }
 
 // models/Pet/Animal/Animal.ts
@@ -5000,8 +5091,8 @@ function formsFor(typeName) {
   return FORMS[ALIASES[key] ?? key] ?? DEFAULT_FORMS;
 }
 function shortColor(color) {
-  const clean5 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
-  return clean5 && clean5.length <= 24 ? clean5 : "";
+  const clean6 = (color ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  return clean6 && clean6.length <= 24 ? clean6 : "";
 }
 function animalDisplayName(animal) {
   const known = knownAnimalName(animal.name);
@@ -5017,8 +5108,8 @@ function animalSentenceName(animal) {
   const forms = formsFor(animal.typeName);
   return animal.sex === "female" ? forms.thisF : forms.thisM;
 }
-function capitalizeFirst(text89) {
-  return text89 ? text89.charAt(0).toUpperCase() + text89.slice(1) : text89;
+function capitalizeFirst(text106) {
+  return text106 ? text106.charAt(0).toUpperCase() + text106.slice(1) : text106;
 }
 
 // utils/helpers/emailLayout.ts
@@ -5084,9 +5175,9 @@ function emailCallout(brand, html) {
     </tr>
   </table>`;
 }
-function emailPill(brand, text89) {
+function emailPill(brand, text106) {
   const { color, soft } = EMAIL_BRANDS[brand];
-  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text89)}</span>`;
+  return `<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:${soft};color:${color};font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(text106)}</span>`;
 }
 function emailParagraph(html) {
   return `<p style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:1.7;color:${EMAIL_TEXT.body};">${html}</p>`;
@@ -5857,10 +5948,10 @@ function matchesAudience(audience, hasCompany) {
 async function resolveBroadcastRecipients(params) {
   const { context, audience, emails } = params;
   if (audience === "custom") {
-    const list103 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
+    const list119 = (emails ?? []).map((email) => email.trim()).filter(Boolean);
     const seen2 = /* @__PURE__ */ new Set();
     const recipients2 = [];
-    for (const email of list103) {
+    for (const email of list119) {
       const key = email.toLowerCase();
       if (seen2.has(key)) continue;
       seen2.add(key);
@@ -6087,8 +6178,8 @@ function statusPlaceDateLabels(status, sex) {
     date: copy?.dateLabel?.(sex) ?? "Fecha"
   };
 }
-function capitalize(text89) {
-  return text89 ? text89[0].toUpperCase() + text89.slice(1) : text89;
+function capitalize(text106) {
+  return text106 ? text106[0].toUpperCase() + text106.slice(1) : text106;
 }
 function clean(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
@@ -6124,8 +6215,8 @@ function dateOf(value, now = /* @__PURE__ */ new Date()) {
   const sameYear = date.getFullYear() === now.getFullYear();
   return (sameYear ? DATE_FORMAT : DATE_FORMAT_YEAR).format(date).replace(",", "");
 }
-function hashtagOf(text89) {
-  const words = clean(text89).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+function hashtagOf(text106) {
+  const words = clean(text106).split(/[^\p{L}\p{N}]+/u).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
   return words.join("");
 }
 function formatPesos(amount) {
@@ -6610,9 +6701,9 @@ async function reportAudienceWithTeam(context, animal) {
   if (!staff.length) return base;
   return [.../* @__PURE__ */ new Set([...Array.isArray(base) ? base : [], ...staff])];
 }
-function excerpt(text89) {
-  const clean5 = text89.replace(/\s+/g, " ").trim();
-  return clean5.length > EXCERPT_MAX ? `${clean5.slice(0, EXCERPT_MAX - 1)}\u2026` : clean5;
+function excerpt(text106) {
+  const clean6 = text106.replace(/\s+/g, " ").trim();
+  return clean6.length > EXCERPT_MAX ? `${clean6.slice(0, EXCERPT_MAX - 1)}\u2026` : clean6;
 }
 function firstName(name) {
   return name?.trim().split(/\s+/)[0] || "Alguien";
@@ -6640,19 +6731,19 @@ async function notifyAnimalComment(context, input) {
     const author = input.authorId ? await sudo.query.User.findOne({ where: { id: input.authorId }, query: "name" }) : null;
     const who = firstName(author?.name);
     const name = animalName(animal.name);
-    const text89 = excerpt(input.comment);
+    const text106 = excerpt(input.comment);
     const lost = (animal.logs?.[0]?.status ?? "") === "lost";
     let type = NOTIFICATION_TYPE.ANIMAL_COMMENTED;
     let title = name ? `${who} coment\xF3 en el reporte de ${name}` : `${who} coment\xF3 en tu reporte`;
-    let body = text89;
+    let body = text106;
     if (input.kind === "duplicate_report") {
       type = NOTIFICATION_TYPE.ANIMAL_DUPLICATE_REPORTED;
       title = name ? `Alguien m\xE1s report\xF3 a ${name}` : "Alguien m\xE1s report\xF3 al mismo animal";
-      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text89}\xBB`;
+      body = `${who} iba a publicar el mismo reporte y dej\xF3 esto: \xAB${text106}\xBB`;
     } else if (input.kind === "possible_match") {
       type = NOTIFICATION_TYPE.ANIMAL_POSSIBLE_MATCH;
       title = lost ? `Podr\xEDan haber encontrado a ${name ?? "tu mascota"}` : `Alguien podr\xEDa ser la familia de ${name ?? "el animal que reportaste"}`;
-      body = `${who} cree que es el mismo animal: \xAB${text89}\xBB`;
+      body = `${who} cree que es el mismo animal: \xAB${text106}\xBB`;
     }
     const url = reportUrl(animal, "#comentarios");
     await notify(context, {
@@ -6670,7 +6761,7 @@ async function notifyAnimalComment(context, input) {
       templateValues: {
         authorName: who,
         animalName: name ?? "tu mascota",
-        comment: text89,
+        comment: text106,
         summary: `${title}. ${who} cree que es el mismo animal`,
         url
       }
@@ -9119,9 +9210,9 @@ for (const state of MEXICO_STATES) {
 }
 var BY_CODE = new Map(MEXICO_STATES.map((state) => [state.code, state]));
 var BY_SLUG = new Map(MEXICO_STATES.map((state) => [state.slug, state]));
-function normalizeStateCode(text89) {
-  if (!text89?.trim()) return null;
-  const key = plain2(text89);
+function normalizeStateCode(text106) {
+  if (!text106?.trim()) return null;
+  const key = plain2(text106);
   if (BY_CODE.has(key.padStart(2, "0")) && /^\d{1,2}$/.test(key)) return key.padStart(2, "0");
   const direct = BY_KEY.get(key);
   if (direct) return direct.code;
@@ -9137,9 +9228,9 @@ function stateBySlug(slug) {
 function timeZoneForState(code) {
   return stateByCode(code)?.timeZone ?? DEFAULT_TIME_ZONE;
 }
-function cityKey(text89) {
-  if (!text89?.trim()) return null;
-  const key = plain2(text89).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
+function cityKey(text106) {
+  if (!text106?.trim()) return null;
+  const key = plain2(text106).replace(/^municipio de\s+/, "").replace(/\s+/g, "-");
   return key || null;
 }
 
@@ -10508,12 +10599,12 @@ function resolveRescuePetInput({ operation, resolvedData }) {
 }
 async function validateRescuePet({ operation, item, resolvedData, context, addValidationError }) {
   if (!resolvedData || isSudoContext(context) || isPlatformAdmin(context.session)) return;
-  const fail14 = (message) => addValidationError?.(message);
+  const fail16 = (message) => addValidationError?.(message);
   const userId = getSessionUserId(context.session);
   const organizationId = (operation === "create" ? resolvedData.organization?.connect?.id : item?.organizationId) ?? null;
   if (!organizationId) {
     if (resolvedData.stage || resolvedData.intakeDate || resolvedData.fosterMember?.connect) {
-      fail14("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
+      fail16("La etapa, la fecha de llegada y el hogar temporal son solo para fichas de un espacio de rescate.");
     }
     return;
   }
@@ -10525,16 +10616,16 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
       query: "status"
     });
     if (!isEditor) {
-      fail14("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
+      fail16("Solo admin, coordinaci\xF3n o voluntariado del espacio pueden crear fichas a su nombre.");
     } else if (!org?.status || !RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) {
-      fail14("Este espacio de rescate no est\xE1 activo.");
+      fail16("Este espacio de rescate no est\xE1 activo.");
     }
   } else if ((resolvedData.stage !== void 0 || resolvedData.intakeDate !== void 0) && !isEditor) {
-    fail14("La etapa y la fecha de llegada las cambia el equipo del espacio.");
+    fail16("La etapa y la fecha de llegada las cambia el equipo del espacio.");
   }
   if (resolvedData.fosterMember !== void 0) {
     if (!role || !RESCUE_ANIMAL_MANAGER_ROLES.includes(role)) {
-      fail14("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
+      fail16("El hogar temporal lo asignan admin y coordinaci\xF3n del espacio.");
       return;
     }
     const memberId = resolvedData.fosterMember?.connect?.id;
@@ -10543,7 +10634,7 @@ async function validateRescuePet({ operation, item, resolvedData, context, addVa
         where: { id: memberId },
         query: "organization { id }"
       });
-      if (member?.organization?.id !== organizationId) fail14("Elige a alguien del equipo del espacio.");
+      if (member?.organization?.id !== organizationId) fail16("Elige a alguien del equipo del espacio.");
     }
   }
 }
@@ -10884,8 +10975,8 @@ var import_fields22 = require("@keystone-6/core/fields");
 function toYmd(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
-  const text89 = String(value).trim();
-  return text89 ? text89.slice(0, 10) : null;
+  const text106 = String(value).trim();
+  return text106 ? text106.slice(0, 10) : null;
 }
 function resolveCreatedBy({ operation, resolvedData, context }) {
   const data = { ...resolvedData };
@@ -11903,9 +11994,9 @@ function sessionKey(session2) {
   return `${session2.startsAt.getTime()}-${session2.endsAt.getTime()}`;
 }
 function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date() } = {}) {
-  const list103 = Array.isArray(raw) ? raw : [];
-  if (list103.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
-  if (list103.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
+  const list119 = Array.isArray(raw) ? raw : [];
+  if (list119.length === 0) return { ok: false, message: "Agrega al menos una fecha." };
+  if (list119.length > PET_EVENT_LIMITS.MAX_SESSIONS) {
     return { ok: false, message: `Un evento puede tener hasta ${PET_EVENT_LIMITS.MAX_SESSIONS} fechas.` };
   }
   const existingKeys = new Set(existing.map(sessionKey));
@@ -11913,7 +12004,7 @@ function normalizeSessions(raw, { existing = [], now = /* @__PURE__ */ new Date(
   maxStart.setMonth(maxStart.getMonth() + PET_EVENT_LIMITS.MAX_MONTHS_AHEAD);
   const sessions = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const item of list103) {
+  for (const item of list119) {
     const startsAt = new Date(item?.startsAt);
     const endsAt = new Date(item?.endsAt);
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
@@ -11999,39 +12090,39 @@ async function normalizePetEventInput(context, input, {
   existingSessions = [],
   now = /* @__PURE__ */ new Date()
 }) {
-  const fail14 = (message) => ({ ok: false, message });
+  const fail16 = (message) => ({ ok: false, message });
   const title = clean3(input.title, PET_EVENT_LIMITS.TITLE_MAX);
-  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail14("Escribe un t\xEDtulo de al menos 5 letras.");
+  if (title.length < PET_EVENT_LIMITS.TITLE_MIN) return fail16("Escribe un t\xEDtulo de al menos 5 letras.");
   const category = (input.category ?? "").trim();
-  if (!CATEGORY_VALUES.has(category)) return fail14("Elige el tipo de evento.");
+  if (!CATEGORY_VALUES.has(category)) return fail16("Elige el tipo de evento.");
   const species = [...new Set((input.species ?? []).filter((value) => SPECIES_VALUES.has(value)))];
   const description = cleanMultiline(input.description, PET_EVENT_LIMITS.DESCRIPTION_MAX);
   if (description.length < PET_EVENT_LIMITS.DESCRIPTION_MIN) {
-    return fail14("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
+    return fail16("Cuenta un poco m\xE1s del evento (al menos 20 letras).");
   }
   const requirements = cleanMultiline(input.requirements, PET_EVENT_LIMITS.REQUIREMENTS_MAX);
   const organizerName = clean3(input.organizerName, PET_EVENT_LIMITS.ORGANIZER_MAX);
   const contactPhone = optionalPhone2(input.contactPhone, "Tel\xE9fono de contacto");
-  if (!contactPhone.ok) return fail14(contactPhone.message);
+  if (!contactPhone.ok) return fail16(contactPhone.message);
   const registrationWhatsapp = optionalPhone2(input.registrationWhatsapp, "WhatsApp de registro");
-  if (!registrationWhatsapp.ok) return fail14(registrationWhatsapp.message);
+  if (!registrationWhatsapp.ok) return fail16(registrationWhatsapp.message);
   const registrationUrl = optionalUrl(input.registrationUrl);
-  if (!registrationUrl.ok) return fail14(registrationUrl.message);
+  if (!registrationUrl.ok) return fail16(registrationUrl.message);
   const social = {};
   for (const field of Object.keys(PET_EVENT_SOCIAL_NETWORKS)) {
     const result5 = normalizeSocialUrl(field, input[field]);
-    if (!result5.ok) return fail14(result5.message);
+    if (!result5.ok) return fail16(result5.message);
     social[field] = result5.url;
   }
   const websiteUrl = optionalUrl(input.websiteUrl, "El link del sitio web");
-  if (!websiteUrl.ok) return fail14(websiteUrl.message);
+  if (!websiteUrl.ok) return fail16(websiteUrl.message);
   const lat = Number(input.lat);
   const lng = Number(input.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 && lng === 0) {
-    return fail14("Marca en el mapa d\xF3nde ser\xE1 el evento.");
+    return fail16("Marca en el mapa d\xF3nde ser\xE1 el evento.");
   }
   if (lat < MX_BOUNDS.minLat || lat > MX_BOUNDS.maxLat || lng < MX_BOUNDS.minLng || lng > MX_BOUNDS.maxLng) {
-    return fail14("Por ahora solo publicamos eventos en M\xE9xico.");
+    return fail16("Por ahora solo publicamos eventos en M\xE9xico.");
   }
   let city = clean3(input.city, 120);
   let stateText = clean3(input.state, 120);
@@ -12048,16 +12139,16 @@ async function normalizePetEventInput(context, input, {
   }
   const stateCode = normalizeStateCode(stateText);
   if (!stateCode) {
-    return fail14("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
+    return fail16("No pudimos reconocer el estado del lugar. Mueve un poco el pin o intenta de nuevo.");
   }
   const placeLabel = clean3(input.placeLabel, PET_EVENT_LIMITS.PLACE_LABEL_MAX);
   const scope = (input.scope ?? "").trim();
-  if (!SCOPE_VALUES.has(scope)) return fail14("Elige a qui\xE9n va dirigido el evento.");
+  if (!SCOPE_VALUES.has(scope)) return fail16("Elige a qui\xE9n va dirigido el evento.");
   if (scope === PET_EVENT_SCOPE.NATIONAL && !isAdmin) {
-    return fail14("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
+    return fail16("El alcance nacional solo lo asigna el equipo de Kadesh. Elige estado, municipio o zona.");
   }
   if (scope === PET_EVENT_SCOPE.CITY && !cityKey(city)) {
-    return fail14("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
+    return fail16("No pudimos reconocer el municipio. Elige el alcance por estado o por zona.");
   }
   const reachInput = optionalInt(input.reachKm);
   const reachKm = scope === PET_EVENT_SCOPE.ZONE ? PET_EVENT_REACH_KM_OPTIONS.includes(reachInput ?? -1) ? reachInput : DEFAULT_PET_EVENT_REACH_KM : DEFAULT_PET_EVENT_REACH_KM;
@@ -12067,16 +12158,16 @@ async function normalizePetEventInput(context, input, {
   if (!isFree) {
     price = optionalInt(input.price);
     if (price !== null && (price < 1 || price > PET_EVENT_LIMITS.PRICE_MAX)) {
-      return fail14("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
+      return fail16("Revisa el costo: debe ser un n\xFAmero de pesos v\xE1lido.");
     }
-    if (price === null && !priceNote) return fail14("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
+    if (price === null && !priceNote) return fail16("Escribe el costo o explica la cuota (p. ej. \xABdonativo voluntario\xBB).");
   }
   const capacity = optionalInt(input.capacity);
   if (capacity !== null && (capacity < 1 || capacity > PET_EVENT_LIMITS.CAPACITY_MAX)) {
-    return fail14("El cupo debe ser de al menos 1 lugar.");
+    return fail16("El cupo debe ser de al menos 1 lugar.");
   }
   const sessions = normalizeSessions(input.sessions, { existing: existingSessions, now });
-  if (!sessions.ok) return fail14(sessions.message);
+  if (!sessions.ok) return fail16(sessions.message);
   let petPlace = null;
   const petPlaceId = (input.petPlaceId ?? "").trim();
   if (petPlaceId) {
@@ -12085,7 +12176,7 @@ async function normalizePetEventInput(context, input, {
       query: "id claimStatus user { id }"
     });
     const owns = place && place.user?.id === userId && place.claimStatus === PET_PLACE_CLAIM_STATUS.VERIFIED;
-    if (!place || !isAdmin && !owns) return fail14("Solo puedes ligar una veterinaria verificada que sea tuya.");
+    if (!place || !isAdmin && !owns) return fail16("Solo puedes ligar una veterinaria verificada que sea tuya.");
     petPlace = { connect: { id: place.id } };
   }
   const state = stateByCode(stateCode);
@@ -12224,8 +12315,8 @@ function normalizeRescueOrgProfile(data) {
   if (has("city")) next.city = cleanLine(next.city, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("state")) next.state = cleanLine(next.state, RESCUE_ORG_LIMITS.CITY_MAX);
   if (has("species") && next.species !== null) {
-    const list103 = Array.isArray(next.species) ? next.species : [];
-    next.species = [...new Set(list103.filter((value) => SPECIES_VALUES2.has(String(value))))];
+    const list119 = Array.isArray(next.species) ? next.species : [];
+    next.species = [...new Set(list119.filter((value) => SPECIES_VALUES2.has(String(value))))];
   }
   if (has("whatsapp") && next.whatsapp !== null) {
     const raw = String(next.whatsapp).trim();
@@ -12294,8 +12385,8 @@ async function resolveRescueOrgInput({ operation, resolvedData, item, context })
   if (operation === "create" && !data.slug) {
     data.slug = await uniqueRescueSlug(context, buildRescueSlug(String(data.name ?? ""), data.city ?? null));
   } else if (typeof data.slug === "string") {
-    const clean5 = data.slug.trim().toLowerCase();
-    data.slug = clean5 ? await uniqueRescueSlug(context, clean5, item?.id ? String(item.id) : void 0) : item?.slug;
+    const clean6 = data.slug.trim().toLowerCase();
+    data.slug = clean6 ? await uniqueRescueSlug(context, clean6, item?.id ? String(item.id) : void 0) : item?.slug;
   }
   const statusChanged = data.status !== void 0;
   if (statusChanged && data.status === RESCUE_ORG_STATUS.VERIFIED && !item?.verifiedAt && !data.verifiedAt) {
@@ -13929,9 +14020,9 @@ function reviewResolveInput({
 }) {
   const next = forceSessionUser(resolvedData, operation, context);
   if (operation !== "create" || !isClientNonAdmin(context)) return next;
-  const clean5 = { ...next };
-  for (const field of CLIENT_BLOCKED_FIELDS) delete clean5[field];
-  return clean5;
+  const clean6 = { ...next };
+  for (const field of CLIENT_BLOCKED_FIELDS) delete clean6[field];
+  return clean6;
 }
 function reviewValidateInput({
   operation,
@@ -14210,9 +14301,1418 @@ var PaymentMethod_default = (0, import_core48.list)({
   }
 });
 
-// models/TokenNotification/TokenNotification.ts
-var import_fields49 = require("@keystone-6/core/fields");
+// models/Pet/Store/StoreCategory/StoreCategory.ts
 var import_core49 = require("@keystone-6/core");
+var import_fields49 = require("@keystone-6/core/fields");
+
+// utils/store/config.ts
+function storeEnabled() {
+  const value = (process.env.STORE_ENABLED ?? "").trim().toLowerCase();
+  return value === "true" || value === "on" || value === "1";
+}
+var catalogVersion = 0;
+function storeCatalogVersion() {
+  return catalogVersion;
+}
+function bumpStoreCatalogVersion() {
+  catalogVersion += 1;
+}
+
+// models/Pet/Store/constants.ts
+var STORE_PRODUCT_SOURCE = {
+  /** Kadesh's own product, shipped by Kadesh. */
+  OWN: "own",
+  /** Dropshipping: Kadesh charges, Dropi fulfills. Shown to shoppers as sold by Kadesh. */
+  DROPI: "dropi",
+  /** Affiliate link: the purchase happens on Mercado Libre. */
+  MERCADO_LIBRE: "mercado_libre"
+};
+var STORE_PRODUCT_SOURCE_OPTIONS = [
+  { label: "Propio", value: STORE_PRODUCT_SOURCE.OWN },
+  { label: "Dropi", value: STORE_PRODUCT_SOURCE.DROPI },
+  { label: "Mercado Libre (afiliado)", value: STORE_PRODUCT_SOURCE.MERCADO_LIBRE }
+];
+var STORE_SELLER = {
+  KADESH: "kadesh",
+  MERCADO_LIBRE: "mercado_libre"
+};
+function storeSellerFor(source) {
+  return source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE ? STORE_SELLER.MERCADO_LIBRE : STORE_SELLER.KADESH;
+}
+function storeSourcesForSeller(seller) {
+  if (seller === STORE_SELLER.KADESH) return [STORE_PRODUCT_SOURCE.OWN, STORE_PRODUCT_SOURCE.DROPI];
+  if (seller === STORE_SELLER.MERCADO_LIBRE) return [STORE_PRODUCT_SOURCE.MERCADO_LIBRE];
+  return null;
+}
+var STORE_PRODUCT_STATUS = {
+  DRAFT: "draft",
+  /** The only status shoppers can see. */
+  ACTIVE: "active",
+  PAUSED: "paused",
+  ARCHIVED: "archived"
+};
+var STORE_PRODUCT_STATUS_OPTIONS = [
+  { label: "Borrador", value: STORE_PRODUCT_STATUS.DRAFT },
+  { label: "Activo", value: STORE_PRODUCT_STATUS.ACTIVE },
+  { label: "Pausado", value: STORE_PRODUCT_STATUS.PAUSED },
+  { label: "Archivado", value: STORE_PRODUCT_STATUS.ARCHIVED }
+];
+var STORE_INVENTORY_POLICY = {
+  /** Stock is counted; at zero the product shows as sold out. */
+  TRACKED: "tracked",
+  /** Sold without stock (made or ordered on demand): always available. */
+  UNTRACKED: "untracked"
+};
+var STORE_INVENTORY_POLICY_OPTIONS = [
+  { label: "Con stock contado", value: STORE_INVENTORY_POLICY.TRACKED },
+  { label: "Sin stock (sobre pedido)", value: STORE_INVENTORY_POLICY.UNTRACKED }
+];
+var STORE_REVIEW_STATUS = {
+  PUBLISHED: "published",
+  /** Hidden by an admin: it stops counting toward the product's stars. */
+  HIDDEN: "hidden"
+};
+var STORE_REVIEW_STATUS_OPTIONS = [
+  { label: "Publicada", value: STORE_REVIEW_STATUS.PUBLISHED },
+  { label: "Oculta", value: STORE_REVIEW_STATUS.HIDDEN }
+];
+var STORE_CURRENCY = "MXN";
+var STORE_STATEMENT_DESCRIPTOR_SUFFIX = "TIENDA";
+var STORE_CATALOG_DEFAULT_TAKE = 24;
+var STORE_CATALOG_MAX_TAKE = 48;
+var STORE_RELATED_TAKE = 8;
+var STORE_REVIEWS_DEFAULT_TAKE = 10;
+var STORE_REVIEWS_MAX_TAKE = 20;
+var STORE_ADMIN_MAX_TAKE = 100;
+var STORE_WISHLIST_MAX = 500;
+var STORE_FACETS_CACHE_MS = 10 * 60 * 1e3;
+var STORE_LOW_STOCK = 5;
+var STORE_SEARCH_MIN_LENGTH = 2;
+var STORE_SEARCH_MAX_LENGTH = 80;
+var STORE_REVIEW_TITLE_MAX = 120;
+var STORE_REVIEW_BODY_MAX = 2e3;
+var STORE_RESERVED_SLUGS = /* @__PURE__ */ new Set([
+  "carrito",
+  "pagar",
+  "pedidos",
+  "deseos",
+  "categoria",
+  "marca",
+  "buscar",
+  "c",
+  "m"
+]);
+var STORE_ORDER_STATUS = {
+  OPEN: "open",
+  /** Paid and every shipment delivered. */
+  COMPLETED: "completed",
+  CANCELLED: "cancelled"
+};
+var STORE_ORDER_STATUS_OPTIONS = [
+  { label: "Abierto", value: STORE_ORDER_STATUS.OPEN },
+  { label: "Completado", value: STORE_ORDER_STATUS.COMPLETED },
+  { label: "Cancelado", value: STORE_ORDER_STATUS.CANCELLED }
+];
+var STORE_PAYMENT_STATUS = {
+  PENDING: "pending",
+  /** Bank transfer with a proof uploaded, waiting for an admin. */
+  IN_REVIEW: "in_review",
+  PAID: "paid",
+  FAILED: "failed",
+  REFUNDED: "refunded"
+};
+var STORE_PAYMENT_STATUS_OPTIONS = [
+  { label: "Pendiente", value: STORE_PAYMENT_STATUS.PENDING },
+  { label: "Comprobante en revisi\xF3n", value: STORE_PAYMENT_STATUS.IN_REVIEW },
+  { label: "Pagado", value: STORE_PAYMENT_STATUS.PAID },
+  { label: "Fall\xF3", value: STORE_PAYMENT_STATUS.FAILED },
+  { label: "Reembolsado", value: STORE_PAYMENT_STATUS.REFUNDED }
+];
+var STORE_FULFILLMENT_STATUS = {
+  UNFULFILLED: "unfulfilled",
+  /** Some shipments are on their way or delivered, not all. */
+  PARTIAL: "partial",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  RETURNED: "returned"
+};
+var STORE_FULFILLMENT_STATUS_OPTIONS = [
+  { label: "Por surtir", value: STORE_FULFILLMENT_STATUS.UNFULFILLED },
+  { label: "Parcial", value: STORE_FULFILLMENT_STATUS.PARTIAL },
+  { label: "Enviado", value: STORE_FULFILLMENT_STATUS.SHIPPED },
+  { label: "Entregado", value: STORE_FULFILLMENT_STATUS.DELIVERED },
+  { label: "Devuelto", value: STORE_FULFILLMENT_STATUS.RETURNED }
+];
+var STORE_PAYMENT_METHOD = {
+  CARD: "stripe_card",
+  TRANSFER: "bank_transfer"
+};
+var STORE_PAYMENT_METHOD_OPTIONS = [
+  { label: "Tarjeta (Stripe)", value: STORE_PAYMENT_METHOD.CARD },
+  { label: "Transferencia", value: STORE_PAYMENT_METHOD.TRANSFER }
+];
+var STORE_PAYMENT_ATTEMPT_STATUS = {
+  PENDING: "pending",
+  IN_REVIEW: "in_review",
+  SUCCEEDED: "succeeded",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+  REFUNDED: "refunded"
+};
+var STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS = [
+  { label: "Pendiente", value: STORE_PAYMENT_ATTEMPT_STATUS.PENDING },
+  { label: "En revisi\xF3n", value: STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW },
+  { label: "Pagado", value: STORE_PAYMENT_ATTEMPT_STATUS.SUCCEEDED },
+  { label: "Fall\xF3", value: STORE_PAYMENT_ATTEMPT_STATUS.FAILED },
+  { label: "Cancelado", value: STORE_PAYMENT_ATTEMPT_STATUS.CANCELLED },
+  { label: "Reembolsado", value: STORE_PAYMENT_ATTEMPT_STATUS.REFUNDED }
+];
+var STORE_SHIPMENT_PROVIDER = {
+  /** Shipped by Kadesh. */
+  OWN: "own",
+  /** Fulfilled by Dropi. Never shown to shoppers. */
+  DROPI: "dropi"
+};
+var STORE_SHIPMENT_PROVIDER_OPTIONS = [
+  { label: "Kadesh", value: STORE_SHIPMENT_PROVIDER.OWN },
+  { label: "Dropi", value: STORE_SHIPMENT_PROVIDER.DROPI }
+];
+var STORE_SHIPMENT_STATUS = {
+  /** Paid, nothing done yet (own products). */
+  PENDING: "pending",
+  /** Paid, waiting for an admin to send the order to Dropi. */
+  PENDING_APPROVAL: "pending_approval",
+  /** Sent to Dropi, no label yet. */
+  REQUESTED: "requested",
+  LABEL_CREATED: "label_created",
+  IN_TRANSIT: "in_transit",
+  DELIVERED: "delivered",
+  /** Something went wrong on the way (address, lost, refused). */
+  EXCEPTION: "exception",
+  RETURNED: "returned",
+  CANCELLED: "cancelled"
+};
+var STORE_SHIPMENT_STATUS_OPTIONS = [
+  { label: "Por preparar", value: STORE_SHIPMENT_STATUS.PENDING },
+  { label: "Por aprobar", value: STORE_SHIPMENT_STATUS.PENDING_APPROVAL },
+  { label: "Solicitado", value: STORE_SHIPMENT_STATUS.REQUESTED },
+  { label: "Gu\xEDa generada", value: STORE_SHIPMENT_STATUS.LABEL_CREATED },
+  { label: "En camino", value: STORE_SHIPMENT_STATUS.IN_TRANSIT },
+  { label: "Entregado", value: STORE_SHIPMENT_STATUS.DELIVERED },
+  { label: "Incidencia", value: STORE_SHIPMENT_STATUS.EXCEPTION },
+  { label: "Devuelto", value: STORE_SHIPMENT_STATUS.RETURNED },
+  { label: "Cancelado", value: STORE_SHIPMENT_STATUS.CANCELLED }
+];
+var SHIPMENT_FLOW = {
+  pending: ["label_created", "in_transit", "delivered", "exception", "cancelled"],
+  // Until the Dropi integration is live an admin moves these by hand, like own shipments.
+  pending_approval: ["requested", "label_created", "in_transit", "delivered", "exception", "cancelled"],
+  requested: ["label_created", "in_transit", "exception", "cancelled"],
+  label_created: ["in_transit", "delivered", "exception", "cancelled"],
+  in_transit: ["delivered", "exception", "returned"],
+  exception: ["in_transit", "delivered", "returned", "cancelled"],
+  delivered: ["returned"],
+  returned: [],
+  cancelled: []
+};
+var DROPI_ONLY_STATUSES = ["pending_approval", "requested"];
+function storeShipmentNextStatuses(provider, status) {
+  const next = SHIPMENT_FLOW[status] ?? [];
+  const allowed = provider === "dropi" ? next : next.filter((value) => !DROPI_ONLY_STATUSES.includes(value));
+  return [status, ...allowed];
+}
+var STORE_SHIPMENT_ON_THE_WAY = [
+  STORE_SHIPMENT_STATUS.LABEL_CREATED,
+  STORE_SHIPMENT_STATUS.IN_TRANSIT
+];
+var STORE_ORDER_EVENT = {
+  PLACED: "placed",
+  PAYMENT_FAILED: "payment_failed",
+  TRANSFER_PROOF_UPLOADED: "transfer_proof_uploaded",
+  TRANSFER_REJECTED: "transfer_rejected",
+  PAID: "paid",
+  PAID_AFTER_CANCEL: "paid_after_cancel",
+  SHIPMENT_UPDATED: "shipment_updated",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+  EXPIRED: "expired",
+  REFUNDED: "refunded",
+  NOTE: "note"
+};
+var STORE_ORDER_CHANNEL = { WEB: "web", APP: "app" };
+var STORE_ORDERS_DEFAULT_TAKE = 10;
+var STORE_ORDERS_MAX_TAKE = 20;
+var STORE_CART_MAX_LINES = 50;
+var STORE_CART_MAX_QUANTITY = 20;
+var STORE_ADDRESS_MAX = 10;
+var STORE_GUEST_MIN_PASSWORD = 8;
+var STORE_TRANSFER_PROOF_MAX_BYTES = 8 * 1024 * 1024;
+var STORE_TRANSFER_RETRY_HOURS = 24;
+var STORE_EXPIRE_MAX_PER_RUN = 200;
+var STORE_RETURN_DAYS = 5;
+var STORE_DEFAULT_RETURN_POLICY = [
+  `Solo aceptamos devoluciones si el producto llega defectuoso, da\xF1ado o no es el que pediste.`,
+  `Av\xEDsanos por WhatsApp en los ${STORE_RETURN_DAYS} d\xEDas siguientes a recibirlo, con fotos o video del paquete y del producto.`,
+  "El producto debe regresar completo y en su empaque, y el env\xEDo de regreso lo pagas t\xFA.",
+  "Cuando lo recibimos y lo revisamos, te enviamos uno nuevo o te devolvemos tu dinero."
+].join(" ");
+var STORE_SETTINGS_CACHE_MS = 60 * 1e3;
+var STORE_SETTINGS_DEFAULTS = {
+  shippingFlatCents: 9900,
+  freeShippingMinCents: 79900,
+  cardEnabled: true,
+  transferEnabled: true,
+  transferExpiryHours: 48,
+  cardExpiryMinutes: 60
+};
+var STORE_COUPON_TYPE = {
+  /** `value` is a whole percent (10 = 10 %) of the lines the coupon applies to. */
+  PERCENT: "percent",
+  /** `value` is MXN cents off. */
+  FIXED: "fixed",
+  /** Shipping is free; `value` is ignored. */
+  FREE_SHIPPING: "free_shipping"
+};
+var STORE_COUPON_TYPE_OPTIONS = [
+  { label: "Porcentaje", value: STORE_COUPON_TYPE.PERCENT },
+  { label: "Monto fijo", value: STORE_COUPON_TYPE.FIXED },
+  { label: "Env\xEDo gratis", value: STORE_COUPON_TYPE.FREE_SHIPPING }
+];
+var STORE_COUPON_CODE_MAX = 40;
+var STORE_MIN_ORDER_TOTAL_CENTS = 1e3;
+var STORE_COUPON_ATTEMPTS = { limit: 20, windowMs: 10 * 60 * 1e3 };
+var STORE_SUMMARY_DAYS = [7, 30, 90, 365];
+var STORE_SUMMARY_DEFAULT_DAYS = 30;
+var STORE_SUMMARY_CACHE_MS = 5 * 60 * 1e3;
+var STORE_SUMMARY_TOP = 10;
+var STORE_SUMMARY_LOW_STOCK = 5;
+
+// utils/store/slug.ts
+var SLUG_MAX = 70;
+function slugifyStore(value) {
+  const cleaned = (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned.slice(0, SLUG_MAX).replace(/-+$/g, "");
+}
+var FALLBACK = {
+  storeProduct: "producto",
+  storeCategory: "categoria",
+  storeBrand: "marca"
+};
+async function uniqueStoreSlug(context, model, value, exceptId) {
+  const prisma = context.sudo().prisma;
+  let base = slugifyStore(value) || FALLBACK[model];
+  if (model === "storeProduct" && STORE_RESERVED_SLUGS.has(base)) base = `${FALLBACK[model]}-${base}`;
+  for (let n = 1; n < 50; n += 1) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const found = await prisma[model].findFirst({ where: { slug: candidate }, select: { id: true } });
+    if (found instanceof Error) throw found;
+    if (!found || found.id === exceptId) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+async function resolveStoreSlug(context, model, args) {
+  const { operation, resolvedData, item } = args;
+  const given = typeof resolvedData.slug === "string" ? resolvedData.slug.trim() : "";
+  if (operation === "create") {
+    return uniqueStoreSlug(context, model, given || resolvedData.name);
+  }
+  if (!given) return void 0;
+  const slug = slugifyStore(given);
+  if (!slug || slug === item?.slug) return void 0;
+  return uniqueStoreSlug(context, model, slug, item?.id ? String(item.id) : void 0);
+}
+
+// models/Pet/Store/StoreCategory/StoreCategory.ts
+var StoreCategory_default = (0, import_core49.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "name",
+    listView: { initialColumns: ["name", "slug", "parent", "order", "isActive"] }
+  },
+  hooks: {
+    resolveInput: async ({ resolvedData, item, operation, context }) => {
+      const data = { ...resolvedData };
+      const slug = await resolveStoreSlug(context, "storeCategory", { operation, resolvedData: data, item });
+      if (slug !== void 0) data.slug = slug;
+      else delete data.slug;
+      return data;
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    name: (0, import_fields49.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields49.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    parent: (0, import_fields49.relationship)({ ref: "StoreCategory.children", many: false }),
+    children: (0, import_fields49.relationship)({ ref: "StoreCategory.parent", many: true }),
+    image: (0, import_fields49.image)({ storage: "s3_store" }),
+    order: (0, import_fields49.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    isActive: (0, import_fields49.checkbox)({ defaultValue: true }),
+    products: (0, import_fields49.relationship)({ ref: "StoreProduct.category", many: true }),
+    createdAt: (0, import_fields49.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreCoupon/StoreCoupon.ts
+var import_core50 = require("@keystone-6/core");
+var import_fields50 = require("@keystone-6/core/fields");
+function normalizeCouponCode(code) {
+  return (code ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, STORE_COUPON_CODE_MAX);
+}
+var StoreCoupon_default = (0, import_core50.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100 },
+  ui: {
+    labelField: "code",
+    listView: { initialColumns: ["code", "type", "value", "usedCount", "usageLimit", "isActive", "endsAt"] }
+  },
+  hooks: {
+    resolveInput: ({ resolvedData, operation }) => {
+      const data = { ...resolvedData };
+      if (typeof data.code === "string") data.code = normalizeCouponCode(data.code);
+      if (operation === "update") delete data.usedCount;
+      else data.usedCount = 0;
+      return data;
+    },
+    validateInput: ({ operation, resolvedData, item, addValidationError }) => {
+      if (operation === "delete") return;
+      const pick = (field) => resolvedData[field] !== void 0 ? resolvedData[field] : item?.[field];
+      if (!pick("code")) addValidationError("Escribe el c\xF3digo del cup\xF3n (letras y n\xFAmeros).");
+      const type = pick("type");
+      const value = Number(pick("value")) || 0;
+      if (type === STORE_COUPON_TYPE.PERCENT && (value < 1 || value > 100)) {
+        addValidationError("El porcentaje debe ir de 1 a 100.");
+      }
+      if (type === STORE_COUPON_TYPE.FIXED && value < 1) {
+        addValidationError("Escribe el monto del descuento.");
+      }
+      for (const field of ["minSubtotalCents", "maxDiscountCents", "usageLimit", "usageLimitPerUser"]) {
+        const number = pick(field);
+        if (typeof number === "number" && number < 0) addValidationError(`${field} no puede ser negativo.`);
+      }
+      const startsAt = pick("startsAt");
+      const endsAt = pick("endsAt");
+      if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+        addValidationError("La fecha de fin debe ser posterior a la de inicio.");
+      }
+      if (resolvedData.endsAt && new Date(resolvedData.endsAt).getTime() <= Date.now()) {
+        addValidationError("La fecha de fin ya pas\xF3. Elige una fecha futura.");
+      }
+    }
+  },
+  fields: {
+    code: (0, import_fields50.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    description: (0, import_fields50.text)({ ui: { description: "Interna: para qu\xE9 es este cup\xF3n." } }),
+    type: (0, import_fields50.select)({
+      type: "string",
+      options: STORE_COUPON_TYPE_OPTIONS,
+      defaultValue: STORE_COUPON_TYPE.PERCENT,
+      validation: { isRequired: true }
+    }),
+    value: (0, import_fields50.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true },
+      ui: { description: "Porcentaje (10 = 10 %) o centavos, seg\xFAn el tipo. Se ignora en env\xEDo gratis." }
+    }),
+    minSubtotalCents: (0, import_fields50.integer)({ ui: { description: "Subtotal m\xEDnimo del carrito para usarlo." } }),
+    maxDiscountCents: (0, import_fields50.integer)({ ui: { description: "Tope del descuento (para porcentajes)." } }),
+    startsAt: (0, import_fields50.timestamp)(),
+    endsAt: (0, import_fields50.timestamp)(),
+    usageLimit: (0, import_fields50.integer)({ ui: { description: "Usos en total. Vac\xEDo = sin l\xEDmite." } }),
+    usageLimitPerUser: (0, import_fields50.integer)({ ui: { description: "Usos por persona. Vac\xEDo = sin l\xEDmite." } }),
+    usedCount: (0, import_fields50.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true },
+      ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
+    }),
+    firstOrderOnly: (0, import_fields50.checkbox)({ defaultValue: false, ui: { description: "Solo para quien no ha pagado ning\xFAn pedido." } }),
+    isActive: (0, import_fields50.checkbox)({ defaultValue: true }),
+    categories: (0, import_fields50.relationship)({ ref: "StoreCategory", many: true }),
+    products: (0, import_fields50.relationship)({ ref: "StoreProduct", many: true }),
+    redemptions: (0, import_fields50.relationship)({ ref: "StoreCouponRedemption.coupon", many: true }),
+    createdAt: (0, import_fields50.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreCouponRedemption/StoreCouponRedemption.ts
+var import_core51 = require("@keystone-6/core");
+var import_fields51 = require("@keystone-6/core/fields");
+var StoreCouponRedemption_default = (0, import_core51.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true, delete: true } },
+  ui: {
+    listView: { initialColumns: ["coupon", "order", "user", "discountCents", "createdAt"] }
+  },
+  fields: {
+    key: (0, import_fields51.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "<couponId>:<orderId>", itemView: { fieldMode: "read" } }
+    }),
+    coupon: (0, import_fields51.relationship)({ ref: "StoreCoupon.redemptions", many: false }),
+    order: (0, import_fields51.relationship)({ ref: "StoreOrder", many: false }),
+    user: (0, import_fields51.relationship)({ ref: "User", many: false }),
+    discountCents: (0, import_fields51.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    createdAt: (0, import_fields51.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreBrand/StoreBrand.ts
+var import_core52 = require("@keystone-6/core");
+var import_fields52 = require("@keystone-6/core/fields");
+var StoreBrand_default = (0, import_core52.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "name",
+    listView: { initialColumns: ["name", "slug", "isActive"] }
+  },
+  hooks: {
+    resolveInput: async ({ resolvedData, item, operation, context }) => {
+      const data = { ...resolvedData };
+      const slug = await resolveStoreSlug(context, "storeBrand", { operation, resolvedData: data, item });
+      if (slug !== void 0) data.slug = slug;
+      else delete data.slug;
+      return data;
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    name: (0, import_fields52.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields52.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    logo: (0, import_fields52.image)({ storage: "s3_store" }),
+    isActive: (0, import_fields52.checkbox)({ defaultValue: true }),
+    products: (0, import_fields52.relationship)({ ref: "StoreProduct.brand", many: true }),
+    createdAt: (0, import_fields52.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProduct/StoreProduct.ts
+var import_core53 = require("@keystone-6/core");
+var import_fields53 = require("@keystone-6/core/fields");
+
+// utils/helpers/normalizeSearchText.ts
+function normalizeSearchText(value) {
+  return (value ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// utils/store/catalog.ts
+function storePrisma(context) {
+  return context.sudo().prisma;
+}
+function unwrap(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+async function recomputeStoreProductTotals(context, productId, options = {}) {
+  if (!productId) return;
+  try {
+    const prisma = storePrisma(context);
+    const variants = unwrap(
+      await prisma.storeProductVariant.findMany({
+        where: { productId, isActive: true },
+        select: { priceCents: true, compareAtPriceCents: true, stock: true }
+      })
+    );
+    let cheapest = null;
+    let stockTotal = 0;
+    for (const variant of variants) {
+      stockTotal += Math.max(0, Number(variant.stock) || 0);
+      const price = Number(variant.priceCents) || 0;
+      if (price > 0 && (!cheapest || price < Number(cheapest.priceCents))) cheapest = variant;
+    }
+    const priceCents = cheapest ? Number(cheapest.priceCents) : 0;
+    const compare = cheapest ? Number(cheapest.compareAtPriceCents) || 0 : 0;
+    const data = {
+      priceCents,
+      // Only kept when it is a real discount, so "on sale" is a plain `not null` filter.
+      compareAtPriceCents: compare > priceCents ? compare : null,
+      stockTotal
+    };
+    if (options.priceTouched) {
+      const product = unwrap(
+        await prisma.storeProduct.findUnique({ where: { id: productId }, select: { source: true } })
+      );
+      if (product?.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE) data.externalSyncedAt = /* @__PURE__ */ new Date();
+    }
+    unwrap(await prisma.storeProduct.updateMany({ where: { id: productId }, data }));
+    bumpStoreCatalogVersion();
+  } catch (error) {
+    console.error("[store] could not recompute product totals:", productId, error);
+  }
+}
+async function recomputeStoreProductRating(context, productId) {
+  if (!productId) return null;
+  const prisma = storePrisma(context);
+  const rows2 = await prisma.$queryRaw`
+    UPDATE "StoreProduct" p
+    SET "ratingAverage" = s.average, "ratingCount" = s.total
+    FROM (
+      SELECT COALESCE(round(avg(r.rating)::numeric, 2), 0)::float8 AS average, count(*)::int AS total
+      FROM "StoreProductReview" r
+      WHERE r."product" = ${productId} AND r.status = ${STORE_REVIEW_STATUS.PUBLISHED}
+    ) s
+    WHERE p.id = ${productId}
+    RETURNING p."ratingAverage", p."ratingCount"
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  const row = rows2[0];
+  return row ? { ratingAverage: Number(row.ratingAverage), ratingCount: Number(row.ratingCount) } : null;
+}
+async function storeImageUrl(context, row) {
+  if (row.image_id) {
+    try {
+      const extension = row.image_extension || "jpg";
+      return await context.images("s3_store").getUrl(row.image_id, extension);
+    } catch (error) {
+      console.error("[store] could not sign image:", row.image_id, error);
+    }
+  }
+  return row.externalUrl || null;
+}
+async function loadStoreCovers(context, productIds) {
+  const covers = /* @__PURE__ */ new Map();
+  if (productIds.length === 0) return covers;
+  const rows2 = await storePrisma(context).$queryRaw`
+    SELECT DISTINCT ON (i."product")
+      i."product" AS "productId", i."image_id", i."image_extension", i."externalUrl", i."alt"
+    FROM "StoreProductImage" i
+    WHERE i."product" = ANY(${productIds}::text[])
+    ORDER BY i."product", i."order" ASC, i."createdAt" ASC
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  await Promise.all(
+    rows2.map(async (row) => {
+      covers.set(row.productId, { url: await storeImageUrl(context, row), alt: row.alt || null });
+    })
+  );
+  return covers;
+}
+async function loadStoreSaleVariants(context, productIds) {
+  const result5 = /* @__PURE__ */ new Map();
+  if (productIds.length === 0) return result5;
+  const rows2 = await storePrisma(context).storeProductVariant.groupBy({
+    by: ["productId"],
+    where: { productId: { in: productIds }, isActive: true, priceCents: { gt: 0 } },
+    _count: { _all: true },
+    _min: { id: true }
+  });
+  if (rows2 instanceof Error) throw rows2;
+  for (const row of rows2) {
+    if (!row.productId) continue;
+    const count2 = Number(row._count._all) || 0;
+    result5.set(row.productId, { count: count2, singleId: count2 === 1 ? row._min.id : null });
+  }
+  return result5;
+}
+var CATALOG_ITEM_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  shortDescription: true,
+  source: true,
+  priceCents: true,
+  compareAtPriceCents: true,
+  inventoryPolicy: true,
+  stockTotal: true,
+  ratingAverage: true,
+  ratingCount: true,
+  isFeatured: true,
+  affiliateUrl: true,
+  externalSyncedAt: true,
+  category: { select: { slug: true, name: true } },
+  brand: { select: { slug: true, name: true } }
+};
+function isStoreItemInStock(row) {
+  if (row.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE) return true;
+  if (row.inventoryPolicy === STORE_INVENTORY_POLICY.UNTRACKED) return true;
+  return (Number(row.stockTotal) || 0) > 0;
+}
+function storeStockLeft(inventoryPolicy, stock) {
+  if (inventoryPolicy !== STORE_INVENTORY_POLICY.TRACKED) return null;
+  const left = Math.max(0, Number(stock) || 0);
+  return left > 0 && left <= STORE_LOW_STOCK ? left : null;
+}
+function toCatalogItem(row, cover, variants) {
+  const seller = storeSellerFor(row.source);
+  const isAffiliate = seller === STORE_SELLER.MERCADO_LIBRE;
+  const inStock = isStoreItemInStock(row);
+  return {
+    id: row.id,
+    slug: row.slug ?? row.id,
+    name: row.name,
+    shortDescription: row.shortDescription || null,
+    seller,
+    priceCents: Number(row.priceCents) || 0,
+    compareAtPriceCents: row.compareAtPriceCents ? Number(row.compareAtPriceCents) : null,
+    currency: STORE_CURRENCY,
+    inStock,
+    variantsCount: isAffiliate ? 0 : variants?.count ?? 0,
+    // Straight to the cart from a card: sold by Kadesh, in stock and nothing to choose.
+    singleVariantId: !isAffiliate && inStock ? variants?.singleId ?? null : null,
+    // How many of that variant a card may put in the cart: its stock, up to the per-line cap.
+    singleVariantMaxQuantity: !isAffiliate && inStock && variants?.singleId ? row.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED ? Math.min(Math.max(0, Number(row.stockTotal) || 0), STORE_CART_MAX_QUANTITY) : STORE_CART_MAX_QUANTITY : null,
+    coverUrl: cover?.url ?? null,
+    coverAlt: cover?.alt ?? null,
+    ratingAverage: Number(row.ratingAverage) || 0,
+    ratingCount: Number(row.ratingCount) || 0,
+    isFeatured: Boolean(row.isFeatured),
+    category: row.category?.slug ? { slug: row.category.slug, name: row.category.name } : null,
+    brand: row.brand?.slug ? { slug: row.brand.slug, name: row.brand.name } : null,
+    // Only affiliate products carry an outbound link and the date their price was last checked.
+    affiliateUrl: isAffiliate ? row.affiliateUrl || null : null,
+    priceCheckedAt: isAffiliate && row.externalSyncedAt ? new Date(row.externalSyncedAt).toISOString() : null
+  };
+}
+async function loadCatalogItems(context, where, order) {
+  if (order.length === 0) return [];
+  const rows2 = unwrap(
+    await storePrisma(context).storeProduct.findMany({
+      where: { ...where, id: { in: order } },
+      select: CATALOG_ITEM_SELECT
+    })
+  );
+  const ids = rows2.map((row) => row.id);
+  const [covers, variants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
+  const byId = new Map(rows2.map((row) => [row.id, row]));
+  return order.filter((id) => byId.has(id)).map((id) => toCatalogItem(byId.get(id), covers.get(id), variants.get(id)));
+}
+function isHttpsUrl(value) {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// models/Pet/Store/StoreProduct/StoreProduct.hooks.ts
+var DERIVED_FIELDS = [
+  "nameSearch",
+  "priceCents",
+  "compareAtPriceCents",
+  "stockTotal",
+  "ratingAverage",
+  "ratingCount",
+  "salesCount"
+];
+var NULL_WHEN_EMPTY = ["externalId", "externalUrl", "affiliateUrl"];
+async function storeProductResolveInput({ resolvedData, item, operation, context }) {
+  const data = { ...resolvedData };
+  for (const field of DERIVED_FIELDS) delete data[field];
+  if (typeof data.name === "string") data.nameSearch = normalizeSearchText(data.name);
+  const slug = await resolveStoreSlug(context, "storeProduct", { operation, resolvedData: data, item });
+  if (slug !== void 0) data.slug = slug;
+  else delete data.slug;
+  for (const field of NULL_WHEN_EMPTY) {
+    if (typeof data[field] === "string") data[field] = data[field].trim() || null;
+  }
+  if (data.status === STORE_PRODUCT_STATUS.ACTIVE && !item?.publishedAt && !data.publishedAt) {
+    data.publishedAt = /* @__PURE__ */ new Date();
+  }
+  return data;
+}
+var MERCADO_LIBRE_HOSTS = ["mercadolibre.com.mx", "mercadolibre.com", "meli.la"];
+function isMercadoLibreUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    return MERCADO_LIBRE_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  } catch {
+    return false;
+  }
+}
+function storeProductValidateInput({ resolvedData, item, operation, addValidationError }) {
+  if (operation === "delete") return;
+  const pick = (field) => resolvedData[field] !== void 0 ? resolvedData[field] : item?.[field];
+  const source = pick("source");
+  const affiliateUrl = pick("affiliateUrl");
+  if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isHttpsUrl(affiliateUrl)) {
+    addValidationError("Un producto de Mercado Libre necesita su enlace de afiliado (https://\u2026).");
+  } else if (source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE && !isMercadoLibreUrl(affiliateUrl)) {
+    addValidationError("El enlace de afiliado debe ser de Mercado Libre (mercadolibre.com.mx o meli.la).");
+  }
+  if (source !== STORE_PRODUCT_SOURCE.MERCADO_LIBRE && affiliateUrl) {
+    addValidationError("El enlace de afiliado solo aplica a productos de Mercado Libre.");
+  }
+  const externalUrl = pick("externalUrl");
+  if (externalUrl && !isHttpsUrl(externalUrl)) {
+    addValidationError("El enlace externo debe empezar con https://.");
+  }
+  if (source === STORE_PRODUCT_SOURCE.DROPI && !pick("externalId")) {
+    addValidationError("Un producto de Dropi necesita su id de Dropi (externalId).");
+  }
+}
+async function storeProductValidateDelete({ item, context, addValidationError }) {
+  if (!item?.id) return;
+  const reviews = await storePrisma(context).storeProductReview.count({ where: { productId: item.id } });
+  if (reviews instanceof Error) throw reviews;
+  if (Number(reviews) > 0) {
+    addValidationError("Este producto tiene rese\xF1as: arch\xEDvalo en vez de borrarlo.");
+    return;
+  }
+  const ordered = await storePrisma(context).storeOrderItem.count({ where: { productId: item.id } });
+  if (ordered instanceof Error) throw ordered;
+  if (Number(ordered) > 0) {
+    addValidationError("Este producto est\xE1 en pedidos: arch\xEDvalo en vez de borrarlo.");
+  }
+}
+async function storeProductBeforeOperation({ operation, item, context }) {
+  if (operation !== "delete" || !item?.id) return;
+  const sudo = context.sudo();
+  const prisma = storePrisma(context);
+  const images = await prisma.storeProductImage.findMany({ where: { productId: item.id }, select: { id: true } });
+  if (images instanceof Error) throw images;
+  if (images.length > 0) {
+    await sudo.db.StoreProductImage.deleteMany({
+      where: images.map((image15) => ({ id: image15.id }))
+    });
+  }
+  const variants = await prisma.storeProductVariant.deleteMany({ where: { productId: item.id } });
+  if (variants instanceof Error) throw variants;
+  const wishes = await prisma.storeWishlistItem.deleteMany({ where: { productId: item.id } });
+  if (wishes instanceof Error) throw wishes;
+}
+async function storeProductAfterOperation({ operation, item, inputData, context }) {
+  bumpStoreCatalogVersion();
+  if (operation === "delete" || !item?.id) return;
+  if (operation === "create" || inputData?.variants !== void 0) {
+    await recomputeStoreProductTotals(context, String(item.id), { priceTouched: true });
+  }
+}
+
+// models/Pet/Store/StoreProduct/StoreProduct.ts
+var readOnly = { ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } } };
+var StoreProduct_default = (0, import_core53.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100 },
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(
+      /\n\}\s*$/,
+      "\n  @@unique([source, externalId])\n  @@index([status, categoryId])\n  @@index([status, publishedAt])\n}"
+    )
+  },
+  ui: {
+    labelField: "name",
+    listView: {
+      initialColumns: ["name", "source", "status", "priceCents", "stockTotal"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  hooks: {
+    resolveInput: storeProductResolveInput,
+    validateInput: storeProductValidateInput,
+    validateDelete: storeProductValidateDelete,
+    beforeOperation: storeProductBeforeOperation,
+    afterOperation: storeProductAfterOperation
+  },
+  fields: {
+    name: (0, import_fields53.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields53.text)({
+      isIndexed: "unique",
+      db: { isNullable: true },
+      ui: { description: "Se genera del nombre si se deja vac\xEDo." }
+    }),
+    nameSearch: (0, import_fields53.text)({ isIndexed: true, ...readOnly }),
+    shortDescription: (0, import_fields53.text)(),
+    description: (0, import_fields53.text)({ ui: { displayMode: "textarea" } }),
+    source: (0, import_fields53.select)({
+      type: "string",
+      options: STORE_PRODUCT_SOURCE_OPTIONS,
+      defaultValue: STORE_PRODUCT_SOURCE.OWN,
+      validation: { isRequired: true },
+      isIndexed: true,
+      ui: { description: "Interno. Al p\xFAblico, propio y Dropi salen como vendidos por Kadesh." }
+    }),
+    status: (0, import_fields53.select)({
+      type: "string",
+      options: STORE_PRODUCT_STATUS_OPTIONS,
+      defaultValue: STORE_PRODUCT_STATUS.DRAFT,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    isFeatured: (0, import_fields53.checkbox)({ defaultValue: false }),
+    publishedAt: (0, import_fields53.timestamp)({ ui: { itemView: { fieldMode: "read" } } }),
+    category: (0, import_fields53.relationship)({ ref: "StoreCategory.products", many: false }),
+    brand: (0, import_fields53.relationship)({ ref: "StoreBrand.products", many: false }),
+    animalTypes: (0, import_fields53.relationship)({ ref: "AnimalType", many: true }),
+    priceCents: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
+    compareAtPriceCents: (0, import_fields53.integer)({ ...readOnly }),
+    inventoryPolicy: (0, import_fields53.select)({
+      type: "string",
+      options: STORE_INVENTORY_POLICY_OPTIONS,
+      defaultValue: STORE_INVENTORY_POLICY.TRACKED,
+      validation: { isRequired: true }
+    }),
+    stockTotal: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
+    externalId: (0, import_fields53.text)({
+      db: { isNullable: true },
+      ui: { description: "Id del producto en Dropi, o el MLM\u2026 de Mercado Libre." }
+    }),
+    externalUrl: (0, import_fields53.text)({ db: { isNullable: true } }),
+    affiliateUrl: (0, import_fields53.text)({
+      db: { isNullable: true },
+      ui: { description: "Solo Mercado Libre: el enlace generado en el portal de afiliados." }
+    }),
+    dropiSupplierId: (0, import_fields53.integer)(),
+    suggestedPriceCents: (0, import_fields53.integer)({ ui: { description: "Precio sugerido por Dropi." } }),
+    externalSyncedAt: (0, import_fields53.timestamp)({
+      ui: { description: "Dropi: \xFAltima sincronizaci\xF3n. Mercado Libre: \xFAltima revisi\xF3n del precio." }
+    }),
+    ratingAverage: (0, import_fields53.float)({ defaultValue: 0, ...readOnly }),
+    ratingCount: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
+    salesCount: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
+    metaTitle: (0, import_fields53.text)(),
+    metaDescription: (0, import_fields53.text)(),
+    variants: (0, import_fields53.relationship)({ ref: "StoreProductVariant.product", many: true }),
+    images: (0, import_fields53.relationship)({ ref: "StoreProductImage.product", many: true }),
+    reviews: (0, import_fields53.relationship)({ ref: "StoreProductReview.product", many: true }),
+    createdAt: (0, import_fields53.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields53.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreProductVariant/StoreProductVariant.ts
+var import_core54 = require("@keystone-6/core");
+var import_fields54 = require("@keystone-6/core/fields");
+var StoreProductVariant_default = (0, import_core54.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    labelField: "title",
+    listView: { initialColumns: ["product", "title", "sku", "priceCents", "stock", "isActive"] }
+  },
+  hooks: {
+    validateInput: ({ operation, resolvedData, addValidationError }) => {
+      if (operation === "delete") return;
+      for (const field of ["priceCents", "compareAtPriceCents", "costCents", "stock", "weightGrams"]) {
+        const value = resolvedData[field];
+        if (typeof value === "number" && value < 0) addValidationError(`${field} no puede ser negativo.`);
+      }
+    },
+    // The product keeps a copy of its cheapest price and total stock.
+    afterOperation: async ({ operation, item, originalItem, inputData, context }) => {
+      const productId = item?.productId ?? originalItem?.productId ?? null;
+      const priceTouched = operation === "create" || inputData?.priceCents !== void 0;
+      await recomputeStoreProductTotals(context, productId, { priceTouched });
+      const previous = originalItem?.productId ?? null;
+      if (previous && previous !== productId) await recomputeStoreProductTotals(context, previous);
+    }
+  },
+  fields: {
+    product: (0, import_fields54.relationship)({ ref: "StoreProduct.variants", many: false }),
+    title: (0, import_fields54.text)({ ui: { description: "Por ejemplo \xABTalla M / Rojo\xBB. Vac\xEDo si el producto no tiene opciones." } }),
+    sku: (0, import_fields54.text)({ isIndexed: true, db: { isNullable: true } }),
+    options: (0, import_fields54.json)({ ui: { description: 'Opciones como objeto plano: { "Talla": "M", "Color": "Rojo" }' } }),
+    priceCents: (0, import_fields54.integer)({ validation: { isRequired: true }, defaultValue: 0 }),
+    compareAtPriceCents: (0, import_fields54.integer)({ ui: { description: "Precio anterior, para mostrarlo tachado." } }),
+    costCents: (0, import_fields54.integer)({ ui: { description: "Lo que paga Kadesh. Solo admin." } }),
+    stock: (0, import_fields54.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    dropiVariationId: (0, import_fields54.integer)(),
+    weightGrams: (0, import_fields54.integer)(),
+    order: (0, import_fields54.integer)({ defaultValue: 1, validation: { isRequired: true } }),
+    isActive: (0, import_fields54.checkbox)({ defaultValue: true }),
+    createdAt: (0, import_fields54.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProductImage/StoreProductImage.ts
+var import_core55 = require("@keystone-6/core");
+var import_fields55 = require("@keystone-6/core/fields");
+var StoreProductImage_default = (0, import_core55.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200 },
+  ui: {
+    listView: { initialColumns: ["product", "image", "order"] }
+  },
+  hooks: {
+    validateInput: ({ operation, resolvedData, item, addValidationError }) => {
+      if (operation === "delete") return;
+      const externalUrl = resolvedData.externalUrl !== void 0 ? resolvedData.externalUrl : item?.externalUrl;
+      if (externalUrl && !isHttpsUrl(externalUrl)) {
+        addValidationError("La imagen externa debe ser un enlace https://.");
+      }
+      if (operation !== "create") return;
+      const uploaded = resolvedData.image?.id ?? resolvedData.image_id;
+      if (!uploaded && !externalUrl) addValidationError("Sube una imagen o pega su enlace.");
+    },
+    afterOperation: async () => {
+      bumpStoreCatalogVersion();
+    }
+  },
+  fields: {
+    product: (0, import_fields55.relationship)({ ref: "StoreProduct.images", many: false }),
+    image: (0, import_fields55.image)({ storage: "s3_store" }),
+    externalUrl: (0, import_fields55.text)({ db: { isNullable: true } }),
+    alt: (0, import_fields55.text)(),
+    order: (0, import_fields55.integer)({
+      defaultValue: 1,
+      validation: { isRequired: true },
+      ui: { description: "1 es la portada. 2, 3\u2026 el resto." }
+    }),
+    createdAt: (0, import_fields55.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreProductReview/StoreProductReview.ts
+var import_core56 = require("@keystone-6/core");
+var import_fields56 = require("@keystone-6/core/fields");
+var StoreProductReview_default = (0, import_core56.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true } },
+  db: {
+    // Published reviews of one product, newest first.
+    extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@index([productId, status, createdAt])\n}")
+  },
+  ui: {
+    listView: {
+      initialColumns: ["product", "user", "rating", "status", "createdAt"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  hooks: {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
+      const productId = item?.productId ?? originalItem?.productId ?? null;
+      try {
+        await recomputeStoreProductRating(context, productId);
+        bumpStoreCatalogVersion();
+      } catch (error) {
+        console.error("[store] could not recompute rating:", productId, error);
+      }
+      void pawsOnStoreProductReview(context, {
+        userId: item?.userId ?? originalItem?.userId ?? null,
+        productId,
+        shouldHave: operation !== "delete" && item?.status === STORE_REVIEW_STATUS.PUBLISHED && Boolean(item?.verifiedPurchase)
+      });
+    }
+  },
+  fields: {
+    key: (0, import_fields56.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "<userId>:<productId>", itemView: { fieldMode: "read" } }
+    }),
+    product: (0, import_fields56.relationship)({ ref: "StoreProduct.reviews", many: false }),
+    user: (0, import_fields56.relationship)({ ref: "User", many: false }),
+    rating: (0, import_fields56.integer)({ validation: { isRequired: true, min: 1, max: 5 } }),
+    title: (0, import_fields56.text)(),
+    body: (0, import_fields56.text)({ ui: { displayMode: "textarea" } }),
+    status: (0, import_fields56.select)({
+      type: "string",
+      options: STORE_REVIEW_STATUS_OPTIONS,
+      defaultValue: STORE_REVIEW_STATUS.PUBLISHED,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    verifiedPurchase: (0, import_fields56.checkbox)({
+      defaultValue: false,
+      ui: { description: "La persona compr\xF3 y recibi\xF3 este producto en Kadesh." }
+    }),
+    adminReply: (0, import_fields56.text)({ ui: { displayMode: "textarea", description: "Respuesta p\xFAblica de Kadesh." } }),
+    createdAt: (0, import_fields56.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields56.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreWishlistItem/StoreWishlistItem.ts
+var import_core57 = require("@keystone-6/core");
+var import_fields57 = require("@keystone-6/core/fields");
+var StoreWishlistItem_default = (0, import_core57.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true } },
+  ui: {
+    listView: { initialColumns: ["user", "product", "createdAt"] }
+  },
+  fields: {
+    key: (0, import_fields57.text)({
+      isIndexed: "unique",
+      validation: { isRequired: true },
+      ui: { description: "<userId>:<productId>", itemView: { fieldMode: "read" } }
+    }),
+    user: (0, import_fields57.relationship)({ ref: "User", many: false }),
+    product: (0, import_fields57.relationship)({ ref: "StoreProduct", many: false }),
+    createdAt: (0, import_fields57.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreAddress/StoreAddress.ts
+var import_core58 = require("@keystone-6/core");
+var import_fields58 = require("@keystone-6/core/fields");
+var StoreAddress_default = (0, import_core58.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true } },
+  ui: {
+    labelField: "label",
+    listView: { initialColumns: ["user", "recipientName", "city", "stateCode", "postalCode"] }
+  },
+  fields: {
+    user: (0, import_fields58.relationship)({ ref: "User", many: false }),
+    label: (0, import_fields58.text)({ ui: { description: "Casa, Trabajo\u2026" } }),
+    recipientName: (0, import_fields58.text)({ validation: { isRequired: true } }),
+    phone: (0, import_fields58.text)({ ui: { description: "10 d\xEDgitos." } }),
+    street: (0, import_fields58.text)({ validation: { isRequired: true } }),
+    exteriorNumber: (0, import_fields58.text)(),
+    interiorNumber: (0, import_fields58.text)(),
+    neighborhood: (0, import_fields58.text)({ ui: { description: "Colonia." } }),
+    city: (0, import_fields58.text)({ ui: { description: "Municipio o alcald\xEDa." } }),
+    stateCode: (0, import_fields58.text)({ ui: { description: "Clave INEGI de dos d\xEDgitos (16 = Michoac\xE1n)." } }),
+    postalCode: (0, import_fields58.text)({ ui: { description: "5 d\xEDgitos." } }),
+    references: (0, import_fields58.text)({ ui: { displayMode: "textarea" } }),
+    isDefault: (0, import_fields58.checkbox)({ defaultValue: false }),
+    createdAt: (0, import_fields58.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreOrder/StoreOrder.ts
+var import_core59 = require("@keystone-6/core");
+var import_fields59 = require("@keystone-6/core/fields");
+var StoreOrder_default = (0, import_core59.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true, delete: true } },
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(
+      /\n\}\s*$/,
+      "\n  @@index([userId, createdAt])\n  @@index([paymentStatus, createdAt])\n  @@index([fulfillmentStatus, createdAt])\n  @@index([status, expiresAt])\n  @@index([paidAt])\n}"
+    )
+  },
+  ui: {
+    labelField: "number",
+    listView: {
+      initialColumns: ["number", "customerName", "paymentStatus", "fulfillmentStatus", "totalCents", "createdAt"],
+      initialSort: { field: "createdAt", direction: "DESC" }
+    }
+  },
+  fields: {
+    number: (0, import_fields59.text)({ isIndexed: "unique", validation: { isRequired: true }, ui: { description: "Folio: KP-XXXXXXXX" } }),
+    /**
+     * Random key the checkout sends with each attempt to pay. The same key twice (double click,
+     * retry, two taps at once) gets the same order back instead of a second one.
+     */
+    checkoutKey: (0, import_fields59.text)({ isIndexed: "unique", db: { isNullable: true }, ui: { itemView: { fieldMode: "read" } } }),
+    user: (0, import_fields59.relationship)({ ref: "User", many: false }),
+    customerName: (0, import_fields59.text)(),
+    email: (0, import_fields59.text)(),
+    phone: (0, import_fields59.text)(),
+    channel: (0, import_fields59.select)({
+      type: "string",
+      options: [
+        { label: "Web", value: STORE_ORDER_CHANNEL.WEB },
+        { label: "App", value: STORE_ORDER_CHANNEL.APP }
+      ],
+      defaultValue: STORE_ORDER_CHANNEL.WEB
+    }),
+    guestCheckout: (0, import_fields59.checkbox)({
+      defaultValue: false,
+      ui: { description: "La cuenta se cre\xF3 al hacer este pedido." }
+    }),
+    status: (0, import_fields59.select)({
+      type: "string",
+      options: STORE_ORDER_STATUS_OPTIONS,
+      defaultValue: STORE_ORDER_STATUS.OPEN,
+      validation: { isRequired: true }
+    }),
+    paymentStatus: (0, import_fields59.select)({
+      type: "string",
+      options: STORE_PAYMENT_STATUS_OPTIONS,
+      defaultValue: STORE_PAYMENT_STATUS.PENDING,
+      validation: { isRequired: true }
+    }),
+    fulfillmentStatus: (0, import_fields59.select)({
+      type: "string",
+      options: STORE_FULFILLMENT_STATUS_OPTIONS,
+      defaultValue: STORE_FULFILLMENT_STATUS.UNFULFILLED,
+      validation: { isRequired: true }
+    }),
+    unitsCount: (0, import_fields59.integer)({ defaultValue: 0, ui: { description: "Piezas en total (suma de cantidades)." } }),
+    subtotalCents: (0, import_fields59.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    couponCode: (0, import_fields59.text)({ db: { isNullable: true } }),
+    couponDiscountCents: (0, import_fields59.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    shippingCents: (0, import_fields59.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    totalCents: (0, import_fields59.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    costCents: (0, import_fields59.integer)({ defaultValue: 0, ui: { description: "Lo que le cuestan a Kadesh los productos. Solo admin." } }),
+    paymentMethod: (0, import_fields59.select)({ type: "string", options: STORE_PAYMENT_METHOD_OPTIONS, validation: { isRequired: true } }),
+    stripePaymentIntentId: (0, import_fields59.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    paidAt: (0, import_fields59.timestamp)(),
+    expiresAt: (0, import_fields59.timestamp)({ ui: { description: "Sin pagar para esta hora, el pedido se cancela solo." } }),
+    cancelledAt: (0, import_fields59.timestamp)(),
+    cancelReason: (0, import_fields59.text)(),
+    shipRecipientName: (0, import_fields59.text)(),
+    shipPhone: (0, import_fields59.text)(),
+    shipStreet: (0, import_fields59.text)(),
+    shipExteriorNumber: (0, import_fields59.text)(),
+    shipInteriorNumber: (0, import_fields59.text)(),
+    shipNeighborhood: (0, import_fields59.text)(),
+    shipCity: (0, import_fields59.text)(),
+    shipStateCode: (0, import_fields59.text)(),
+    shipPostalCode: (0, import_fields59.text)(),
+    shipReferences: (0, import_fields59.text)(),
+    customerNote: (0, import_fields59.text)({ ui: { displayMode: "textarea" } }),
+    adminNote: (0, import_fields59.text)({ ui: { displayMode: "textarea" } }),
+    searchText: (0, import_fields59.text)({ isIndexed: true, ui: { description: "Folio, nombre, correo y tel\xE9fono, para buscar." } }),
+    items: (0, import_fields59.relationship)({ ref: "StoreOrderItem.order", many: true }),
+    payments: (0, import_fields59.relationship)({ ref: "StorePayment.order", many: true }),
+    shipments: (0, import_fields59.relationship)({ ref: "StoreShipment.order", many: true }),
+    events: (0, import_fields59.relationship)({ ref: "StoreOrderEvent.order", many: true }),
+    createdAt: (0, import_fields59.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields59.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreOrderItem/StoreOrderItem.ts
+var import_core60 = require("@keystone-6/core");
+var import_fields60 = require("@keystone-6/core/fields");
+var StoreOrderItem_default = (0, import_core60.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200, omit: { create: true, update: true, delete: true } },
+  ui: {
+    labelField: "name",
+    listView: { initialColumns: ["order", "name", "variantTitle", "quantity", "totalCents"] }
+  },
+  fields: {
+    order: (0, import_fields60.relationship)({ ref: "StoreOrder.items", many: false }),
+    product: (0, import_fields60.relationship)({ ref: "StoreProduct", many: false }),
+    variant: (0, import_fields60.relationship)({ ref: "StoreProductVariant", many: false }),
+    shipment: (0, import_fields60.relationship)({ ref: "StoreShipment.items", many: false }),
+    name: (0, import_fields60.text)({ validation: { isRequired: true } }),
+    variantTitle: (0, import_fields60.text)(),
+    sku: (0, import_fields60.text)(),
+    source: (0, import_fields60.text)({ ui: { description: "own | dropi" } }),
+    externalId: (0, import_fields60.text)({ db: { isNullable: true }, ui: { description: "Id del producto en Dropi." } }),
+    dropiVariationId: (0, import_fields60.integer)(),
+    dropiSupplierId: (0, import_fields60.integer)(),
+    unitPriceCents: (0, import_fields60.integer)({ validation: { isRequired: true } }),
+    unitCostCents: (0, import_fields60.integer)(),
+    quantity: (0, import_fields60.integer)({ validation: { isRequired: true, min: 1 } }),
+    discountCents: (0, import_fields60.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    totalCents: (0, import_fields60.integer)({ validation: { isRequired: true } }),
+    reservedQuantity: (0, import_fields60.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true },
+      ui: { description: "Piezas apartadas del stock por esta l\xEDnea. Vuelven al stock si el pedido se cancela." }
+    }),
+    createdAt: (0, import_fields60.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StoreOrderEvent/StoreOrderEvent.ts
+var import_core61 = require("@keystone-6/core");
+var import_fields61 = require("@keystone-6/core/fields");
+var StoreOrderEvent_default = (0, import_core61.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 200, omit: { create: true, update: true, delete: true } },
+  db: {
+    extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@index([orderId, createdAt])\n}")
+  },
+  ui: {
+    listView: { initialColumns: ["order", "type", "actor", "message", "createdAt"] }
+  },
+  fields: {
+    order: (0, import_fields61.relationship)({ ref: "StoreOrder.events", many: false }),
+    type: (0, import_fields61.text)({ validation: { isRequired: true } }),
+    fromStatus: (0, import_fields61.text)(),
+    toStatus: (0, import_fields61.text)(),
+    actor: (0, import_fields61.relationship)({ ref: "User", many: false }),
+    message: (0, import_fields61.text)(),
+    isPublic: (0, import_fields61.checkbox)({ defaultValue: false }),
+    metadata: (0, import_fields61.json)(),
+    createdAt: (0, import_fields61.timestamp)({ defaultValue: { kind: "now" } })
+  }
+});
+
+// models/Pet/Store/StorePayment/StorePayment.ts
+var import_core62 = require("@keystone-6/core");
+var import_fields62 = require("@keystone-6/core/fields");
+var StorePayment_default = (0, import_core62.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true, delete: true } },
+  ui: {
+    listView: { initialColumns: ["order", "provider", "amountCents", "status", "createdAt"] }
+  },
+  fields: {
+    order: (0, import_fields62.relationship)({ ref: "StoreOrder.payments", many: false }),
+    provider: (0, import_fields62.select)({ type: "string", options: STORE_PAYMENT_METHOD_OPTIONS, validation: { isRequired: true } }),
+    amountCents: (0, import_fields62.integer)({ validation: { isRequired: true } }),
+    status: (0, import_fields62.select)({
+      type: "string",
+      options: STORE_PAYMENT_ATTEMPT_STATUS_OPTIONS,
+      defaultValue: STORE_PAYMENT_ATTEMPT_STATUS.PENDING,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    stripePaymentIntentId: (0, import_fields62.text)({ isIndexed: true, db: { isNullable: true } }),
+    stripeChargeId: (0, import_fields62.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    stripeRefundId: (0, import_fields62.text)({ db: { isNullable: true } }),
+    refundedCents: (0, import_fields62.integer)({ defaultValue: 0 }),
+    transferProof: (0, import_fields62.image)({ storage: "s3_store" }),
+    transferReference: (0, import_fields62.text)({ ui: { description: "Lo que la persona escribi\xF3 como referencia o clave de rastreo." } }),
+    reviewedBy: (0, import_fields62.relationship)({ ref: "User", many: false }),
+    reviewedAt: (0, import_fields62.timestamp)(),
+    errorMessage: (0, import_fields62.text)(),
+    createdAt: (0, import_fields62.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields62.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreShipment/StoreShipment.ts
+var import_core63 = require("@keystone-6/core");
+var import_fields63 = require("@keystone-6/core/fields");
+var StoreShipment_default = (0, import_core63.list)({
+  access: adminOnlyAccess,
+  graphql: { maxTake: 100, omit: { create: true, update: true, delete: true } },
+  ui: {
+    listView: { initialColumns: ["order", "provider", "status", "carrier", "trackingCode"] }
+  },
+  fields: {
+    order: (0, import_fields63.relationship)({ ref: "StoreOrder.shipments", many: false }),
+    items: (0, import_fields63.relationship)({ ref: "StoreOrderItem.shipment", many: true }),
+    provider: (0, import_fields63.select)({ type: "string", options: STORE_SHIPMENT_PROVIDER_OPTIONS, validation: { isRequired: true } }),
+    status: (0, import_fields63.select)({
+      type: "string",
+      options: STORE_SHIPMENT_STATUS_OPTIONS,
+      defaultValue: STORE_SHIPMENT_STATUS.PENDING,
+      validation: { isRequired: true },
+      isIndexed: true
+    }),
+    carrier: (0, import_fields63.text)(),
+    trackingCode: (0, import_fields63.text)(),
+    trackingUrl: (0, import_fields63.text)(),
+    shippingCostCents: (0, import_fields63.integer)({ ui: { description: "Lo que le cost\xF3 a Kadesh este env\xEDo." } }),
+    dropiOrderId: (0, import_fields63.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    dropiStatus: (0, import_fields63.text)({ ui: { description: "Estatus tal como lo dice Dropi." } }),
+    dropiSupplierId: (0, import_fields63.integer)(),
+    approvedBy: (0, import_fields63.relationship)({ ref: "User", many: false }),
+    approvedAt: (0, import_fields63.timestamp)(),
+    shippedAt: (0, import_fields63.timestamp)(),
+    deliveredAt: (0, import_fields63.timestamp)(),
+    lastSyncedAt: (0, import_fields63.timestamp)(),
+    lastError: (0, import_fields63.text)(),
+    createdAt: (0, import_fields63.timestamp)({ defaultValue: { kind: "now" } }),
+    updatedAt: (0, import_fields63.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/Pet/Store/StoreSettings/StoreSettings.ts
+var import_core64 = require("@keystone-6/core");
+var import_fields64 = require("@keystone-6/core/fields");
+
+// utils/store/settings.ts
+var cache = null;
+function resetStoreSettingsCache() {
+  cache = null;
+}
+function text51(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function int(value, fallback) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
+}
+async function getStoreSettings(context) {
+  if (cache && Date.now() - cache.at < STORE_SETTINGS_CACHE_MS) return cache.value;
+  const prisma = context.sudo().prisma;
+  let row = null;
+  try {
+    const found = await prisma.storeSettings.findFirst();
+    if (found instanceof Error) throw found;
+    row = found;
+  } catch (error) {
+    console.error("[store] could not read StoreSettings, using defaults:", error);
+  }
+  const value = {
+    shippingFlatCents: int(row?.shippingFlatCents, STORE_SETTINGS_DEFAULTS.shippingFlatCents),
+    freeShippingMinCents: row ? int(row.freeShippingMinCents, 0) : STORE_SETTINGS_DEFAULTS.freeShippingMinCents,
+    cardEnabled: row ? row.cardEnabled !== false : STORE_SETTINGS_DEFAULTS.cardEnabled,
+    transferEnabled: row ? row.transferEnabled !== false : STORE_SETTINGS_DEFAULTS.transferEnabled,
+    bankName: text51(row?.bankName),
+    bankBeneficiary: text51(row?.bankBeneficiary),
+    bankClabe: text51(row?.bankClabe),
+    bankNote: text51(row?.bankNote),
+    transferExpiryHours: int(row?.transferExpiryHours, STORE_SETTINGS_DEFAULTS.transferExpiryHours) || STORE_SETTINGS_DEFAULTS.transferExpiryHours,
+    cardExpiryMinutes: int(row?.cardExpiryMinutes, STORE_SETTINGS_DEFAULTS.cardExpiryMinutes) || STORE_SETTINGS_DEFAULTS.cardExpiryMinutes,
+    returnPolicy: text51(row?.returnPolicy) || STORE_DEFAULT_RETURN_POLICY,
+    supportWhatsapp: text51(row?.supportWhatsapp)
+  };
+  cache = { value, at: Date.now() };
+  return value;
+}
+function isTransferAvailable(settings) {
+  return settings.transferEnabled && Boolean(settings.bankClabe && settings.bankBeneficiary);
+}
+function isCardAvailable(settings) {
+  return settings.cardEnabled && Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+}
+function transferInstructions(settings, order) {
+  return {
+    bankName: settings.bankName,
+    beneficiary: settings.bankBeneficiary,
+    clabe: settings.bankClabe,
+    note: settings.bankNote || null,
+    reference: order.number,
+    amountCents: order.totalCents,
+    expiresAt: order.expiresAt ? new Date(order.expiresAt).toISOString() : null
+  };
+}
+
+// models/Pet/Store/StoreSettings/StoreSettings.ts
+var StoreSettings_default = (0, import_core64.list)({
+  access: adminOnlyAccess,
+  isSingleton: true,
+  // The list key already reads as a plural: Keystone needs a different name for the plural query.
+  graphql: { plural: "ManyStoreSettings" },
+  hooks: {
+    afterOperation: async () => {
+      resetStoreSettingsCache();
+    }
+  },
+  fields: {
+    shippingFlatCents: (0, import_fields64.integer)({
+      defaultValue: STORE_SETTINGS_DEFAULTS.shippingFlatCents,
+      validation: { isRequired: true, min: 0 },
+      ui: { description: "Env\xEDo por pedido, en centavos." }
+    }),
+    freeShippingMinCents: (0, import_fields64.integer)({
+      defaultValue: STORE_SETTINGS_DEFAULTS.freeShippingMinCents,
+      validation: { min: 0 },
+      ui: { description: "Desde este subtotal el env\xEDo es gratis. Vac\xEDo o 0 = nunca." }
+    }),
+    cardEnabled: (0, import_fields64.checkbox)({ defaultValue: STORE_SETTINGS_DEFAULTS.cardEnabled }),
+    transferEnabled: (0, import_fields64.checkbox)({ defaultValue: STORE_SETTINGS_DEFAULTS.transferEnabled }),
+    bankName: (0, import_fields64.text)(),
+    bankBeneficiary: (0, import_fields64.text)(),
+    bankClabe: (0, import_fields64.text)({ ui: { description: "18 d\xEDgitos." } }),
+    bankNote: (0, import_fields64.text)({ ui: { displayMode: "textarea", description: "Indicaciones extra para quien transfiere." } }),
+    transferExpiryHours: (0, import_fields64.integer)({
+      defaultValue: STORE_SETTINGS_DEFAULTS.transferExpiryHours,
+      validation: { isRequired: true, min: 1, max: 240 }
+    }),
+    cardExpiryMinutes: (0, import_fields64.integer)({
+      defaultValue: STORE_SETTINGS_DEFAULTS.cardExpiryMinutes,
+      validation: { isRequired: true, min: 10, max: 1440 }
+    }),
+    returnPolicy: (0, import_fields64.text)({ ui: { displayMode: "textarea" } }),
+    supportWhatsapp: (0, import_fields64.text)({ ui: { description: "10 d\xEDgitos, para dudas de un pedido." } }),
+    updatedAt: (0, import_fields64.timestamp)({ defaultValue: { kind: "now" }, db: { updatedAt: true } })
+  }
+});
+
+// models/TokenNotification/TokenNotification.ts
+var import_fields65 = require("@keystone-6/core/fields");
+var import_core65 = require("@keystone-6/core");
 
 // models/TokenNotification/constants.ts
 var PUSH_PLATFORM = {
@@ -14226,7 +15726,7 @@ var PUSH_PLATFORM_OPTIONS = [
 
 // models/TokenNotification/TokenNotification.ts
 var adminOnly8 = ({ session: session2 }) => isPlatformAdmin(session2);
-var TokenNotification_default = (0, import_core49.list)({
+var TokenNotification_default = (0, import_core65.list)({
   access: {
     operation: {
       query: adminOnly8,
@@ -14236,23 +15736,23 @@ var TokenNotification_default = (0, import_core49.list)({
     }
   },
   fields: {
-    token: (0, import_fields49.text)({
+    token: (0, import_fields65.text)({
       isIndexed: true,
       ui: {
         displayMode: "textarea"
       }
     }),
-    user: (0, import_fields49.relationship)({
+    user: (0, import_fields65.relationship)({
       ref: "User",
       many: false
     }),
-    platform: (0, import_fields49.select)({
+    platform: (0, import_fields65.select)({
       type: "string",
       options: PUSH_PLATFORM_OPTIONS,
       db: { isNullable: true }
     }),
-    deviceId: (0, import_fields49.text)({ db: { isNullable: true } }),
-    lastSeenAt: (0, import_fields49.timestamp)({
+    deviceId: (0, import_fields65.text)({ db: { isNullable: true } }),
+    lastSeenAt: (0, import_fields65.timestamp)({
       db: { isNullable: true },
       ui: { itemView: { fieldMode: "read" } }
     })
@@ -14260,8 +15760,8 @@ var TokenNotification_default = (0, import_core49.list)({
 });
 
 // models/Notification/Notification.ts
-var import_core50 = require("@keystone-6/core");
-var import_fields50 = require("@keystone-6/core/fields");
+var import_core66 = require("@keystone-6/core");
+var import_fields66 = require("@keystone-6/core/fields");
 
 // models/Notification/Notification.access.ts
 var signedIn6 = ({ session: session2 }) => isSignedIn(session2);
@@ -14295,7 +15795,7 @@ var deliveryField = {
 };
 
 // models/Notification/Notification.ts
-var Notification_default = (0, import_core50.list)({
+var Notification_default = (0, import_core66.list)({
   access: notificationAccess,
   ui: {
     listView: {
@@ -14304,63 +15804,63 @@ var Notification_default = (0, import_core50.list)({
     }
   },
   fields: {
-    recipient: (0, import_fields50.relationship)({
+    recipient: (0, import_fields66.relationship)({
       ref: "User",
       many: false,
       access: readOnlyField,
       ui: { description: "Qui\xE9n la recibe" }
     }),
-    product: (0, import_fields50.select)({
+    product: (0, import_fields66.select)({
       type: "string",
       options: NOTIFICATION_PRODUCT_OPTIONS,
       defaultValue: NOTIFICATION_PRODUCT.SAAS,
       isIndexed: true,
       access: readOnlyField
     }),
-    type: (0, import_fields50.text)({
+    type: (0, import_fields66.text)({
       isIndexed: true,
       access: readOnlyField,
       ui: { description: "animal.created, petplace.service_requested, \u2026" }
     }),
-    title: (0, import_fields50.text)({ validation: { isRequired: true }, access: readOnlyField }),
-    body: (0, import_fields50.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
-    entityType: (0, import_fields50.text)({ access: readOnlyField }),
-    entityId: (0, import_fields50.text)({ access: readOnlyField }),
+    title: (0, import_fields66.text)({ validation: { isRequired: true }, access: readOnlyField }),
+    body: (0, import_fields66.text)({ access: readOnlyField, ui: { displayMode: "textarea" } }),
+    entityType: (0, import_fields66.text)({ access: readOnlyField }),
+    entityId: (0, import_fields66.text)({ access: readOnlyField }),
     /** Ruta o URL a la que lleva el clic (p. ej. la pestaña de Operaciones o la ficha pública). */
-    url: (0, import_fields50.text)({ access: readOnlyField }),
-    metadata: (0, import_fields50.json)({ access: readOnlyField }),
-    readAt: (0, import_fields50.timestamp)({ db: { isNullable: true } }),
+    url: (0, import_fields66.text)({ access: readOnlyField }),
+    metadata: (0, import_fields66.json)({ access: readOnlyField }),
+    readAt: (0, import_fields66.timestamp)({ db: { isNullable: true } }),
     // ── A dónde se fue (solo admin la lee; la escribe el servidor). Ver README.md "Entrega".
-    pushStatus: (0, import_fields50.select)({
+    pushStatus: (0, import_fields66.select)({
       type: "string",
       options: PUSH_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Push a la app. Vac\xEDo = no aplica (solo Kadesh Pet)." }
     }),
-    pushDevices: (0, import_fields50.integer)({
+    pushDevices: (0, import_fields66.integer)({
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "Dispositivos a los que se intent\xF3 mandar el push" }
     }),
-    whatsappStatus: (0, import_fields50.select)({
+    whatsappStatus: (0, import_fields66.select)({
       type: "string",
       options: WHATSAPP_DELIVERY_OPTIONS,
       db: { isNullable: true },
       access: deliveryField,
       ui: { description: "WhatsApp. Vac\xEDo = el tipo no tiene plantilla." }
     }),
-    whatsappDetail: (0, import_fields50.text)({
+    whatsappDetail: (0, import_fields66.text)({
       access: deliveryField,
       ui: { description: "Por qu\xE9 no se mand\xF3 (sin_optin, sin_telefono\u2026) o el error de Meta" }
     }),
-    whatsappMessageId: (0, import_fields50.text)({
+    whatsappMessageId: (0, import_fields66.text)({
       isIndexed: true,
       access: deliveryField,
       ui: { description: "wamid de Meta: con \xE9l el webhook actualiza entregado / le\xEDdo / fall\xF3" }
     }),
-    whatsappUpdatedAt: (0, import_fields50.timestamp)({ db: { isNullable: true }, access: deliveryField }),
-    createdAt: (0, import_fields50.timestamp)({
+    whatsappUpdatedAt: (0, import_fields66.timestamp)({ db: { isNullable: true }, access: deliveryField }),
+    createdAt: (0, import_fields66.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       access: readOnlyField
@@ -14369,43 +15869,43 @@ var Notification_default = (0, import_core50.list)({
 });
 
 // models/Pet/Ad/Ad.ts
-var import_core51 = require("@keystone-6/core");
-var import_fields51 = require("@keystone-6/core/fields");
-var Ad_default = (0, import_core51.list)({
+var import_core67 = require("@keystone-6/core");
+var import_fields67 = require("@keystone-6/core/fields");
+var Ad_default = (0, import_core67.list)({
   access: adminOnlyAccess,
   fields: {
-    title: (0, import_fields51.text)(),
-    description: (0, import_fields51.text)({
+    title: (0, import_fields67.text)(),
+    description: (0, import_fields67.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    active: (0, import_fields51.checkbox)(),
-    start_date: (0, import_fields51.calendarDay)(),
-    end_date: (0, import_fields51.calendarDay)(),
-    price: (0, import_fields51.integer)(),
-    status: (0, import_fields51.select)({
+    active: (0, import_fields67.checkbox)(),
+    start_date: (0, import_fields67.calendarDay)(),
+    end_date: (0, import_fields67.calendarDay)(),
+    price: (0, import_fields67.integer)(),
+    status: (0, import_fields67.select)({
       options: STATUS_AD
     }),
-    type: (0, import_fields51.select)({
+    type: (0, import_fields67.select)({
       options: TYPES_AD
     }),
-    lat: (0, import_fields51.text)(),
-    lng: (0, import_fields51.text)(),
-    image: (0, import_fields51.image)({
+    lat: (0, import_fields67.text)(),
+    lng: (0, import_fields67.text)(),
+    image: (0, import_fields67.image)({
       storage: "s3_ads"
     }),
-    pet_place: (0, import_fields51.relationship)({
+    pet_place: (0, import_fields67.relationship)({
       ref: "PetPlace.pet_place_ads"
     }),
-    product: (0, import_fields51.relationship)({
+    product: (0, import_fields67.relationship)({
       ref: "Product.product_ads"
     }),
-    user: (0, import_fields51.relationship)({
+    user: (0, import_fields67.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields51.timestamp)({
+    createdAt: (0, import_fields67.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14418,8 +15918,8 @@ var Ad_default = (0, import_core51.list)({
 });
 
 // models/Blog/Post/Post.ts
-var import_core53 = require("@keystone-6/core");
-var import_fields53 = require("@keystone-6/core/fields");
+var import_core69 = require("@keystone-6/core");
+var import_fields69 = require("@keystone-6/core/fields");
 
 // models/Blog/Post/Post.access.ts
 var postAccess = {
@@ -14436,27 +15936,27 @@ var postAccess = {
 };
 
 // models/Blog/Post/Post.authorProfile.ts
-var import_core52 = require("@keystone-6/core");
-var import_fields52 = require("@keystone-6/core/fields");
-var PostAuthorImage = import_core52.graphql.object()({
+var import_core68 = require("@keystone-6/core");
+var import_fields68 = require("@keystone-6/core/fields");
+var PostAuthorImage = import_core68.graphql.object()({
   name: "PostAuthorImage",
   fields: {
-    url: import_core52.graphql.field({ type: import_core52.graphql.nonNull(import_core52.graphql.String) })
+    url: import_core68.graphql.field({ type: import_core68.graphql.nonNull(import_core68.graphql.String) })
   }
 });
-var PostAuthorProfile = import_core52.graphql.object()({
+var PostAuthorProfile = import_core68.graphql.object()({
   name: "PostAuthorProfile",
   fields: {
-    name: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    lastName: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    username: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    verified: import_core52.graphql.field({ type: import_core52.graphql.Boolean }),
-    createdAt: import_core52.graphql.field({ type: import_core52.graphql.String }),
-    profileImage: import_core52.graphql.field({ type: PostAuthorImage })
+    name: import_core68.graphql.field({ type: import_core68.graphql.String }),
+    lastName: import_core68.graphql.field({ type: import_core68.graphql.String }),
+    username: import_core68.graphql.field({ type: import_core68.graphql.String }),
+    verified: import_core68.graphql.field({ type: import_core68.graphql.Boolean }),
+    createdAt: import_core68.graphql.field({ type: import_core68.graphql.String }),
+    profileImage: import_core68.graphql.field({ type: PostAuthorImage })
   }
 });
-var postAuthorProfileField = (0, import_fields52.virtual)({
-  field: import_core52.graphql.field({
+var postAuthorProfileField = (0, import_fields68.virtual)({
+  field: import_core68.graphql.field({
     type: PostAuthorProfile,
     async resolve(item, _args, context) {
       if (!item?.authorId) return null;
@@ -14709,7 +16209,7 @@ var postPublishSideEffectsHook = {
 
 // models/Blog/Post/Post.ts
 var import_fields_document = require("@keystone-6/fields-document");
-var Post_default = (0, import_core53.list)({
+var Post_default = (0, import_core69.list)({
   access: postAccess,
   hooks: {
     resolveInput: publishedAtHook.resolveInput,
@@ -14722,7 +16222,7 @@ var Post_default = (0, import_core53.list)({
     }
   },
   fields: {
-    product: (0, import_fields53.select)({
+    product: (0, import_fields69.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -14732,8 +16232,8 @@ var Post_default = (0, import_core53.list)({
         description: "Pet, SaaS o ambas apps. Su categor\xEDa debe ser del mismo producto."
       }
     }),
-    title: (0, import_fields53.text)({ validation: { isRequired: true } }),
-    url: (0, import_fields53.text)({
+    title: (0, import_fields69.text)({ validation: { isRequired: true } }),
+    url: (0, import_fields69.text)({
       isIndexed: "unique",
       hooks: postUrlHook,
       ui: {
@@ -14746,21 +16246,21 @@ var Post_default = (0, import_core53.list)({
       dividers: true,
       links: true
     }),
-    excerpt: (0, import_fields53.text)({
+    excerpt: (0, import_fields69.text)({
       ui: {
         displayMode: "textarea"
       }
     }),
-    image: (0, import_fields53.image)({
+    image: (0, import_fields69.image)({
       storage: "s3_posts"
     }),
-    published: (0, import_fields53.checkbox)({
+    published: (0, import_fields69.checkbox)({
       defaultValue: false,
       ui: {
         description: 'Marca esto y deja "Published at" vac\xEDo para publicar de inmediato, o ponle una fecha futura para programarlo.'
       }
     }),
-    publishedAt: (0, import_fields53.timestamp)({
+    publishedAt: (0, import_fields69.timestamp)({
       ui: {
         createView: { fieldMode: "edit" },
         itemView: { fieldMode: "edit" },
@@ -14768,14 +16268,14 @@ var Post_default = (0, import_core53.list)({
       }
     }),
     /** Cuándo se mandó el correo de "nuevo post". No editable: evita reenvíos en guardados posteriores. */
-    publishedNotifiedAt: (0, import_fields53.timestamp)({
+    publishedNotifiedAt: (0, import_fields69.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
     /** Cuándo se publicó en la Página de Facebook. Editable: vaciarlo fuerza un reintento. */
-    publishedToFacebookAt: (0, import_fields53.timestamp)({
+    publishedToFacebookAt: (0, import_fields69.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "edit" },
@@ -14786,7 +16286,7 @@ var Post_default = (0, import_core53.list)({
      * Tarea de ClickUp que originó el post. Único para no duplicar si el webhook reintenta.
      * Vacío cuando el post se creó en el Admin.
      */
-    clickupTaskId: (0, import_fields53.text)({
+    clickupTaskId: (0, import_fields69.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
@@ -14795,37 +16295,37 @@ var Post_default = (0, import_core53.list)({
         description: "Id de la tarea de ClickUp. Lo llena el webhook al aprobar una publicaci\xF3n."
       }
     }),
-    category: (0, import_fields53.relationship)({
+    category: (0, import_fields69.relationship)({
       ref: "Category.posts",
       many: false
     }),
-    tags: (0, import_fields53.relationship)({
+    tags: (0, import_fields69.relationship)({
       ref: "Tag.posts",
       many: true
     }),
-    author: (0, import_fields53.relationship)({
+    author: (0, import_fields69.relationship)({
       ref: "User",
       many: false
     }),
     /** Datos públicos del autor para el blog: a un visitante `author` le llega `null`. */
     authorProfile: postAuthorProfileField,
-    comments: (0, import_fields53.relationship)({
+    comments: (0, import_fields69.relationship)({
       ref: "PostComment.post",
       many: true
     }),
-    post_likes: (0, import_fields53.relationship)({
+    post_likes: (0, import_fields69.relationship)({
       ref: "PostLike.post",
       many: true
     }),
-    post_favorites: (0, import_fields53.relationship)({
+    post_favorites: (0, import_fields69.relationship)({
       ref: "PostFavorite.post",
       many: true
     }),
-    post_views: (0, import_fields53.relationship)({
+    post_views: (0, import_fields69.relationship)({
       ref: "PostView.post",
       many: true
     }),
-    createdAt: (0, import_fields53.timestamp)({
+    createdAt: (0, import_fields69.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14834,7 +16334,7 @@ var Post_default = (0, import_core53.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields53.timestamp)({
+    updatedAt: (0, import_fields69.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14850,28 +16350,28 @@ var Post_default = (0, import_core53.list)({
 });
 
 // models/Blog/Post/PostComment/PostComment.ts
-var import_core54 = require("@keystone-6/core");
-var import_fields54 = require("@keystone-6/core/fields");
-var PostComment_default = (0, import_core54.list)({
+var import_core70 = require("@keystone-6/core");
+var import_fields70 = require("@keystone-6/core/fields");
+var PostComment_default = (0, import_core70.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    comment: (0, import_fields54.text)({
+    comment: (0, import_fields70.text)({
       validation: { isRequired: true },
       ui: { displayMode: "textarea" }
     }),
-    post: (0, import_fields54.relationship)({
+    post: (0, import_fields70.relationship)({
       ref: "Post.comments",
       many: false
     }),
-    user: (0, import_fields54.relationship)({
+    user: (0, import_fields70.relationship)({
       ref: "User",
       many: false
     }),
-    createdAt: (0, import_fields54.timestamp)({
+    createdAt: (0, import_fields70.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14880,7 +16380,7 @@ var PostComment_default = (0, import_core54.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields54.timestamp)({
+    updatedAt: (0, import_fields70.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14896,24 +16396,24 @@ var PostComment_default = (0, import_core54.list)({
 });
 
 // models/Blog/Post/PostLike/PostLike.ts
-var import_core55 = require("@keystone-6/core");
-var import_fields55 = require("@keystone-6/core/fields");
-var PostLike_default = (0, import_core55.list)({
+var import_core71 = require("@keystone-6/core");
+var import_fields71 = require("@keystone-6/core/fields");
+var PostLike_default = (0, import_core71.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields55.relationship)({
+    user: (0, import_fields71.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields55.relationship)({
+    post: (0, import_fields71.relationship)({
       ref: "Post.post_likes",
       many: false
     }),
-    createdAt: (0, import_fields55.timestamp)({
+    createdAt: (0, import_fields71.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14926,24 +16426,24 @@ var PostLike_default = (0, import_core55.list)({
 });
 
 // models/Blog/Post/PostFavorite/PostFavorite.ts
-var import_core56 = require("@keystone-6/core");
-var import_fields56 = require("@keystone-6/core/fields");
-var PostFavorite_default = (0, import_core56.list)({
+var import_core72 = require("@keystone-6/core");
+var import_fields72 = require("@keystone-6/core/fields");
+var PostFavorite_default = (0, import_core72.list)({
   access: userRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields56.relationship)({
+    user: (0, import_fields72.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields56.relationship)({
+    post: (0, import_fields72.relationship)({
       ref: "Post.post_favorites",
       many: false
     }),
-    createdAt: (0, import_fields56.timestamp)({
+    createdAt: (0, import_fields72.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14956,24 +16456,24 @@ var PostFavorite_default = (0, import_core56.list)({
 });
 
 // models/Blog/Post/PostView/PostView.ts
-var import_core57 = require("@keystone-6/core");
-var import_fields57 = require("@keystone-6/core/fields");
-var PostView_default = (0, import_core57.list)({
+var import_core73 = require("@keystone-6/core");
+var import_fields73 = require("@keystone-6/core/fields");
+var PostView_default = (0, import_core73.list)({
   access: viewRowAccess,
   hooks: {
     // A nombre de quien tiene la sesión: el cliente no puede firmar por otra persona.
     resolveInput: ({ resolvedData, operation, context }) => forceSessionUser(resolvedData, operation, context)
   },
   fields: {
-    user: (0, import_fields57.relationship)({
+    user: (0, import_fields73.relationship)({
       ref: "User",
       many: false
     }),
-    post: (0, import_fields57.relationship)({
+    post: (0, import_fields73.relationship)({
       ref: "Post.post_views",
       many: false
     }),
-    createdAt: (0, import_fields57.timestamp)({
+    createdAt: (0, import_fields73.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -14986,20 +16486,20 @@ var PostView_default = (0, import_core57.list)({
 });
 
 // models/Blog/Tag/Tag.ts
-var import_core58 = require("@keystone-6/core");
-var import_fields58 = require("@keystone-6/core/fields");
-var Tag_default = (0, import_core58.list)({
+var import_core74 = require("@keystone-6/core");
+var import_fields74 = require("@keystone-6/core/fields");
+var Tag_default = (0, import_core74.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    name: (0, import_fields58.text)({
+    name: (0, import_fields74.text)({
       validation: { isRequired: true },
       isIndexed: "unique"
     }),
-    posts: (0, import_fields58.relationship)({
+    posts: (0, import_fields74.relationship)({
       ref: "Post.tags",
       many: true
     }),
-    createdAt: (0, import_fields58.timestamp)({
+    createdAt: (0, import_fields74.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15012,13 +16512,13 @@ var Tag_default = (0, import_core58.list)({
 });
 
 // models/Blog/Category/Category.ts
-var import_core59 = require("@keystone-6/core");
-var import_fields59 = require("@keystone-6/core/fields");
+var import_core75 = require("@keystone-6/core");
+var import_fields75 = require("@keystone-6/core/fields");
 
 // models/Blog/Category/Category.hooks.ts
-function sanitizeUrl2(text89) {
+function sanitizeUrl2(text106) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{2934}\u{2935}]|[\u{2190}-\u{21FF}]/gu;
-  let cleaned = text89.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  let cleaned = text106.replace(emojiRegex, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ñ/g, "n").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned;
 }
 var categoryUrlHook = {
@@ -15055,13 +16555,13 @@ async function checkCategoryUrl(name, currentCategoryId, context) {
 }
 
 // models/Blog/Category/Category.ts
-var Category_default = (0, import_core59.list)({
+var Category_default = (0, import_core75.list)({
   access: publicReadAdminWriteAccess,
   ui: {
     listView: { initialColumns: ["name", "product", "url"] }
   },
   fields: {
-    product: (0, import_fields59.select)({
+    product: (0, import_fields75.select)({
       options: PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -15071,13 +16571,13 @@ var Category_default = (0, import_core59.list)({
         description: "Pet, SaaS o ambas apps. Define d\xF3nde aparece la categor\xEDa."
       }
     }),
-    name: (0, import_fields59.text)({
+    name: (0, import_fields75.text)({
       isIndexed: "unique",
       ui: {
         description: "Nombre visible. La direcci\xF3n se arma sola y no conviene cambiarla si ya hay art\xEDculos."
       }
     }),
-    url: (0, import_fields59.text)({
+    url: (0, import_fields75.text)({
       isIndexed: "unique",
       hooks: categoryUrlHook,
       ui: {
@@ -15085,14 +16585,14 @@ var Category_default = (0, import_core59.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    image: (0, import_fields59.image)({
+    image: (0, import_fields75.image)({
       storage: "s3_categories"
     }),
-    posts: (0, import_fields59.relationship)({
+    posts: (0, import_fields75.relationship)({
       ref: "Post.category",
       many: true
     }),
-    createdAt: (0, import_fields59.timestamp)({
+    createdAt: (0, import_fields75.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15105,8 +16605,8 @@ var Category_default = (0, import_core59.list)({
 });
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var import_core60 = require("@keystone-6/core");
-var import_fields60 = require("@keystone-6/core/fields");
+var import_core76 = require("@keystone-6/core");
+var import_fields76 = require("@keystone-6/core/fields");
 
 // models/Blog/BlogSubscription/BlogSubscription.hooks.ts
 function normalizeEmail(email) {
@@ -15180,7 +16680,7 @@ var blogSubscriptionHooks = {
 };
 
 // models/Blog/BlogSubscription/BlogSubscription.ts
-var BlogSubscription_default = (0, import_core60.list)({
+var BlogSubscription_default = (0, import_core76.list)({
   // Cualquiera se suscribe; solo el admin lee la lista. La baja va por `unsubscribeBlog` (sudo).
   access: anonymousCreateAccess,
   hooks: {
@@ -15189,14 +16689,14 @@ var BlogSubscription_default = (0, import_core60.list)({
     afterOperation: blogSubscriptionHooks.afterOperation
   },
   fields: {
-    email: (0, import_fields60.text)({
+    email: (0, import_fields76.text)({
       // No es único: la unicidad es (email, product), ver BlogSubscription.hooks.ts
       isIndexed: true,
       ui: {
         displayMode: "input"
       }
     }),
-    product: (0, import_fields60.select)({
+    product: (0, import_fields76.select)({
       options: SINGLE_PRODUCT_OPTIONS,
       defaultValue: PRODUCT.PET,
       validation: { isRequired: true },
@@ -15206,20 +16706,20 @@ var BlogSubscription_default = (0, import_core60.list)({
         description: "Blog al que est\xE1 suscrito: Pet o SaaS"
       }
     }),
-    user: (0, import_fields60.relationship)({
+    user: (0, import_fields76.relationship)({
       ref: "User.blog_subscriptions",
       many: false,
       ui: {
         displayMode: "select"
       }
     }),
-    active: (0, import_fields60.checkbox)({
+    active: (0, import_fields76.checkbox)({
       defaultValue: true,
       ui: {
         description: "Si est\xE1 activo, recibir\xE1 notificaciones de nuevos posts"
       }
     }),
-    createdAt: (0, import_fields60.timestamp)({
+    createdAt: (0, import_fields76.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15238,8 +16738,8 @@ var BlogSubscription_default = (0, import_core60.list)({
 });
 
 // models/Role/Role.ts
-var import_core61 = require("@keystone-6/core");
-var import_fields61 = require("@keystone-6/core/fields");
+var import_core77 = require("@keystone-6/core");
+var import_fields77 = require("@keystone-6/core/fields");
 
 // models/Role/Role.access.ts
 var roleAccess = {
@@ -15262,19 +16762,19 @@ var roleUsersFieldAccess = {
 };
 
 // models/Role/Role.ts
-var Role_default = (0, import_core61.list)({
+var Role_default = (0, import_core77.list)({
   access: roleAccess,
   fields: {
-    name: (0, import_fields61.select)({
+    name: (0, import_fields77.select)({
       options: ROLES,
       isIndexed: "unique"
     }),
-    users: (0, import_fields61.relationship)({
+    users: (0, import_fields77.relationship)({
       ref: "User.roles",
       many: true,
       access: roleUsersFieldAccess
     }),
-    createdAt: (0, import_fields61.timestamp)({
+    createdAt: (0, import_fields77.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15287,8 +16787,8 @@ var Role_default = (0, import_core61.list)({
 });
 
 // models/Pet/PetPlace/PetPlaceType/PetPlaceType.ts
-var import_core62 = require("@keystone-6/core");
-var import_fields62 = require("@keystone-6/core/fields");
+var import_core78 = require("@keystone-6/core");
+var import_fields78 = require("@keystone-6/core/fields");
 var PET_PLACE_TYPE_OPTIONS = TYPES_PET_SHELTER.map((type) => ({
   label: type.label,
   value: type.value
@@ -15311,22 +16811,22 @@ var pluralHook = {
     return resolvedData.plural || item?.plural;
   }
 };
-var PetPlaceType_default = (0, import_core62.list)({
+var PetPlaceType_default = (0, import_core78.list)({
   access: publicReadAdminWriteAccess,
   fields: {
-    value: (0, import_fields62.select)({
+    value: (0, import_fields78.select)({
       validation: { isRequired: true },
       isIndexed: "unique",
       options: PET_PLACE_TYPE_OPTIONS
     }),
-    label: (0, import_fields62.text)({
+    label: (0, import_fields78.text)({
       isIndexed: "unique",
       hooks: labelHook,
       ui: {
         itemView: { fieldMode: "read" }
       }
     }),
-    plural: (0, import_fields62.text)({
+    plural: (0, import_fields78.text)({
       hooks: pluralHook,
       ui: {
         itemView: { fieldMode: "read" }
@@ -15339,15 +16839,15 @@ var PetPlaceType_default = (0, import_core62.list)({
 });
 
 // models/ContactForm/ContactForm.ts
-var import_core63 = require("@keystone-6/core");
-var import_fields63 = require("@keystone-6/core/fields");
+var import_core79 = require("@keystone-6/core");
+var import_fields79 = require("@keystone-6/core/fields");
 var CONTACT_FORM_STATUS_OPTIONS = [
   { label: "Nuevo", value: "new" },
   { label: "Le\xEDdo", value: "read" },
   { label: "En proceso", value: "in_progress" },
   { label: "Resuelto", value: "resolved" }
 ];
-var ContactForm_default = (0, import_core63.list)({
+var ContactForm_default = (0, import_core79.list)({
   // Cualquiera escribe; solo el admin lee los mensajes (nombre, correo y teléfono de quien escribe).
   access: anonymousCreateAccess,
   hooks: {
@@ -15358,44 +16858,44 @@ var ContactForm_default = (0, import_core63.list)({
     }
   },
   fields: {
-    name: (0, import_fields63.text)({
+    name: (0, import_fields79.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    email: (0, import_fields63.text)({
+    email: (0, import_fields79.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    phone: (0, import_fields63.text)({
+    phone: (0, import_fields79.text)({
       validation: { isRequired: false },
       ui: {
         displayMode: "input"
       }
     }),
-    subject: (0, import_fields63.text)({
+    subject: (0, import_fields79.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "input"
       }
     }),
-    message: (0, import_fields63.text)({
+    message: (0, import_fields79.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea"
       }
     }),
-    status: (0, import_fields63.select)({
+    status: (0, import_fields79.select)({
       options: CONTACT_FORM_STATUS_OPTIONS,
       defaultValue: "new",
       ui: {
         displayMode: "select"
       }
     }),
-    createdAt: (0, import_fields63.timestamp)({
+    createdAt: (0, import_fields79.timestamp)({
       defaultValue: {
         kind: "now"
       },
@@ -15414,8 +16914,8 @@ var ContactForm_default = (0, import_core63.list)({
 });
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var import_core64 = require("@keystone-6/core");
-var import_fields64 = require("@keystone-6/core/fields");
+var import_core80 = require("@keystone-6/core");
+var import_fields80 = require("@keystone-6/core/fields");
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.access.ts
 var metaDataDeletionRequestAccess = {
@@ -15440,7 +16940,7 @@ var META_DATA_DELETION_STATUS_OPTIONS = [
 ];
 
 // models/Saas/MetaDataDeletionRequest/MetaDataDeletionRequest.ts
-var MetaDataDeletionRequest_default = (0, import_core64.list)({
+var MetaDataDeletionRequest_default = (0, import_core80.list)({
   access: metaDataDeletionRequestAccess,
   ui: {
     label: "Eliminaci\xF3n de datos (Meta)",
@@ -15449,21 +16949,21 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
     }
   },
   fields: {
-    metaUserId: (0, import_fields64.text)({
+    metaUserId: (0, import_fields80.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "App-scoped user id que Meta manda en el signed_request (user_id)."
       }
     }),
-    confirmationCode: (0, import_fields64.text)({
+    confirmationCode: (0, import_fields80.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "C\xF3digo p\xFAblico para consultar el estado. No es un dato de Meta."
       }
     }),
-    status: (0, import_fields64.select)({
+    status: (0, import_fields80.select)({
       type: "string",
       options: META_DATA_DELETION_STATUS_OPTIONS,
       defaultValue: "pending" /* PENDING */,
@@ -15471,16 +16971,16 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
       isIndexed: true,
       ui: { displayMode: "select" }
     }),
-    requestedAt: (0, import_fields64.timestamp)({
+    requestedAt: (0, import_fields80.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" },
       ui: { description: "Cu\xE1ndo lleg\xF3 el callback de Meta." }
     }),
-    completedAt: (0, import_fields64.timestamp)({
+    completedAt: (0, import_fields80.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo se marc\xF3 completed. Vac\xEDo si sigue pending o failed." }
     }),
-    notes: (0, import_fields64.text)({
+    notes: (0, import_fields80.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
@@ -15491,8 +16991,8 @@ var MetaDataDeletionRequest_default = (0, import_core64.list)({
 });
 
 // models/Saas/Tech/BusinessLead/TechBusinessLead.ts
-var import_core65 = require("@keystone-6/core");
-var import_fields65 = require("@keystone-6/core/fields");
+var import_core81 = require("@keystone-6/core");
+var import_fields81 = require("@keystone-6/core/fields");
 
 // utils/access/leadScopedFilter.ts
 function leadInCompany(companyId) {
@@ -15579,11 +17079,6 @@ var businessLeadAccess = {
   }
 };
 
-// utils/helpers/normalizeSearchText.ts
-function normalizeSearchText(value) {
-  return (value ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
-}
-
 // models/Saas/Tech/BusinessLead/TechBusinessLead.hooks.ts
 function stripTenantFromClient(resolvedData, key) {
   const next = { ...resolvedData };
@@ -15592,8 +17087,8 @@ function stripTenantFromClient(resolvedData, key) {
 }
 function connectIds(connect) {
   if (!connect) return [];
-  const list103 = Array.isArray(connect) ? connect : [connect];
-  return list103.map((item) => {
+  const list119 = Array.isArray(connect) ? connect : [connect];
+  return list119.map((item) => {
     if (typeof item === "string") return item;
     if (item && typeof item === "object" && "id" in item) {
       return String(item.id);
@@ -15643,7 +17138,7 @@ var sourceOptions = Object.entries(LEAD_SOURCE).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechBusinessLead_default = (0, import_core65.list)({
+var TechBusinessLead_default = (0, import_core81.list)({
   access: businessLeadAccess,
   hooks: businessLeadHooks,
   ui: {
@@ -15658,13 +17153,13 @@ var TechBusinessLead_default = (0, import_core65.list)({
     }
   },
   fields: {
-    businessName: (0, import_fields65.text)({
+    businessName: (0, import_fields81.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
     // businessName en minúsculas y sin acentos, para buscar con `contains`. Lo llena el hook
     // del list; nadie lo escribe por la API ni desde la Admin UI.
-    businessNameSearch: (0, import_fields65.text)({
+    businessNameSearch: (0, import_fields81.text)({
       graphql: { omit: { create: true, update: true } },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15673,91 +17168,91 @@ var TechBusinessLead_default = (0, import_core65.list)({
         description: "Nombre normalizado para b\xFAsqueda (se calcula solo)"
       }
     }),
-    category: (0, import_fields65.text)({ isIndexed: true }),
-    phone: (0, import_fields65.text)(),
-    email: (0, import_fields65.text)(),
-    address: (0, import_fields65.text)(),
-    city: (0, import_fields65.text)({ isIndexed: true }),
-    state: (0, import_fields65.text)({ isIndexed: true }),
-    country: (0, import_fields65.text)({ isIndexed: true }),
-    rating: (0, import_fields65.float)(),
-    lat: (0, import_fields65.float)(),
-    lng: (0, import_fields65.float)(),
-    reviewCount: (0, import_fields65.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
-    hasWebsite: (0, import_fields65.checkbox)({
+    category: (0, import_fields81.text)({ isIndexed: true }),
+    phone: (0, import_fields81.text)(),
+    email: (0, import_fields81.text)(),
+    address: (0, import_fields81.text)(),
+    city: (0, import_fields81.text)({ isIndexed: true }),
+    state: (0, import_fields81.text)({ isIndexed: true }),
+    country: (0, import_fields81.text)({ isIndexed: true }),
+    rating: (0, import_fields81.float)(),
+    lat: (0, import_fields81.float)(),
+    lng: (0, import_fields81.float)(),
+    reviewCount: (0, import_fields81.integer)({ ui: { description: "N\xFAmero de rese\xF1as" } }),
+    hasWebsite: (0, import_fields81.checkbox)({
       defaultValue: false,
       ui: { description: "Tiene sitio web" }
     }),
-    websiteUrl: (0, import_fields65.text)(),
-    source: (0, import_fields65.select)({
+    websiteUrl: (0, import_fields81.text)(),
+    source: (0, import_fields81.select)({
       type: "string",
       options: sourceOptions,
       defaultValue: "Google Maps",
       ui: { description: "Fuente del lead" }
     }),
-    status: (0, import_fields65.relationship)({
+    status: (0, import_fields81.relationship)({
       ref: "TechStatusBusinessLead.businessLead",
       many: true,
       ui: { description: "Estado y datos variables del lead" }
     }),
-    instagram: (0, import_fields65.text)({ ui: { description: "Usuario o URL de Instagram" } }),
-    facebook: (0, import_fields65.text)({ ui: { description: "URL de Facebook" } }),
-    xTwitter: (0, import_fields65.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
-    tiktok: (0, import_fields65.text)({ ui: { description: "Usuario o URL de TikTok" } }),
+    instagram: (0, import_fields81.text)({ ui: { description: "Usuario o URL de Instagram" } }),
+    facebook: (0, import_fields81.text)({ ui: { description: "URL de Facebook" } }),
+    xTwitter: (0, import_fields81.text)({ ui: { description: "Usuario o URL de X (Twitter)" } }),
+    tiktok: (0, import_fields81.text)({ ui: { description: "Usuario o URL de TikTok" } }),
     // Reseñas de Google (máx. 5 positivas) para uso en prompt de IA
-    topReview1: (0, import_fields65.text)({
+    topReview1: (0, import_fields81.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 1 (Google)" }
     }),
-    topReview2: (0, import_fields65.text)({
+    topReview2: (0, import_fields81.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 2 (Google)" }
     }),
-    topReview3: (0, import_fields65.text)({
+    topReview3: (0, import_fields81.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 3 (Google)" }
     }),
-    topReview4: (0, import_fields65.text)({
+    topReview4: (0, import_fields81.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 4 (Google)" }
     }),
-    topReview5: (0, import_fields65.text)({
+    topReview5: (0, import_fields81.text)({
       ui: { displayMode: "textarea", description: "Mejor rese\xF1a 5 (Google)" }
     }),
     // Prompt listo para copiar y usar en vibe coding / IA (info del negocio + reseñas)
-    websitePromptContent: (0, import_fields65.text)({
+    websitePromptContent: (0, import_fields81.text)({
       ui: {
         displayMode: "textarea",
         description: "Prompt listo para IA: crear sitio web con la info del negocio y las 5 rese\xF1as positivas de Google. Copiar y pegar en tu herramienta de vibe coding."
       }
     }),
     // Relaciones inversas
-    activities: (0, import_fields65.relationship)({
+    activities: (0, import_fields81.relationship)({
       ref: "TechSalesActivity.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields65.relationship)({
+    tasks: (0, import_fields81.relationship)({
       ref: "TechTask.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace ligadas al lead" }
     }),
-    proposals: (0, import_fields65.relationship)({
+    proposals: (0, import_fields81.relationship)({
       ref: "TechProposal.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    projects: (0, import_fields65.relationship)({
+    projects: (0, import_fields81.relationship)({
       ref: "SaasProject.businessLead",
       many: true,
       ui: { description: "Proyectos creados tras venta cerrada (cliente)" }
     }),
-    followUpTasks: (0, import_fields65.relationship)({
+    followUpTasks: (0, import_fields81.relationship)({
       ref: "TechFollowUpTask.businessLead",
       many: true,
       ui: { hideCreate: true }
     }),
-    googleMapsUrl: (0, import_fields65.text)({
+    googleMapsUrl: (0, import_fields81.text)({
       ui: { description: "URL de Google Maps del negocio" }
     }),
     // Para importación desde Google (opcional)
-    googlePlaceId: (0, import_fields65.text)({
+    googlePlaceId: (0, import_fields81.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -15765,41 +17260,41 @@ var TechBusinessLead_default = (0, import_core65.list)({
         listView: { fieldMode: "hidden" }
       }
     }),
-    sourceEstablishment: (0, import_fields65.relationship)({
+    sourceEstablishment: (0, import_fields81.relationship)({
       ref: "TechInegiEstablishment.promotedLeads",
       many: false,
       ui: {
         description: "Establecimiento DENUE del que se promovi\xF3 este lead"
       }
     }),
-    salesPerson: (0, import_fields65.relationship)({
+    salesPerson: (0, import_fields81.relationship)({
       ref: "User.businessLeadsAssigned",
       many: true,
       ui: { description: "Vendedor asignado" }
     }),
-    saasCompany: (0, import_fields65.relationship)({
+    saasCompany: (0, import_fields81.relationship)({
       ref: "SaasCompany.leads",
       many: true,
       ui: { description: "Empresa a la que pertenece el lead" }
     }),
-    quotations: (0, import_fields65.relationship)({
+    quotations: (0, import_fields81.relationship)({
       ref: "SaasQuotation.lead",
       many: true,
       ui: { description: "Cotizaciones ligadas a este lead" }
     }),
-    whatsappMessages: (0, import_fields65.relationship)({
+    whatsappMessages: (0, import_fields81.relationship)({
       ref: "TechWhatsAppMessage.businessLead",
       many: true,
       ui: { hideCreate: true, description: "Historial de WhatsApp con este lead" }
     }),
-    createdAt: (0, import_fields65.timestamp)({
+    createdAt: (0, import_fields81.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields65.timestamp)({
+    updatedAt: (0, import_fields81.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -15810,8 +17305,8 @@ var TechBusinessLead_default = (0, import_core65.list)({
 });
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts
-var import_core66 = require("@keystone-6/core");
-var import_fields66 = require("@keystone-6/core/fields");
+var import_core82 = require("@keystone-6/core");
+var import_fields82 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.access.ts
 var statusBusinessLeadAccess = {
@@ -15901,7 +17396,7 @@ var opportunityOptions = Object.entries(OPPORTUNITY_LEVEL).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechStatusBusinessLead_default = (0, import_core66.list)({
+var TechStatusBusinessLead_default = (0, import_core82.list)({
   access: statusBusinessLeadAccess,
   db: {
     extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, "\n  @@unique([businessLeadId, saasCompanyId])\n}")
@@ -15925,38 +17420,38 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
     }
   },
   fields: {
-    businessLead: (0, import_fields66.relationship)({
+    businessLead: (0, import_fields82.relationship)({
       ref: "TechBusinessLead.status",
       many: false,
       ui: { description: "Lead de negocio asociado" }
     }),
-    opportunityLevel: (0, import_fields66.select)({
+    opportunityLevel: (0, import_fields82.select)({
       type: "string",
       options: opportunityOptions,
       defaultValue: "Media",
       isIndexed: true,
       ui: { description: "Nivel de oportunidad" }
     }),
-    pipelineStatus: (0, import_fields66.select)({
+    pipelineStatus: (0, import_fields82.select)({
       type: "string",
       options: pipelineOptions2,
       defaultValue: PIPELINE_STATUS.DETECTADO,
       isIndexed: true,
       ui: { description: "Estado en el pipeline" }
     }),
-    estimatedValue: (0, import_fields66.float)({
+    estimatedValue: (0, import_fields82.float)({
       ui: { description: "Valor estimado del proyecto" }
     }),
-    productOffered: (0, import_fields66.text)({
+    productOffered: (0, import_fields82.text)({
       ui: { description: "Producto ofrecido (web, e-commerce, etc.)" }
     }),
-    firstContactDate: (0, import_fields66.calendarDay)({
+    firstContactDate: (0, import_fields82.calendarDay)({
       ui: { description: "Fecha primer contacto" }
     }),
     /** Virtual: next follow-up date from the latest FollowUpTask with status Pendiente or Pospuesto */
-    nextFollowUpDate: (0, import_fields66.virtual)({
-      field: import_core66.graphql.field({
-        type: import_core66.graphql.String,
+    nextFollowUpDate: (0, import_fields82.virtual)({
+      field: import_core82.graphql.field({
+        type: import_core82.graphql.String,
         async resolve(item, _args, context) {
           let businessLeadId = item.businessLeadId;
           if (businessLeadId == null) {
@@ -15984,7 +17479,7 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
       }),
       ui: { description: "Pr\xF3xima fecha de seguimiento (del \xFAltimo FollowUpTask Pendiente o Pospuesto)" }
     }),
-    saasCompany: (0, import_fields66.relationship)({
+    saasCompany: (0, import_fields82.relationship)({
       ref: "SaasCompany.techStatusBusinessLeads",
       many: false,
       ui: { description: "Empresa a la que pertenece el lead" }
@@ -15994,20 +17489,20 @@ var TechStatusBusinessLead_default = (0, import_core66.list)({
      * datos históricos; el hook la ignora en escrituras. El vendedor asignado es
      * `TechBusinessLead.salesPerson`.
      */
-    salesPerson: (0, import_fields66.relationship)({
+    salesPerson: (0, import_fields82.relationship)({
       ref: "User.techStatusBusinessLeads",
       many: false,
       ui: { description: "Deprecado: el vendedor asignado vive en el lead (TechBusinessLead.salesPerson)" }
     }),
-    notes: (0, import_fields66.text)({
+    notes: (0, import_fields82.text)({
       ui: { displayMode: "textarea", description: "Notas generales" }
     })
   }
 });
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
-var import_core67 = require("@keystone-6/core");
-var import_fields67 = require("@keystone-6/core/fields");
+var import_core83 = require("@keystone-6/core");
+var import_fields83 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.access.ts
 var techLeadStageChangeAccess = {
@@ -16026,7 +17521,7 @@ var techLeadStageChangeAccess = {
 
 // models/Saas/Tech/LeadStageChange/TechLeadStageChange.ts
 var pipelineOptions3 = Object.values(PIPELINE_STATUS).map((value) => ({ label: value, value }));
-var TechLeadStageChange_default = (0, import_core67.list)({
+var TechLeadStageChange_default = (0, import_core83.list)({
   access: techLeadStageChangeAccess,
   ui: {
     hideCreate: true,
@@ -16036,32 +17531,32 @@ var TechLeadStageChange_default = (0, import_core67.list)({
     }
   },
   fields: {
-    company: (0, import_fields67.relationship)({ ref: "SaasCompany", many: false }),
-    businessLead: (0, import_fields67.relationship)({ ref: "TechBusinessLead", many: false }),
-    statusId: (0, import_fields67.text)({
+    company: (0, import_fields83.relationship)({ ref: "SaasCompany", many: false }),
+    businessLead: (0, import_fields83.relationship)({ ref: "TechBusinessLead", many: false }),
+    statusId: (0, import_fields83.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "TechStatusBusinessLead (estatus del lead en esa empresa)" }
     }),
-    fromStatus: (0, import_fields67.select)({
+    fromStatus: (0, import_fields83.select)({
       type: "string",
       options: pipelineOptions3,
       db: { isNullable: true },
       ui: { description: "Etapa anterior (vac\xEDa si es la primera)" }
     }),
-    toStatus: (0, import_fields67.select)({
+    toStatus: (0, import_fields83.select)({
       type: "string",
       options: pipelineOptions3,
       isIndexed: true,
       validation: { isRequired: true },
       ui: { description: "Etapa nueva" }
     }),
-    changedBy: (0, import_fields67.relationship)({ ref: "User", many: false }),
-    source: (0, import_fields67.text)({
+    changedBy: (0, import_fields83.relationship)({ ref: "User", many: false }),
+    source: (0, import_fields83.text)({
       db: { isNullable: true },
       ui: { description: "web (una persona), system (servidor) o backfill (recuperado de ActivityEvent)" }
     }),
-    changedAt: (0, import_fields67.timestamp)({
+    changedAt: (0, import_fields83.timestamp)({
       defaultValue: { kind: "now" },
       isIndexed: true,
       validation: { isRequired: true }
@@ -16070,8 +17565,8 @@ var TechLeadStageChange_default = (0, import_core67.list)({
 });
 
 // models/Saas/Tech/FollowUpTask/TechFollowUpTask.ts
-var import_core68 = require("@keystone-6/core");
-var import_fields68 = require("@keystone-6/core/fields");
+var import_core84 = require("@keystone-6/core");
+var import_fields84 = require("@keystone-6/core/fields");
 
 // utils/access/crmWorkspaceScopedFilter.ts
 var getCompanyId = (session2) => session2?.data?.company?.id;
@@ -16425,7 +17920,7 @@ var priorityOptions = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechFollowUpTask_default = (0, import_core68.list)({
+var TechFollowUpTask_default = (0, import_core84.list)({
   access: followUpTaskAccess,
   hooks: followUpTaskHooks,
   ui: {
@@ -16440,62 +17935,62 @@ var TechFollowUpTask_default = (0, import_core68.list)({
     }
   },
   fields: {
-    scheduledDate: (0, import_fields68.calendarDay)({
+    scheduledDate: (0, import_fields84.calendarDay)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Fecha programada" }
     }),
-    status: (0, import_fields68.select)({
+    status: (0, import_fields84.select)({
       type: "string",
       options: statusOptions,
       defaultValue: FOLLOW_UP_TASK_STATUS.PENDIENTE,
       isIndexed: true
     }),
-    priority: (0, import_fields68.select)({
+    priority: (0, import_fields84.select)({
       type: "string",
       options: priorityOptions,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    businessLead: (0, import_fields68.relationship)({
+    businessLead: (0, import_fields84.relationship)({
       ref: "TechBusinessLead.followUpTasks",
       many: false
     }),
-    assignedSeller: (0, import_fields68.relationship)({
+    assignedSeller: (0, import_fields84.relationship)({
       ref: "User.followUpTasks",
       many: false
     }),
-    createdBy: (0, import_fields68.relationship)({
+    createdBy: (0, import_fields84.relationship)({
       ref: "User.createdByFollowUpTasks",
       many: false
     }),
-    workspace: (0, import_fields68.relationship)({
+    workspace: (0, import_fields84.relationship)({
       ref: "SaasWorkspace.followUpTasks",
       many: false,
       ui: { description: "Workspace a la que pertenece la tarea" }
     }),
-    statusCrm: (0, import_fields68.relationship)({
+    statusCrm: (0, import_fields84.relationship)({
       ref: "SaasWorkspaceCrmStatus.followUpTasks",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo tarea)" }
     }),
-    calendarEvent: (0, import_fields68.relationship)({
+    calendarEvent: (0, import_fields84.relationship)({
       ref: "TechCalendarEvent.followUpTask",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    notes: (0, import_fields68.text)({ ui: { displayMode: "textarea" } }),
-    hiddenInWorkspace: (0, import_fields68.checkbox)({
+    notes: (0, import_fields84.text)({ ui: { displayMode: "textarea" } }),
+    hiddenInWorkspace: (0, import_fields84.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields68.timestamp)({
+    createdAt: (0, import_fields84.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields68.timestamp)({
+    updatedAt: (0, import_fields84.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16506,8 +18001,8 @@ var TechFollowUpTask_default = (0, import_core68.list)({
 });
 
 // models/Saas/Tech/Proposal/TechProposal.ts
-var import_core69 = require("@keystone-6/core");
-var import_fields69 = require("@keystone-6/core/fields");
+var import_core85 = require("@keystone-6/core");
+var import_fields85 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Proposal/TechProposal.access.ts
 var getCompanyId3 = (session2) => session2?.data?.company?.id;
@@ -16587,7 +18082,7 @@ var statusOptions2 = Object.entries(PROPOSAL_STATUS).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechProposal_default = (0, import_core69.list)({
+var TechProposal_default = (0, import_core85.list)({
   access: proposalAccess,
   hooks: proposalHooks,
   ui: {
@@ -16596,81 +18091,81 @@ var TechProposal_default = (0, import_core69.list)({
     }
   },
   fields: {
-    sentDate: (0, import_fields69.calendarDay)({
+    sentDate: (0, import_fields85.calendarDay)({
       validation: { isRequired: true },
       ui: { description: "Fecha env\xEDo" }
     }),
-    amount: (0, import_fields69.float)({ ui: { description: "Monto" } }),
-    status: (0, import_fields69.select)({
+    amount: (0, import_fields85.float)({ ui: { description: "Monto" } }),
+    status: (0, import_fields85.select)({
       type: "string",
       options: statusOptions2,
       defaultValue: PROPOSAL_STATUS.ENVIADA,
       isIndexed: true
     }),
-    fileOrUrl: (0, import_fields69.text)({
+    fileOrUrl: (0, import_fields85.text)({
       ui: { description: "URL o referencia al archivo de la propuesta" }
     }),
-    approved: (0, import_fields69.checkbox)({
+    approved: (0, import_fields85.checkbox)({
       defaultValue: false,
       ui: { description: "Aprobado por administrador" }
     }),
-    paid: (0, import_fields69.checkbox)({
+    paid: (0, import_fields85.checkbox)({
       defaultValue: false,
       ui: { description: "Pagado" }
     }),
-    product: (0, import_fields69.text)({
+    product: (0, import_fields85.text)({
       ui: { description: "Producto o servicio principal cotizado" }
     }),
-    notes: (0, import_fields69.text)({
+    notes: (0, import_fields85.text)({
       ui: {
         displayMode: "textarea",
         description: "Notas adicionales o condiciones de la propuesta"
       }
     }),
-    businessLead: (0, import_fields69.relationship)({
+    businessLead: (0, import_fields85.relationship)({
       ref: "TechBusinessLead.proposals",
       many: false
     }),
-    assignedSeller: (0, import_fields69.relationship)({
+    assignedSeller: (0, import_fields85.relationship)({
       ref: "User.proposals",
       many: false
     }),
-    createdBy: (0, import_fields69.relationship)({
+    createdBy: (0, import_fields85.relationship)({
       ref: "User.createdByProposals",
       many: false
     }),
-    workspace: (0, import_fields69.relationship)({
+    workspace: (0, import_fields85.relationship)({
       ref: "SaasWorkspace.proposals",
       many: false,
       ui: { description: "Workspace a la que pertenece la propuesta" }
     }),
-    statusCrm: (0, import_fields69.relationship)({
+    statusCrm: (0, import_fields85.relationship)({
       ref: "SaasWorkspaceCrmStatus.proposals",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo propuesta)" }
     }),
-    calendarEvent: (0, import_fields69.relationship)({
+    calendarEvent: (0, import_fields85.relationship)({
       ref: "TechCalendarEvent.proposal",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo propuestas nuevas)" }
     }),
-    project: (0, import_fields69.relationship)({
+    project: (0, import_fields85.relationship)({
       ref: "SaasProject.proposal",
       many: false,
       ui: { description: "Proyecto creado a partir de esta propuesta" }
     }),
-    hiddenInWorkspace: (0, import_fields69.checkbox)({
+    hiddenInWorkspace: (0, import_fields85.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields69.timestamp)({
+    createdAt: (0, import_fields85.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields69.timestamp)({
+    updatedAt: (0, import_fields85.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16681,8 +18176,8 @@ var TechProposal_default = (0, import_core69.list)({
 });
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.ts
-var import_core70 = require("@keystone-6/core");
-var import_fields70 = require("@keystone-6/core/fields");
+var import_core86 = require("@keystone-6/core");
+var import_fields86 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/SalesActivity/TechSalesActivity.access.ts
 var getCompanyId4 = (session2) => session2?.data?.company?.id;
@@ -16730,7 +18225,7 @@ var priorityOptions2 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechSalesActivity_default = (0, import_core70.list)({
+var TechSalesActivity_default = (0, import_core86.list)({
   access: salesActivityAccess,
   hooks: salesActivityHooks,
   ui: {
@@ -16747,63 +18242,63 @@ var TechSalesActivity_default = (0, import_core70.list)({
     }
   },
   fields: {
-    title: (0, import_fields70.text)({
+    title: (0, import_fields86.text)({
       ui: { description: "T\xEDtulo de la actividad" }
     }),
-    type: (0, import_fields70.select)({
+    type: (0, import_fields86.select)({
       type: "string",
       options: activityTypeOptions,
       validation: { isRequired: true },
       isIndexed: true
     }),
-    activityDate: (0, import_fields70.timestamp)({
+    activityDate: (0, import_fields86.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    dueDate: (0, import_fields70.calendarDay)({
+    dueDate: (0, import_fields86.calendarDay)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Deadline for this activity" }
     }),
-    priority: (0, import_fields70.select)({
+    priority: (0, import_fields86.select)({
       type: "string",
       options: priorityOptions2,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields70.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
-    comments: (0, import_fields70.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields70.relationship)({
+    result: (0, import_fields86.text)({ ui: { description: "Resultado de la interacci\xF3n" } }),
+    comments: (0, import_fields86.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields86.relationship)({
       ref: "TechBusinessLead.activities",
       many: false
     }),
-    assignedSeller: (0, import_fields70.relationship)({
+    assignedSeller: (0, import_fields86.relationship)({
       ref: "User.salesActivities",
       many: false
     }),
-    createdBy: (0, import_fields70.relationship)({
+    createdBy: (0, import_fields86.relationship)({
       ref: "User.createdBySalesActivities",
       many: false
     }),
-    workspace: (0, import_fields70.relationship)({
+    workspace: (0, import_fields86.relationship)({
       ref: "SaasWorkspace.salesActivities",
       many: false,
       ui: { description: "Workspace a la que pertenece la actividad" }
     }),
-    statusCrm: (0, import_fields70.relationship)({
+    statusCrm: (0, import_fields86.relationship)({
       ref: "SaasWorkspaceCrmStatus.salesActivities",
       many: false,
       ui: { description: "Estado CRM din\xE1mico (workspace + tipo actividad)" }
     }),
-    calendarEvent: (0, import_fields70.relationship)({
+    calendarEvent: (0, import_fields86.relationship)({
       ref: "TechCalendarEvent.salesActivity",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo actividades nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields70.checkbox)({
+    hiddenInWorkspace: (0, import_fields86.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields70.timestamp)({
+    createdAt: (0, import_fields86.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16814,8 +18309,8 @@ var TechSalesActivity_default = (0, import_core70.list)({
 });
 
 // models/Saas/Tech/Task/TechTask.ts
-var import_core71 = require("@keystone-6/core");
-var import_fields71 = require("@keystone-6/core/fields");
+var import_core87 = require("@keystone-6/core");
+var import_fields87 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Task/TechTask.access.ts
 var getCompanyId5 = (session2) => session2?.data?.company?.id;
@@ -16857,7 +18352,7 @@ var priorityOptions3 = Object.entries(TASK_PRIORITY).map(([k, v]) => ({
   label: v,
   value: v
 }));
-var TechTask_default = (0, import_core71.list)({
+var TechTask_default = (0, import_core87.list)({
   access: techTaskAccess,
   hooks: techTaskHooks,
   ui: {
@@ -16874,62 +18369,62 @@ var TechTask_default = (0, import_core71.list)({
     }
   },
   fields: {
-    title: (0, import_fields71.text)({
+    title: (0, import_fields87.text)({
       ui: { description: "T\xEDtulo de la tarea" }
     }),
-    startDate: (0, import_fields71.timestamp)({
+    startDate: (0, import_fields87.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true },
       ui: { description: "Fecha de la tarea (programada o realizada)" }
     }),
-    dueDate: (0, import_fields71.timestamp)({
+    dueDate: (0, import_fields87.timestamp)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "Fecha l\xEDmite de la tarea" }
     }),
-    priority: (0, import_fields71.select)({
+    priority: (0, import_fields87.select)({
       type: "string",
       options: priorityOptions3,
       defaultValue: TASK_PRIORITY.MEDIA
     }),
-    result: (0, import_fields71.text)({
+    result: (0, import_fields87.text)({
       ui: { description: "Resultado o cierre de la tarea" }
     }),
-    comments: (0, import_fields71.text)({ ui: { displayMode: "textarea" } }),
-    businessLead: (0, import_fields71.relationship)({
+    comments: (0, import_fields87.text)({ ui: { displayMode: "textarea" } }),
+    businessLead: (0, import_fields87.relationship)({
       ref: "TechBusinessLead.tasks",
       many: false
     }),
-    responsible: (0, import_fields71.relationship)({
+    responsible: (0, import_fields87.relationship)({
       ref: "User.tasksResponsible",
       many: false
     }),
-    workspace: (0, import_fields71.relationship)({
+    workspace: (0, import_fields87.relationship)({
       ref: "SaasWorkspace.tasks",
       many: false,
       ui: { description: "Workspace al que pertenece esta tarea" }
     }),
-    statusCrm: (0, import_fields71.relationship)({
+    statusCrm: (0, import_fields87.relationship)({
       ref: "SaasWorkspaceCrmStatus.tasks",
       many: false,
       ui: {
         description: "Estado CRM din\xE1mico (workspace + tipo de tarea)"
       }
     }),
-    createdBy: (0, import_fields71.relationship)({
+    createdBy: (0, import_fields87.relationship)({
       ref: "User.createdByTasks",
       many: false
     }),
-    calendarEvent: (0, import_fields71.relationship)({
+    calendarEvent: (0, import_fields87.relationship)({
       ref: "TechCalendarEvent.task",
       many: false,
       ui: { hideCreate: true, description: "Evento de calendario generado (solo tareas nuevas)" }
     }),
-    hiddenInWorkspace: (0, import_fields71.checkbox)({
+    hiddenInWorkspace: (0, import_fields87.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en el workspace" }
     }),
-    createdAt: (0, import_fields71.timestamp)({
+    createdAt: (0, import_fields87.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -16940,8 +18435,8 @@ var TechTask_default = (0, import_core71.list)({
 });
 
 // models/Saas/Tech/TechFiles/TechFiles.ts
-var import_core72 = require("@keystone-6/core");
-var import_fields72 = require("@keystone-6/core/fields");
+var import_core88 = require("@keystone-6/core");
+var import_fields88 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/TechFiles/TechFiles.access.ts
 function canUploadFiles(session2) {
@@ -16997,7 +18492,7 @@ var CATEGORY_OPTIONS = [
   { label: "Speech / Guion", value: "speech_script" },
   { label: "Otro", value: "other" }
 ];
-var TechFiles_default = (0, import_core72.list)({
+var TechFiles_default = (0, import_core88.list)({
   access: techFilesAccess,
   hooks: {
     resolveInput: async ({ resolvedData, context, operation }) => {
@@ -17020,18 +18515,18 @@ var TechFiles_default = (0, import_core72.list)({
     }
   },
   fields: {
-    title: (0, import_fields72.text)({
+    title: (0, import_fields88.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del archivo o recurso" }
     }),
-    description: (0, import_fields72.text)({
+    description: (0, import_fields88.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n opcional del contenido"
       }
     }),
-    category: (0, import_fields72.select)({
+    category: (0, import_fields88.select)({
       type: "string",
       options: [...CATEGORY_OPTIONS],
       defaultValue: "otro",
@@ -17040,27 +18535,27 @@ var TechFiles_default = (0, import_core72.list)({
         description: "Tipo de material (proceso, t\xE9cnica, cierre, speech, etc.)"
       }
     }),
-    file: (0, import_fields72.file)({
+    file: (0, import_fields88.file)({
       storage: "s3_tech_files",
       ui: { description: "Archivo (PDF, DOC, etc.)" }
     }),
-    company: (0, import_fields72.relationship)({
+    company: (0, import_fields88.relationship)({
       ref: "SaasCompany.techFiles",
       many: false
     }),
-    aiInsights: (0, import_fields72.relationship)({
+    aiInsights: (0, import_fields88.relationship)({
       ref: "TechAiInsight.relatedFile",
       many: true,
       ui: { description: "An\xE1lisis de IA ligados a este archivo" }
     }),
-    createdAt: (0, import_fields72.timestamp)({
+    createdAt: (0, import_fields88.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields72.timestamp)({
+    updatedAt: (0, import_fields88.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -17071,8 +18566,8 @@ var TechFiles_default = (0, import_core72.list)({
 });
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var import_core73 = require("@keystone-6/core");
-var import_fields73 = require("@keystone-6/core/fields");
+var import_core89 = require("@keystone-6/core");
+var import_fields89 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.access.ts
 var getCompanyId6 = (session2) => session2?.data?.company?.id;
@@ -17098,7 +18593,7 @@ var techLeadSyncLogAccess = {
 };
 
 // models/Saas/Tech/LeadSyncLog/TechLeadSyncLog.ts
-var TechLeadSyncLog_default = (0, import_core73.list)({
+var TechLeadSyncLog_default = (0, import_core89.list)({
   access: techLeadSyncLogAccess,
   ui: {
     listView: {
@@ -17115,63 +18610,63 @@ var TechLeadSyncLog_default = (0, import_core73.list)({
     }
   },
   fields: {
-    user: (0, import_fields73.relationship)({
+    user: (0, import_fields89.relationship)({
       ref: "User.leadSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 la sincronizaci\xF3n" }
     }),
-    company: (0, import_fields73.relationship)({
+    company: (0, import_fields89.relationship)({
       ref: "SaasCompany.leadSyncLogs",
       many: false,
       ui: { description: "Empresa" }
     }),
-    success: (0, import_fields73.checkbox)({
+    success: (0, import_fields89.checkbox)({
       defaultValue: false,
       ui: { description: "Si la operaci\xF3n fue exitosa" }
     }),
-    message: (0, import_fields73.text)({
+    message: (0, import_fields89.text)({
       ui: { description: "Mensaje de resultado" }
     }),
-    created: (0, import_fields73.integer)({
+    created: (0, import_fields89.integer)({
       defaultValue: 0,
       ui: { description: "Leads creados desde Google" }
     }),
-    alreadyInDb: (0, import_fields73.integer)({
+    alreadyInDb: (0, import_fields89.integer)({
       defaultValue: 0,
       ui: { description: "Leads ya en BD asignados a la company" }
     }),
-    skippedLowRating: (0, import_fields73.integer)({
+    skippedLowRating: (0, import_fields89.integer)({
       defaultValue: 0,
       ui: { description: "Leads omitidos por rating/rese\xF1as bajas" }
     }),
-    syncedLeadsCount: (0, import_fields73.integer)({
+    syncedLeadsCount: (0, import_fields89.integer)({
       defaultValue: 0,
       ui: { description: "Total de leads asignados en esta ejecuci\xF3n" }
     }),
-    syncedCount: (0, import_fields73.integer)({
+    syncedCount: (0, import_fields89.integer)({
       db: { isNullable: true },
       ui: { description: "Cuota usada este mes (total)" }
     }),
-    leadLimit: (0, import_fields73.integer)({
+    leadLimit: (0, import_fields89.integer)({
       db: { isNullable: true },
       ui: { description: "L\xEDmite de leads del plan" }
     }),
-    lat: (0, import_fields73.float)({
+    lat: (0, import_fields89.float)({
       db: { isNullable: true },
       ui: { description: "Latitud del centro de b\xFAsqueda" }
     }),
-    lng: (0, import_fields73.float)({
+    lng: (0, import_fields89.float)({
       db: { isNullable: true },
       ui: { description: "Longitud del centro de b\xFAsqueda" }
     }),
-    radius: (0, import_fields73.float)({
+    radius: (0, import_fields89.float)({
       db: { isNullable: true },
       ui: { description: "Radio de b\xFAsqueda (km)" }
     }),
-    category: (0, import_fields73.text)({
+    category: (0, import_fields89.text)({
       ui: { description: "Categor\xEDa buscada" }
     }),
-    createdAt: (0, import_fields73.timestamp)({
+    createdAt: (0, import_fields89.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Fecha y hora de la ejecuci\xF3n" }
     })
@@ -17179,8 +18674,8 @@ var TechLeadSyncLog_default = (0, import_core73.list)({
 });
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var import_core74 = require("@keystone-6/core");
-var import_fields74 = require("@keystone-6/core/fields");
+var import_core90 = require("@keystone-6/core");
+var import_fields90 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.access.ts
 var techAiCallLogAccess = {
@@ -17260,7 +18755,7 @@ var MANAGED_GEMINI_FALLBACK = [
 var AI_RATE_LIMIT_ERROR_PREFIX = "AI_RATE_LIMIT";
 
 // models/Saas/Tech/AiCallLog/TechAiCallLog.ts
-var TechAiCallLog_default = (0, import_core74.list)({
+var TechAiCallLog_default = (0, import_core90.list)({
   access: techAiCallLogAccess,
   ui: {
     listView: {
@@ -17279,40 +18774,40 @@ var TechAiCallLog_default = (0, import_core74.list)({
     }
   },
   fields: {
-    user: (0, import_fields74.relationship)({
+    user: (0, import_fields90.relationship)({
       ref: "User.aiCallLogs",
       many: false,
       ui: { description: "Usuario que dispar\xF3 la llamada" }
     }),
-    company: (0, import_fields74.relationship)({
+    company: (0, import_fields90.relationship)({
       ref: "SaasCompany.aiCallLogs",
       many: false,
       ui: { description: "Empresa due\xF1a de Kadesh Urim AI" }
     }),
-    feature: (0, import_fields74.text)({
+    feature: (0, import_fields90.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: {
         description: "Origen de la llamada (connection_test, daily_digest, monthly_narrative, file_analysis)"
       }
     }),
-    billingMode: (0, import_fields74.select)({
+    billingMode: (0, import_fields90.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       db: { isNullable: true },
       ui: { description: "byok o managed al momento de la llamada" }
     }),
-    provider: (0, import_fields74.select)({
+    provider: (0, import_fields90.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
       ui: { description: "Proveedor usado" }
     }),
-    model: (0, import_fields74.text)({
+    model: (0, import_fields90.text)({
       db: { isNullable: true },
       ui: { description: "Modelo usado" }
     }),
-    featurePrompt: (0, import_fields74.text)({
+    featurePrompt: (0, import_fields90.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17320,7 +18815,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Instrucci\xF3n de la feature (parte del system prompt)"
       }
     }),
-    systemPrompt: (0, import_fields74.text)({
+    systemPrompt: (0, import_fields90.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17328,7 +18823,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "System prompt completo enviado al proveedor (Cerebro + feature)"
       }
     }),
-    userPrompt: (0, import_fields74.text)({
+    userPrompt: (0, import_fields90.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17336,7 +18831,7 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Prompt de usuario enviado al proveedor"
       }
     }),
-    response: (0, import_fields74.text)({
+    response: (0, import_fields90.text)({
       db: { isNullable: true },
       access: aiCallLogPromptFieldAccess,
       ui: {
@@ -17344,44 +18839,44 @@ var TechAiCallLog_default = (0, import_core74.list)({
         description: "Texto que devolvi\xF3 la IA"
       }
     }),
-    inputTokens: (0, import_fields74.integer)({
+    inputTokens: (0, import_fields90.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de entrada reportados por el proveedor" }
     }),
-    outputTokens: (0, import_fields74.integer)({
+    outputTokens: (0, import_fields90.integer)({
       defaultValue: 0,
       ui: { description: "Tokens de salida reportados por el proveedor" }
     }),
-    billableTokens: (0, import_fields74.integer)({
+    billableTokens: (0, import_fields90.integer)({
       defaultValue: 0,
       ui: {
         description: "Tokens equivalentes: input + output \xD7 5"
       }
     }),
-    creditsCharged: (0, import_fields74.integer)({
+    creditsCharged: (0, import_fields90.integer)({
       defaultValue: 0,
       ui: { description: "Cr\xE9ditos debitados de la bolsa de la empresa" }
     }),
-    billed: (0, import_fields74.checkbox)({
+    billed: (0, import_fields90.checkbox)({
       defaultValue: false,
       ui: { description: "Si esta llamada deb\xEDa cobrar cr\xE9ditos (managed y no ping)" }
     }),
-    success: (0, import_fields74.checkbox)({
+    success: (0, import_fields90.checkbox)({
       defaultValue: false,
       ui: { description: "Si el proveedor respondi\xF3 y se devolvi\xF3 texto" }
     }),
-    errorMessage: (0, import_fields74.text)({
+    errorMessage: (0, import_fields90.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Error si la llamada fall\xF3 (sin API keys)"
       }
     }),
-    durationMs: (0, import_fields74.integer)({
+    durationMs: (0, import_fields90.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n total de callCompanyAi en ms" }
     }),
-    createdAt: (0, import_fields74.timestamp)({
+    createdAt: (0, import_fields90.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento de la llamada" }
     })
@@ -17389,8 +18884,8 @@ var TechAiCallLog_default = (0, import_core74.list)({
 });
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var import_core75 = require("@keystone-6/core");
-var import_fields75 = require("@keystone-6/core/fields");
+var import_core91 = require("@keystone-6/core");
+var import_fields91 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/AiInsight/TechAiInsight.access.ts
 var getCompanyId7 = (session2) => session2?.data?.company?.id;
@@ -17441,7 +18936,7 @@ var AI_INSIGHT_KIND_OPTIONS = [
 ];
 
 // models/Saas/Tech/AiInsight/TechAiInsight.ts
-var TechAiInsight_default = (0, import_core75.list)({
+var TechAiInsight_default = (0, import_core91.list)({
   access: techAiInsightAccess,
   ui: {
     listView: {
@@ -17455,47 +18950,47 @@ var TechAiInsight_default = (0, import_core75.list)({
     }
   },
   fields: {
-    company: (0, import_fields75.relationship)({
+    company: (0, import_fields91.relationship)({
       ref: "SaasCompany.aiInsights",
       many: false,
       ui: { description: "Empresa due\xF1a del insight" }
     }),
-    salesPerson: (0, import_fields75.relationship)({
+    salesPerson: (0, import_fields91.relationship)({
       ref: "User.aiInsights",
       many: false,
       ui: {
         description: "Vendedor due\xF1o del insight. Vac\xEDo = insight de empresa (admin / alcance global)"
       }
     }),
-    kind: (0, import_fields75.select)({
+    kind: (0, import_fields91.select)({
       type: "string",
       options: [...AI_INSIGHT_KIND_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Tipo de insight (digest, narrativa, archivo)" }
     }),
-    referenceKey: (0, import_fields75.text)({
+    referenceKey: (0, import_fields91.text)({
       isIndexed: true,
       ui: {
         description: 'Clave de cach\xE9: "YYYY-MM-DD", "YYYY-MM" o id de archivo'
       }
     }),
-    content: (0, import_fields75.text)({
+    content: (0, import_fields91.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Texto legible del insight"
       }
     }),
-    structuredData: (0, import_fields75.json)({
+    structuredData: (0, import_fields91.json)({
       ui: { description: "JSON de acciones / estructura (p. ej. 3 pasos)" }
     }),
-    relatedFile: (0, import_fields75.relationship)({
+    relatedFile: (0, import_fields91.relationship)({
       ref: "TechFile.aiInsights",
       many: false,
       ui: { description: "Archivo analizado (Fase 4)" }
     }),
-    generatedAt: (0, import_fields75.timestamp)({
+    generatedAt: (0, import_fields91.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento en que se gener\xF3 o regener\xF3" }
     })
@@ -17503,8 +18998,8 @@ var TechAiInsight_default = (0, import_core75.list)({
 });
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var import_core76 = require("@keystone-6/core");
-var import_fields76 = require("@keystone-6/core/fields");
+var import_core92 = require("@keystone-6/core");
+var import_fields92 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/access.ts
 var inegiCatalogAccess = {
@@ -17525,7 +19020,7 @@ var inegiSyncLogAccess = {
 };
 
 // models/Saas/Tech/Inegi/EconomicActivity/TechInegiEconomicActivity.ts
-var TechInegiEconomicActivity_default = (0, import_core76.list)({
+var TechInegiEconomicActivity_default = (0, import_core92.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17534,17 +19029,17 @@ var TechInegiEconomicActivity_default = (0, import_core76.list)({
     }
   },
   fields: {
-    scianCode: (0, import_fields76.text)({
+    scianCode: (0, import_fields92.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "C\xF3digo SCIAN (o clave sint\xE9tica si la API no lo trae)" }
     }),
-    name: (0, import_fields76.text)({
+    name: (0, import_fields92.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre de la clase de actividad econ\xF3mica" }
     }),
-    establishments: (0, import_fields76.relationship)({
+    establishments: (0, import_fields92.relationship)({
       ref: "TechInegiEstablishment.economicActivity",
       many: true,
       ui: { hideCreate: true }
@@ -17553,9 +19048,9 @@ var TechInegiEconomicActivity_default = (0, import_core76.list)({
 });
 
 // models/Saas/Tech/Inegi/Establishment/TechInegiEstablishment.ts
-var import_core77 = require("@keystone-6/core");
-var import_fields77 = require("@keystone-6/core/fields");
-var TechInegiEstablishment_default = (0, import_core77.list)({
+var import_core93 = require("@keystone-6/core");
+var import_fields93 = require("@keystone-6/core/fields");
+var TechInegiEstablishment_default = (0, import_core93.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17564,47 +19059,47 @@ var TechInegiEstablishment_default = (0, import_core77.list)({
     }
   },
   fields: {
-    clee: (0, import_fields77.text)({
+    clee: (0, import_fields93.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Clave \xFAnica INEGI (CLEE)" }
     }),
-    name: (0, import_fields77.text)({
+    name: (0, import_fields93.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    legalName: (0, import_fields77.text)({
+    legalName: (0, import_fields93.text)({
       ui: { description: "Raz\xF3n social" }
     }),
-    employeeStratum: (0, import_fields77.text)({
+    employeeStratum: (0, import_fields93.text)({
       ui: { description: "Estrato de personal ocupado (tal cual DENUE)" }
     }),
-    economicActivity: (0, import_fields77.relationship)({
+    economicActivity: (0, import_fields93.relationship)({
       ref: "TechInegiEconomicActivity.establishments",
       many: false,
       ui: { description: "Giro SCIAN" }
     }),
-    street: (0, import_fields77.text)(),
-    exteriorNumber: (0, import_fields77.text)(),
-    interiorNumber: (0, import_fields77.text)(),
-    neighborhood: (0, import_fields77.text)(),
-    postalCode: (0, import_fields77.text)(),
-    locality: (0, import_fields77.text)(),
-    municipality: (0, import_fields77.text)({ isIndexed: true }),
-    state: (0, import_fields77.text)({ isIndexed: true }),
-    phone: (0, import_fields77.text)(),
-    email: (0, import_fields77.text)(),
-    website: (0, import_fields77.text)(),
-    lat: (0, import_fields77.float)({ db: { isNullable: true } }),
-    lng: (0, import_fields77.float)({ db: { isNullable: true } }),
-    rawPayload: (0, import_fields77.json)({
+    street: (0, import_fields93.text)(),
+    exteriorNumber: (0, import_fields93.text)(),
+    interiorNumber: (0, import_fields93.text)(),
+    neighborhood: (0, import_fields93.text)(),
+    postalCode: (0, import_fields93.text)(),
+    locality: (0, import_fields93.text)(),
+    municipality: (0, import_fields93.text)({ isIndexed: true }),
+    state: (0, import_fields93.text)({ isIndexed: true }),
+    phone: (0, import_fields93.text)(),
+    email: (0, import_fields93.text)(),
+    website: (0, import_fields93.text)(),
+    lat: (0, import_fields93.float)({ db: { isNullable: true } }),
+    lng: (0, import_fields93.float)({ db: { isNullable: true } }),
+    rawPayload: (0, import_fields93.json)({
       ui: { description: "Respuesta cruda de INEGI (API o fila CSV)" }
     }),
-    lastSyncedAt: (0, import_fields77.timestamp)({
+    lastSyncedAt: (0, import_fields93.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima vez que se actualiz\xF3 desde INEGI" }
     }),
-    promotedLeads: (0, import_fields77.relationship)({
+    promotedLeads: (0, import_fields93.relationship)({
       ref: "TechBusinessLead.sourceEstablishment",
       many: true,
       ui: { hideCreate: true, description: "Leads CRM promovidos desde este establecimiento" }
@@ -17613,8 +19108,8 @@ var TechInegiEstablishment_default = (0, import_core77.list)({
 });
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var import_core78 = require("@keystone-6/core");
-var import_fields78 = require("@keystone-6/core/fields");
+var import_core94 = require("@keystone-6/core");
+var import_fields94 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/Inegi/constants.ts
 var INEGI_SYNC_SOURCE = {
@@ -17648,7 +19143,7 @@ var INEGI_GEO_BOUNDARY_LEVEL_OPTIONS = [
 var INEGI_LIVE_SYNC_CAP = 250;
 
 // models/Saas/Tech/Inegi/GeoBoundary/TechInegiGeoBoundary.ts
-var TechInegiGeoBoundary_default = (0, import_core78.list)({
+var TechInegiGeoBoundary_default = (0, import_core94.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "name",
@@ -17657,38 +19152,38 @@ var TechInegiGeoBoundary_default = (0, import_core78.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields78.text)({
+    cacheKey: (0, import_fields94.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "level:geoCode" }
     }),
-    level: (0, import_fields78.select)({
+    level: (0, import_fields94.select)({
       type: "string",
       options: [...INEGI_GEO_BOUNDARY_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geoCode: (0, import_fields78.text)({
+    geoCode: (0, import_fields94.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    name: (0, import_fields78.text)({
+    name: (0, import_fields94.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    parentCode: (0, import_fields78.text)({
+    parentCode: (0, import_fields94.text)({
       db: { isNullable: true },
       ui: { description: "CVE_ENT para municipio; CVEGEO municipal para localidad" }
     }),
-    geometry: (0, import_fields78.json)({
+    geometry: (0, import_fields94.json)({
       ui: { description: "GeoJSON geometry (sin PostGIS)" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/Indicator/TechInegiIndicator.ts
-var import_core79 = require("@keystone-6/core");
-var import_fields79 = require("@keystone-6/core/fields");
-var TechInegiIndicator_default = (0, import_core79.list)({
+var import_core95 = require("@keystone-6/core");
+var import_fields95 = require("@keystone-6/core/fields");
+var TechInegiIndicator_default = (0, import_core95.list)({
   access: inegiCatalogAccess,
   ui: {
     labelField: "indicatorName",
@@ -17703,46 +19198,46 @@ var TechInegiIndicator_default = (0, import_core79.list)({
     }
   },
   fields: {
-    cacheKey: (0, import_fields79.text)({
+    cacheKey: (0, import_fields95.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: {
         description: "indicatorId:geographicCode:period"
       }
     }),
-    indicatorId: (0, import_fields79.text)({
+    indicatorId: (0, import_fields95.text)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    indicatorName: (0, import_fields79.text)({
+    indicatorName: (0, import_fields95.text)({
       validation: { isRequired: true }
     }),
-    geographicLevel: (0, import_fields79.select)({
+    geographicLevel: (0, import_fields95.select)({
       type: "string",
       options: [...INEGI_GEOGRAPHIC_LEVEL_OPTIONS],
       validation: { isRequired: true }
     }),
-    geographicCode: (0, import_fields79.text)({
+    geographicCode: (0, import_fields95.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "00 nacional, 2 d\xEDgitos estado, 5 d\xEDgitos municipio" }
     }),
-    period: (0, import_fields79.text)({
+    period: (0, import_fields95.text)({
       validation: { isRequired: true },
       ui: { description: "TIME_PERIOD de BIE (p. ej. 2020)" }
     }),
-    value: (0, import_fields79.float)({ db: { isNullable: true } }),
-    unit: (0, import_fields79.text)(),
-    fetchedAt: (0, import_fields79.timestamp)({
+    value: (0, import_fields95.float)({ db: { isNullable: true } }),
+    unit: (0, import_fields95.text)(),
+    fetchedAt: (0, import_fields95.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/Tech/Inegi/SyncLog/TechInegiSyncLog.ts
-var import_core80 = require("@keystone-6/core");
-var import_fields80 = require("@keystone-6/core/fields");
-var TechInegiSyncLog_default = (0, import_core80.list)({
+var import_core96 = require("@keystone-6/core");
+var import_fields96 = require("@keystone-6/core/fields");
+var TechInegiSyncLog_default = (0, import_core96.list)({
   access: inegiSyncLogAccess,
   ui: {
     listView: {
@@ -17759,49 +19254,49 @@ var TechInegiSyncLog_default = (0, import_core80.list)({
     }
   },
   fields: {
-    user: (0, import_fields80.relationship)({
+    user: (0, import_fields96.relationship)({
       ref: "User.inegiSyncLogs",
       many: false,
       ui: { description: "Usuario que ejecut\xF3 el sync (vac\xEDo en scripts)" }
     }),
-    success: (0, import_fields80.checkbox)({
+    success: (0, import_fields96.checkbox)({
       defaultValue: false
     }),
-    message: (0, import_fields80.text)(),
-    created: (0, import_fields80.integer)({
+    message: (0, import_fields96.text)(),
+    created: (0, import_fields96.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos nuevos" }
     }),
-    updated: (0, import_fields80.integer)({
+    updated: (0, import_fields96.integer)({
       defaultValue: 0,
       ui: { description: "Establecimientos actualizados" }
     }),
-    alreadyInDb: (0, import_fields80.integer)({
+    alreadyInDb: (0, import_fields96.integer)({
       defaultValue: 0,
       ui: { description: "Ya exist\xEDan y no cambiaron (o se reencontraron)" }
     }),
-    totalFetched: (0, import_fields80.integer)({
+    totalFetched: (0, import_fields96.integer)({
       defaultValue: 0,
       ui: { description: "Filas recibidas de INEGI en esta corrida" }
     }),
-    sourceMethod: (0, import_fields80.select)({
+    sourceMethod: (0, import_fields96.select)({
       type: "string",
       options: [...INEGI_SYNC_SOURCE_OPTIONS],
       validation: { isRequired: true },
       defaultValue: "api"
     }),
-    searchParams: (0, import_fields80.json)({
+    searchParams: (0, import_fields96.json)({
       ui: { description: "Par\xE1metros de b\xFAsqueda o ruta del archivo" }
     }),
-    createdAt: (0, import_fields80.timestamp)({
+    createdAt: (0, import_fields96.timestamp)({
       defaultValue: { kind: "now" }
     })
   }
 });
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var import_core81 = require("@keystone-6/core");
-var import_fields81 = require("@keystone-6/core/fields");
+var import_core97 = require("@keystone-6/core");
+var import_fields97 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompany/SaasCompany.access.ts
 var saasCompanyAccess = {
@@ -17975,7 +19470,7 @@ var saasCompanySubscriptionHook = {
 };
 
 // models/Saas/SaasCompany/SaasCompany.ts
-var SaasCompany_default = (0, import_core81.list)({
+var SaasCompany_default = (0, import_core97.list)({
   access: saasCompanyAccess,
   hooks: {
     afterOperation: saasCompanySubscriptionHook.afterOperation
@@ -17994,147 +19489,147 @@ var SaasCompany_default = (0, import_core81.list)({
   },
   fields: {
     /** Company / organization name */
-    name: (0, import_fields81.text)({
+    name: (0, import_fields97.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Company or organization name" }
     }),
     /** Users belonging to this company (1 company : N users) */
-    users: (0, import_fields81.relationship)({
+    users: (0, import_fields97.relationship)({
       ref: "User.company",
       many: true,
       ui: { description: "Users belonging to this company" }
     }),
-    workspaces: (0, import_fields81.relationship)({
+    workspaces: (0, import_fields97.relationship)({
       ref: "SaasWorkspace.company",
       many: true,
       ui: { description: "Espacios de trabajo (\xE1reas) de la empresa" }
     }),
-    allowedGooglePlaceCategories: (0, import_fields81.json)({
+    allowedGooglePlaceCategories: (0, import_fields97.json)({
       ui: {
         description: 'Allowed categories for lead sync. JSON array of category values from GOOGLE_PLACE_CATEGORIES (e.g. ["restaurantes", "cafeter\xEDas"]). Empty or null = all allowed.'
       }
     }),
-    leads: (0, import_fields81.relationship)({
+    leads: (0, import_fields97.relationship)({
       ref: "TechBusinessLead.saasCompany",
       many: true,
       ui: { description: "Leads belonging to this company" }
     }),
     /** Current plan (e.g. Free, Starter). Updated when a new subscription is created. */
-    plan: (0, import_fields81.relationship)({
+    plan: (0, import_fields97.relationship)({
       ref: "SaasPlan.companies",
       many: false,
       ui: { description: "Current plan for this company" }
     }),
     /** Date when the company started its first subscription (e.g. free trial). */
-    subscriptionStartedAt: (0, import_fields81.calendarDay)({
+    subscriptionStartedAt: (0, import_fields97.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Date when the first subscription started" }
     }),
     /** Paid subscriptions (each record has a snapshot of the plan at contract time, no relation to SaasPlan) */
-    subscriptions: (0, import_fields81.relationship)({
+    subscriptions: (0, import_fields97.relationship)({
       ref: "SaasCompanySubscription.company",
       many: true,
       ui: {
         description: "Subscription history; plan data is stored as snapshot per record"
       }
     }),
-    techStatusBusinessLeads: (0, import_fields81.relationship)({
+    techStatusBusinessLeads: (0, import_fields97.relationship)({
       ref: "TechStatusBusinessLead.saasCompany",
       many: true,
       ui: { description: "Estados de los leads pertenecientes a esta company" }
     }),
     /** Monthly lead sync usage records (count of leads synced per month) */
-    monthlyLeadSyncRecords: (0, import_fields81.relationship)({
+    monthlyLeadSyncRecords: (0, import_fields97.relationship)({
       ref: "SaasCompanyMonthlyLeadSync.company",
       many: true,
       ui: { description: "Per-month lead sync usage (legacy quota tracking)" }
     }),
     /** Cumulative purchased bonus credits (permanent monthly top-up) */
-    purchasedBonusCredits: (0, import_fields81.integer)({
+    purchasedBonusCredits: (0, import_fields97.integer)({
       defaultValue: 0,
       ui: {
         description: "Total extra credits purchased; added to the monthly allowance each period"
       }
     }),
-    creditPeriods: (0, import_fields81.relationship)({
+    creditPeriods: (0, import_fields97.relationship)({
       ref: "SaasCompanyCreditPeriod.company",
       many: true,
       ui: { description: "Monthly credit periods for this company" }
     }),
-    creditLedgerEntries: (0, import_fields81.relationship)({
+    creditLedgerEntries: (0, import_fields97.relationship)({
       ref: "SaasCompanyCreditLedger.company",
       many: true,
       ui: { description: "Credit grant/consume ledger for this company" }
     }),
-    techFiles: (0, import_fields81.relationship)({
+    techFiles: (0, import_fields97.relationship)({
       ref: "TechFile.company",
       many: true,
       ui: { description: "Archivos y materiales para el equipo de ventas" }
     }),
-    projects: (0, import_fields81.relationship)({
+    projects: (0, import_fields97.relationship)({
       ref: "SaasProject.company",
       many: true,
       ui: { description: "Proyectos o servicios de la empresa" }
     }),
-    leadSyncLogs: (0, import_fields81.relationship)({
+    leadSyncLogs: (0, import_fields97.relationship)({
       ref: "TechLeadSyncLog.company",
       many: true,
       ui: { description: "Logs de sincronizaci\xF3n de leads" }
     }),
-    aiCallLogs: (0, import_fields81.relationship)({
+    aiCallLogs: (0, import_fields97.relationship)({
       ref: "TechAiCallLog.company",
       many: true,
       ui: { description: "Historial de llamadas a IA (prompts, tokens, cr\xE9ditos)" }
     }),
-    aiInsights: (0, import_fields81.relationship)({
+    aiInsights: (0, import_fields97.relationship)({
       ref: "TechAiInsight.company",
       many: true,
       ui: { description: "Insights de IA (digest diario, narrativa, archivos)" }
     }),
-    saasSubscriptionLogs: (0, import_fields81.relationship)({
+    saasSubscriptionLogs: (0, import_fields97.relationship)({
       ref: "SaasSubscriptionLog.company",
       many: true,
       ui: { description: "Logs de intentos de contrataci\xF3n de plan" }
     }),
-    quotations: (0, import_fields81.relationship)({
+    quotations: (0, import_fields97.relationship)({
       ref: "SaasQuotation.company",
       many: true,
       ui: { description: "Cotizaciones de la empresa" }
     }),
-    logo: (0, import_fields81.file)({
+    logo: (0, import_fields97.file)({
       storage: "s3_company_logo",
       ui: { description: "Logo de la empresa" }
     }),
-    onboardingMainOffer: (0, import_fields81.text)({
+    onboardingMainOffer: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 1 \u2014 El "Qu\xE9": \xBFEn una o dos oraciones, qu\xE9 servicio o producto principal vendes?'
       }
     }),
-    onboardingIdealCustomer: (0, import_fields81.text)({
+    onboardingIdealCustomer: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 2 \u2014 El "Qui\xE9n": \xBFQui\xE9n es el cliente que m\xE1s te compra o con el que prefieres trabajar? (ej. cl\xEDnicas dentales, constructoras).'
       }
     }),
-    onboardingAvgTicketValue: (0, import_fields81.text)({
+    onboardingAvgTicketValue: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 3 \u2014 El "Cu\xE1nto": \xBFCu\xE1l es el precio promedio de tu servicio, o cu\xE1nto dinero le haces ganar o ahorrar a tus clientes?'
       }
     }),
-    onboardingSalesPain: (0, import_fields81.text)({
+    onboardingSalesPain: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: 'Pregunta de oro 4 \u2014 El "C\xF3mo": \xBFC\xF3mo consigues clientes hoy y qu\xE9 es lo que m\xE1s te cuesta al vender?'
       }
     }),
-    aiBillingMode: (0, import_fields81.select)({
+    aiBillingMode: (0, import_fields97.select)({
       type: "string",
       options: [...AI_BILLING_MODE_OPTIONS],
       defaultValue: AI_BILLING_MODE.BYOK,
@@ -18142,7 +19637,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "C\xF3mo paga la empresa la IA: API key propia (BYOK) o cr\xE9ditos administrados por Kadesh"
       }
     }),
-    aiProvider: (0, import_fields81.select)({
+    aiProvider: (0, import_fields97.select)({
       type: "string",
       options: [...AI_PROVIDER_OPTIONS],
       db: { isNullable: true },
@@ -18150,13 +19645,13 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Proveedor de IA en modalidad BYOK (Claude, OpenAI o Gemini)"
       }
     }),
-    aiModel: (0, import_fields81.text)({
+    aiModel: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         description: "Override opcional del modelo. Vac\xEDo = default del proveedor."
       }
     }),
-    aiApiKeyEncrypted: (0, import_fields81.text)({
+    aiApiKeyEncrypted: (0, import_fields97.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18170,42 +19665,42 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "API key cifrada (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    aiApiKeyPreview: (0, import_fields81.text)({
+    aiApiKeyPreview: (0, import_fields97.text)({
       db: { isNullable: true },
       access: aiApiKeyPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada de la API key (ej. sk-ant...wXyz)"
       }
     }),
-    aiKeyUpdatedAt: (0, import_fields81.timestamp)({
+    aiKeyUpdatedAt: (0, import_fields97.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se guard\xF3 o borr\xF3 la API key de IA"
       }
     }),
-    whatsappPhoneNumberId: (0, import_fields81.text)({
+    whatsappPhoneNumberId: (0, import_fields97.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "Phone Number ID de WhatsApp Cloud API (Meta). \xDAnico por empresa: se usa para enrutar el webhook entrante."
       }
     }),
-    whatsappBusinessAccountId: (0, import_fields81.text)({
+    whatsappBusinessAccountId: (0, import_fields97.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: {
         description: "WhatsApp Business Account ID (WABA). \xDAnico por empresa: se usa para enrutar el webhook de estado de plantillas."
       }
     }),
-    whatsappDisplayPhoneNumber: (0, import_fields81.text)({
+    whatsappDisplayPhoneNumber: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "N\xFAmero mostrado por Meta (se llena al probar la conexi\xF3n)"
       }
     }),
-    whatsappAccessTokenEncrypted: (0, import_fields81.text)({
+    whatsappAccessTokenEncrypted: (0, import_fields97.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18219,7 +19714,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Access token cifrado (solo mutaciones custom v\xEDa sudo)"
       }
     }),
-    whatsappAppSecretEncrypted: (0, import_fields81.text)({
+    whatsappAppSecretEncrypted: (0, import_fields97.text)({
       db: { isNullable: true },
       access: {
         read: () => false,
@@ -18233,28 +19728,28 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "App Secret de la App de Meta de esta empresa, cifrado. Verifica la firma del webhook entrante."
       }
     }),
-    whatsappTokenPreview: (0, import_fields81.text)({
+    whatsappTokenPreview: (0, import_fields97.text)({
       db: { isNullable: true },
       access: whatsappTokenPreviewFieldAccess,
       ui: {
         description: "Vista enmascarada del access token (ej. EAAxyz...wXyz)"
       }
     }),
-    whatsappConnectedAt: (0, import_fields81.timestamp)({
+    whatsappConnectedAt: (0, import_fields97.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "\xDAltima vez que se conect\xF3 o desconect\xF3 WhatsApp"
       }
     }),
-    whatsappAppId: (0, import_fields81.text)({
+    whatsappAppId: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         description: "App ID de la App de Meta de esta empresa (para configurar su webhook por API)"
       }
     }),
-    whatsappWebhookConfiguredAt: (0, import_fields81.timestamp)({
+    whatsappWebhookConfiguredAt: (0, import_fields97.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18262,7 +19757,7 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Cu\xE1ndo Kadesh dej\xF3 configurado el webhook de su App por API (no implica que ya lleguen mensajes)"
       }
     }),
-    whatsappLastWebhookAt: (0, import_fields81.timestamp)({
+    whatsappLastWebhookAt: (0, import_fields97.timestamp)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18270,22 +19765,22 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "\xDAltimo evento real de mensajes recibido con firma v\xE1lida. Vac\xEDo = nunca ha llegado uno (\xBFApp sin publicar en modo Live?)"
       }
     }),
-    googleCalendarAccounts: (0, import_fields81.relationship)({
+    googleCalendarAccounts: (0, import_fields97.relationship)({
       ref: "GoogleCalendarAccount.company",
       many: true,
       ui: { hideCreate: true, description: "Cuentas de Google Calendar compartidas por la empresa" }
     }),
-    calendarEvents: (0, import_fields81.relationship)({
+    calendarEvents: (0, import_fields97.relationship)({
       ref: "TechCalendarEvent.company",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario de la empresa" }
     }),
-    whatsappMessages: (0, import_fields81.relationship)({
+    whatsappMessages: (0, import_fields97.relationship)({
       ref: "TechWhatsAppMessage.company",
       many: true,
       ui: { description: "Historial de mensajes de WhatsApp de esta empresa" }
     }),
-    whatsappTemplateName: (0, import_fields81.text)({
+    whatsappTemplateName: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18293,14 +19788,14 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Nombre de la plantilla creada autom\xE1ticamente para iniciar conversaciones"
       }
     }),
-    whatsappTemplateLanguage: (0, import_fields81.text)({
+    whatsappTemplateLanguage: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" }
       }
     }),
-    whatsappTemplateStatus: (0, import_fields81.select)({
+    whatsappTemplateStatus: (0, import_fields97.select)({
       type: "string",
       options: [
         { label: "Ninguna", value: "none" },
@@ -18313,41 +19808,41 @@ var SaasCompany_default = (0, import_core81.list)({
         description: "Estado de la plantilla para iniciar conversaciones. Se crea sola al probar la conexi\xF3n, y se actualiza v\xEDa webhook cuando Meta la revisa o reley\xE9ndolo de Meta en cada prueba de conexi\xF3n (por si el webhook no est\xE1 configurado)."
       }
     }),
-    termsQuotation: (0, import_fields81.text)({
+    termsQuotation: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones de la cotizaci\xF3n"
       }
     }),
-    colorPrimary: (0, import_fields81.text)({
+    colorPrimary: (0, import_fields97.text)({
       db: { isNullable: true },
       defaultValue: "#F7945E",
       ui: {
         description: "Color primario de la empresa"
       }
     }),
-    colorSecondary: (0, import_fields81.text)({
+    colorSecondary: (0, import_fields97.text)({
       db: { isNullable: true },
       defaultValue: "#E07C3A",
       ui: {
         description: "Color secundario de la empresa"
       }
     }),
-    contactEmail: (0, import_fields81.text)({
+    contactEmail: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         description: "Correo electr\xF3nico de contacto de la empresa"
       }
     }),
-    contactPhone: (0, import_fields81.text)({
+    contactPhone: (0, import_fields97.text)({
       db: { isNullable: true },
       ui: {
         description: "Tel\xE9fono de contacto de la empresa"
       }
     }),
     // Control de cuenta (Operaciones). Ver auth/sessionGuards.ts.
-    suspendedAt: (0, import_fields81.timestamp)({
+    suspendedAt: (0, import_fields97.timestamp)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -18356,7 +19851,7 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    suspendedReason: (0, import_fields81.text)({
+    suspendedReason: (0, import_fields97.text)({
       db: { isNullable: true },
       access: saasCompanyAccountControlFieldAccess,
       ui: {
@@ -18365,7 +19860,7 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    accountManager: (0, import_fields81.relationship)({
+    accountManager: (0, import_fields97.relationship)({
       ref: "User",
       many: false,
       access: saasCompanyAccountControlFieldAccess,
@@ -18375,14 +19870,14 @@ var SaasCompany_default = (0, import_core81.list)({
         itemView: { fieldMode: "read" }
       }
     }),
-    createdAt: (0, import_fields81.timestamp)({
+    createdAt: (0, import_fields97.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields81.timestamp)({
+    updatedAt: (0, import_fields97.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18393,8 +19888,8 @@ var SaasCompany_default = (0, import_core81.list)({
 });
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var import_core82 = require("@keystone-6/core");
-var import_fields82 = require("@keystone-6/core/fields");
+var import_core98 = require("@keystone-6/core");
+var import_fields98 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPlan/SaasPlan.access.ts
 var saasPlanAccess = {
@@ -18424,7 +19919,7 @@ var PLAN_FREQUENCY_OPTIONS = [
 ];
 
 // models/Saas/SaasPlan/SaasPlan.ts
-var SaasPlan_default = (0, import_core82.list)({
+var SaasPlan_default = (0, import_core98.list)({
   access: saasPlanAccess,
   ui: {
     listView: {
@@ -18442,42 +19937,42 @@ var SaasPlan_default = (0, import_core82.list)({
   },
   fields: {
     /** Plan display name */
-    name: (0, import_fields82.text)({
+    name: (0, import_fields98.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Plan name (e.g. Starter, Pro, Enterprise)" }
     }),
     /** Price amount (in plan currency) */
-    cost: (0, import_fields82.float)({
+    cost: (0, import_fields98.float)({
       ui: { description: "Plan cost per billing period" }
     }),
-    costOld: (0, import_fields82.float)({
+    costOld: (0, import_fields98.float)({
       ui: { description: "Plan cost original" }
     }),
     /** Referral commission percentage for upfront payment (e.g. 20 = 20%) */
-    referralUpfrontCommissionPct: (0, import_fields82.float)({
+    referralUpfrontCommissionPct: (0, import_fields98.float)({
       ui: {
         description: "Referral upfront commission percentage (e.g. 20 = 20% of first payment)"
       }
     }),
     /** Referral commission percentage for recurring payments (e.g. 10 = 10%) */
-    referralRecurringCommissionPct: (0, import_fields82.float)({
+    referralRecurringCommissionPct: (0, import_fields98.float)({
       ui: {
         description: "Referral recurring commission percentage per billing period (e.g. 10 = 10%)"
       }
     }),
     /** Billing frequency: weekly, monthly, or annual */
-    frequency: (0, import_fields82.select)({
+    frequency: (0, import_fields98.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       ui: { description: "Billing frequency (weekly, monthly, annual)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields82.text)({
+    currency: (0, import_fields98.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
-    leadLimit: (0, import_fields82.integer)({
+    leadLimit: (0, import_fields98.integer)({
       ui: {
         description: "Max leads that can be synced per month for this plan"
       }
@@ -18488,28 +19983,28 @@ var SaasPlan_default = (0, import_core82.list)({
      * name: display name. description: optional.
      * Copied to SaasCompanySubscription.planFeatures when subscribing.
      */
-    planFeatures: (0, import_fields82.json)({
+    planFeatures: (0, import_fields98.json)({
       ui: {
         description: 'Features included in this plan. Array of { "key": "lead_sync", "name": "Lead sync", "description": "Optional" }. Key is used to enable features in the app.'
       }
     }),
     /** Payments associated with this plan */
-    saasPayments: (0, import_fields82.relationship)({
+    saasPayments: (0, import_fields98.relationship)({
       ref: "SaasPayment.plan",
       many: true,
       ui: { description: "Payments for this plan" }
     }),
     /** Shown in app and available for new signups */
-    active: (0, import_fields82.checkbox)({
+    active: (0, import_fields98.checkbox)({
       defaultValue: true,
       ui: { description: "Plan enabled in app (visible for new signups)" }
     }),
-    bestSeller: (0, import_fields82.checkbox)({
+    bestSeller: (0, import_fields98.checkbox)({
       defaultValue: false,
       ui: { description: "Plan best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required to create subscriptions. */
-    stripePriceId: (0, import_fields82.text)({
+    stripePriceId: (0, import_fields98.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -18517,36 +20012,36 @@ var SaasPlan_default = (0, import_core82.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields82.text)({
+    stripeProductId: (0, import_fields98.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
     /** Companies currently on this plan */
-    companies: (0, import_fields82.relationship)({
+    companies: (0, import_fields98.relationship)({
       ref: "SaasCompany.plan",
       many: true,
       ui: { description: "Companies on this plan" }
     }),
-    subscriptions: (0, import_fields82.relationship)({
+    subscriptions: (0, import_fields98.relationship)({
       ref: "SaasCompanySubscription.plan",
       many: true,
       ui: { description: "Subscriptions for this plan" }
     }),
-    saasSubscriptionLogs: (0, import_fields82.relationship)({
+    saasSubscriptionLogs: (0, import_fields98.relationship)({
       ref: "SaasSubscriptionLog.plan",
       many: true,
       ui: { description: "Logs de intentos de suscripci\xF3n a este plan" }
     }),
-    createdAt: (0, import_fields82.timestamp)({
+    createdAt: (0, import_fields98.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields82.timestamp)({
+    updatedAt: (0, import_fields98.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18557,8 +20052,8 @@ var SaasPlan_default = (0, import_core82.list)({
 });
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var import_core83 = require("@keystone-6/core");
-var import_fields83 = require("@keystone-6/core/fields");
+var import_core99 = require("@keystone-6/core");
+var import_fields99 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCredit/SaasCredit.access.ts
 var saasCreditAccess = {
@@ -18576,7 +20071,7 @@ var saasCreditAccess = {
 };
 
 // models/Saas/SaasCredit/SaasCredit.ts
-var SaasCredit_default = (0, import_core83.list)({
+var SaasCredit_default = (0, import_core99.list)({
   access: saasCreditAccess,
   ui: {
     listView: {
@@ -18594,51 +20089,51 @@ var SaasCredit_default = (0, import_core83.list)({
   },
   fields: {
     /** Internal key for upsert/seed (e.g. "Recarga Básica") */
-    slug: (0, import_fields83.text)({
+    slug: (0, import_fields99.text)({
       validation: { isRequired: true },
       isIndexed: "unique",
       ui: { description: "Internal package key (e.g. Recarga B\xE1sica)" }
     }),
     /** Package display name shown in the app */
-    name: (0, import_fields83.text)({
+    name: (0, import_fields99.text)({
       validation: { isRequired: true },
       ui: { description: "Display name (e.g. 250 Cr\xE9ditos Extra)" }
     }),
     /** One-time price amount (in package currency) */
-    cost: (0, import_fields83.float)({
+    cost: (0, import_fields99.float)({
       ui: { description: "One-time package cost" }
     }),
-    costOld: (0, import_fields83.float)({
+    costOld: (0, import_fields99.float)({
       ui: { description: "Original price for strikethrough discount display" }
     }),
     /** Payment frequency (one-time for credit top-ups) */
-    frequency: (0, import_fields83.select)({
+    frequency: (0, import_fields99.select)({
       type: "string",
       options: [...PLAN_FREQUENCY_OPTIONS],
       defaultValue: "once",
       ui: { description: "Payment frequency (once for credit packages)" }
     }),
     /** ISO 4217 currency code for Stripe (e.g. mxn, usd) */
-    currency: (0, import_fields83.text)({
+    currency: (0, import_fields99.text)({
       defaultValue: "mxn",
       ui: { description: "Stripe currency code (e.g. mxn, usd)" }
     }),
     /** Number of extra credits added on purchase (leads sync or managed AI) */
-    creditsToAdd: (0, import_fields83.integer)({
+    creditsToAdd: (0, import_fields99.integer)({
       validation: { isRequired: true },
       ui: { description: "Credits added to the company on successful purchase" }
     }),
     /** Shown in app and available for purchase */
-    active: (0, import_fields83.checkbox)({
+    active: (0, import_fields99.checkbox)({
       defaultValue: true,
       ui: { description: "Package enabled in app (visible for purchase)" }
     }),
-    bestSeller: (0, import_fields83.checkbox)({
+    bestSeller: (0, import_fields99.checkbox)({
       defaultValue: false,
       ui: { description: "Highlight this package as best seller" }
     }),
     /** Stripe Price ID (e.g. price_xxx). Required for one-time checkout. */
-    stripePriceId: (0, import_fields83.text)({
+    stripePriceId: (0, import_fields99.text)({
       isIndexed: "unique",
       db: { isNullable: true },
       ui: {
@@ -18646,20 +20141,20 @@ var SaasCredit_default = (0, import_core83.list)({
       }
     }),
     /** Stripe Product ID (e.g. prod_xxx). Product that contains this price. */
-    stripeProductId: (0, import_fields83.text)({
+    stripeProductId: (0, import_fields99.text)({
       db: { isNullable: true },
       ui: {
         description: "Stripe Product ID (optional, from Stripe when creating Product)"
       }
     }),
-    createdAt: (0, import_fields83.timestamp)({
+    createdAt: (0, import_fields99.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields83.timestamp)({
+    updatedAt: (0, import_fields99.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18670,8 +20165,8 @@ var SaasCredit_default = (0, import_core83.list)({
 });
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var import_core84 = require("@keystone-6/core");
-var import_fields84 = require("@keystone-6/core/fields");
+var import_core100 = require("@keystone-6/core");
+var import_fields100 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.access.ts
 var getCompanyId8 = (session2) => session2?.data?.company?.id;
@@ -18697,7 +20192,7 @@ var saasCompanyMonthlyLeadSyncAccess = {
 };
 
 // models/Saas/SaasCompanyMonthlyLeadSync/SaasCompanyMonthlyLeadSync.ts
-var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
+var SaasCompanyMonthlyLeadSync_default = (0, import_core100.list)({
   access: saasCompanyMonthlyLeadSyncAccess,
   ui: {
     listView: {
@@ -18705,30 +20200,30 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
     }
   },
   fields: {
-    company: (0, import_fields84.relationship)({
+    company: (0, import_fields100.relationship)({
       ref: "SaasCompany.monthlyLeadSyncRecords",
       many: false
     }),
-    year: (0, import_fields84.integer)({
+    year: (0, import_fields100.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the sync period" }
     }),
-    month: (0, import_fields84.integer)({
+    month: (0, import_fields100.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the sync period (1-12)" }
     }),
     /** Number of leads synced in this month for this company (used vs plan leadLimit) */
-    syncedCount: (0, import_fields84.integer)({
+    syncedCount: (0, import_fields100.integer)({
       defaultValue: 0,
       ui: { description: "Number of leads synced this month (for quota tracking)" }
     }),
-    createdAt: (0, import_fields84.timestamp)({
+    createdAt: (0, import_fields100.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields84.timestamp)({
+    updatedAt: (0, import_fields100.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -18736,8 +20231,8 @@ var SaasCompanyMonthlyLeadSync_default = (0, import_core84.list)({
 });
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var import_core85 = require("@keystone-6/core");
-var import_fields85 = require("@keystone-6/core/fields");
+var import_core101 = require("@keystone-6/core");
+var import_fields101 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.access.ts
 var getCompanyId9 = (session2) => session2?.data?.company?.id;
@@ -18761,7 +20256,7 @@ var companyCreditPeriodAccess = {
 };
 
 // models/Saas/SaasCompanyCreditPeriod/SaasCompanyCreditPeriod.ts
-var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
+var SaasCompanyCreditPeriod_default = (0, import_core101.list)({
   access: companyCreditPeriodAccess,
   ui: {
     listView: {
@@ -18777,60 +20272,60 @@ var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
     }
   },
   fields: {
-    company: (0, import_fields85.relationship)({
+    company: (0, import_fields101.relationship)({
       ref: "SaasCompany.creditPeriods",
       many: false,
       ui: { description: "Company that owns this credit period" }
     }),
-    subscription: (0, import_fields85.relationship)({
+    subscription: (0, import_fields101.relationship)({
       ref: "SaasCompanySubscription.creditPeriods",
       many: false,
       ui: { description: "Active subscription when this period was created" }
     }),
-    periodKey: (0, import_fields85.text)({
+    periodKey: (0, import_fields101.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: {
         description: "Unique key: companyId:year:month"
       }
     }),
-    year: (0, import_fields85.integer)({
+    year: (0, import_fields101.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Year of the credit period" }
     }),
-    month: (0, import_fields85.integer)({
+    month: (0, import_fields101.integer)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Month of the credit period (1-12)" }
     }),
-    planAllowance: (0, import_fields85.integer)({
+    planAllowance: (0, import_fields101.integer)({
       defaultValue: 0,
       ui: { description: "Monthly lead allowance from the active plan" }
     }),
-    bonusAllowance: (0, import_fields85.integer)({
+    bonusAllowance: (0, import_fields101.integer)({
       defaultValue: 0,
       ui: {
         description: "Extra purchased credits added to the monthly allowance for this period"
       }
     }),
-    used: (0, import_fields85.integer)({
+    used: (0, import_fields101.integer)({
       defaultValue: 0,
       ui: { description: "Credits consumed in this period" }
     }),
-    ledgerEntries: (0, import_fields85.relationship)({
+    ledgerEntries: (0, import_fields101.relationship)({
       ref: "SaasCompanyCreditLedger.period",
       many: true,
       ui: { description: "Ledger movements for this period" }
     }),
-    createdAt: (0, import_fields85.timestamp)({
+    createdAt: (0, import_fields101.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields85.timestamp)({
+    updatedAt: (0, import_fields101.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18841,8 +20336,8 @@ var SaasCompanyCreditPeriod_default = (0, import_core85.list)({
 });
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var import_core86 = require("@keystone-6/core");
-var import_fields86 = require("@keystone-6/core/fields");
+var import_core102 = require("@keystone-6/core");
+var import_fields102 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.access.ts
 var getCompanyId10 = (session2) => session2?.data?.company?.id;
@@ -18866,7 +20361,7 @@ var companyCreditLedgerAccess = {
 };
 
 // models/Saas/SaasCompanyCreditLedger/SaasCompanyCreditLedger.ts
-var SaasCompanyCreditLedger_default = (0, import_core86.list)({
+var SaasCompanyCreditLedger_default = (0, import_core102.list)({
   access: companyCreditLedgerAccess,
   ui: {
     listView: {
@@ -18882,49 +20377,49 @@ var SaasCompanyCreditLedger_default = (0, import_core86.list)({
     }
   },
   fields: {
-    company: (0, import_fields86.relationship)({
+    company: (0, import_fields102.relationship)({
       ref: "SaasCompany.creditLedgerEntries",
       many: false,
       ui: { description: "Company this ledger entry belongs to" }
     }),
-    period: (0, import_fields86.relationship)({
+    period: (0, import_fields102.relationship)({
       ref: "SaasCompanyCreditPeriod.ledgerEntries",
       many: false,
       ui: { description: "Credit period this entry affects" }
     }),
-    type: (0, import_fields86.select)({
+    type: (0, import_fields102.select)({
       type: "string",
       options: [...COMPANY_CREDIT_LEDGER_TYPE_OPTIONS],
       validation: { isRequired: true },
       ui: { description: "Type of credit movement" }
     }),
-    amount: (0, import_fields86.integer)({
+    amount: (0, import_fields102.integer)({
       validation: { isRequired: true },
       ui: {
         description: "Signed amount: positive = grant, negative = consume"
       }
     }),
-    balanceAfter: (0, import_fields86.integer)({
+    balanceAfter: (0, import_fields102.integer)({
       ui: { description: "Remaining credits after this movement" }
     }),
-    referenceType: (0, import_fields86.text)({
+    referenceType: (0, import_fields102.text)({
       db: { isNullable: true },
       ui: {
         description: "Reference entity type (subscription, payment, admin, company, sync, ai)"
       }
     }),
-    referenceId: (0, import_fields86.text)({
+    referenceId: (0, import_fields102.text)({
       db: { isNullable: true },
       ui: { description: "Reference entity ID" }
     }),
-    notes: (0, import_fields86.text)({
+    notes: (0, import_fields102.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
-    metadata: (0, import_fields86.json)({
+    metadata: (0, import_fields102.json)({
       ui: { description: "Optional extra context for this movement" }
     }),
-    createdAt: (0, import_fields86.timestamp)({
+    createdAt: (0, import_fields102.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -18935,8 +20430,8 @@ var SaasCompanyCreditLedger_default = (0, import_core86.list)({
 });
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var import_core87 = require("@keystone-6/core");
-var import_fields87 = require("@keystone-6/core/fields");
+var import_core103 = require("@keystone-6/core");
+var import_fields103 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.access.ts
 var saasCompanyNoteAccess = {
@@ -18954,7 +20449,7 @@ var saasCompanyNoteAccess = {
 };
 
 // models/Saas/SaasCompanyNote/SaasCompanyNote.ts
-var SaasCompanyNote_default = (0, import_core87.list)({
+var SaasCompanyNote_default = (0, import_core103.list)({
   access: saasCompanyNoteAccess,
   hooks: {
     resolveInput: {
@@ -18971,32 +20466,32 @@ var SaasCompanyNote_default = (0, import_core87.list)({
     }
   },
   fields: {
-    company: (0, import_fields87.relationship)({
+    company: (0, import_fields103.relationship)({
       ref: "SaasCompany",
       many: false,
       ui: { description: "Empresa de la nota" }
     }),
-    author: (0, import_fields87.relationship)({
+    author: (0, import_fields103.relationship)({
       ref: "User",
       many: false,
       ui: { description: "Qui\xE9n la escribi\xF3 (lo pone el servidor)", createView: { fieldMode: "hidden" } }
     }),
-    body: (0, import_fields87.text)({
+    body: (0, import_fields103.text)({
       validation: { isRequired: true, length: { max: 4e3 } },
       ui: { displayMode: "textarea" }
     }),
-    pinned: (0, import_fields87.checkbox)({
+    pinned: (0, import_fields103.checkbox)({
       defaultValue: false,
       ui: { description: "Fijada arriba en el 360" }
     }),
-    createdAt: (0, import_fields87.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
-    updatedAt: (0, import_fields87.timestamp)({ db: { updatedAt: true } })
+    createdAt: (0, import_fields103.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
+    updatedAt: (0, import_fields103.timestamp)({ db: { updatedAt: true } })
   }
 });
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var import_core88 = require("@keystone-6/core");
-var import_fields88 = require("@keystone-6/core/fields");
+var import_core104 = require("@keystone-6/core");
+var import_fields104 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.access.ts
 var saasCompanyDailyUsageAccess = {
@@ -19014,8 +20509,8 @@ var saasCompanyDailyUsageAccess = {
 };
 
 // models/Saas/SaasCompanyDailyUsage/SaasCompanyDailyUsage.ts
-var count = (description) => (0, import_fields88.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
-var SaasCompanyDailyUsage_default = (0, import_core88.list)({
+var count = (description) => (0, import_fields104.integer)({ defaultValue: 0, validation: { isRequired: true }, ui: { description } });
+var SaasCompanyDailyUsage_default = (0, import_core104.list)({
   access: saasCompanyDailyUsageAccess,
   ui: {
     hideCreate: true,
@@ -19025,13 +20520,13 @@ var SaasCompanyDailyUsage_default = (0, import_core88.list)({
     }
   },
   fields: {
-    key: (0, import_fields88.text)({
+    key: (0, import_fields104.text)({
       isIndexed: "unique",
       validation: { isRequired: true },
       ui: { description: "companyId:YYYY-MM-DD" }
     }),
-    company: (0, import_fields88.relationship)({ ref: "SaasCompany", many: false }),
-    day: (0, import_fields88.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
+    company: (0, import_fields104.relationship)({ ref: "SaasCompany", many: false }),
+    day: (0, import_fields104.calendarDay)({ isIndexed: true, validation: { isRequired: true } }),
     activeUsers: count("Personas con el panel abierto"),
     activeMinutes: count("Minutos con el panel abierto (todo el equipo)"),
     logins: count("Inicios de sesi\xF3n correctos"),
@@ -19048,13 +20543,13 @@ var SaasCompanyDailyUsage_default = (0, import_core88.list)({
     quotationsAccepted: count("Cotizaciones aceptadas"),
     whatsappSent: count("WhatsApp enviados"),
     whatsappReceived: count("WhatsApp recibidos"),
-    computedAt: (0, import_fields88.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
+    computedAt: (0, import_fields104.timestamp)({ db: { isNullable: true }, ui: { description: "Cu\xE1ndo se calcul\xF3" } })
   }
 });
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var import_core89 = require("@keystone-6/core");
-var import_fields89 = require("@keystone-6/core/fields");
+var import_core105 = require("@keystone-6/core");
+var import_fields105 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.access.ts
 var getCompanyId11 = (session2) => session2?.data?.company?.id;
@@ -19080,7 +20575,7 @@ var saasCompanySubscriptionAccess = {
 };
 
 // models/Saas/SaasCompanySubscription/SaasCompanySubscription.ts
-var SaasCompanySubscription_default = (0, import_core89.list)({
+var SaasCompanySubscription_default = (0, import_core105.list)({
   access: saasCompanySubscriptionAccess,
   ui: {
     listView: {
@@ -19098,102 +20593,102 @@ var SaasCompanySubscription_default = (0, import_core89.list)({
   },
   fields: {
     /** Company that owns this subscription */
-    company: (0, import_fields89.relationship)({
+    company: (0, import_fields105.relationship)({
       ref: "SaasCompany.subscriptions",
       many: false,
       ui: { description: "Company that paid for this subscription" }
     }),
     /** Snapshot: plan name at time of contract (no relation to SaasPlan) */
-    planName: (0, import_fields89.text)({
+    planName: (0, import_fields105.text)({
       ui: { description: "Plan name as contracted (snapshot)" }
     }),
     /** Snapshot: plan cost at time of contract */
-    planCost: (0, import_fields89.float)({
+    planCost: (0, import_fields105.float)({
       ui: { description: "Plan cost as contracted (snapshot)" }
     }),
     /** Snapshot: billing frequency (weekly, monthly, annual) */
-    planFrequency: (0, import_fields89.text)({
+    planFrequency: (0, import_fields105.text)({
       ui: { description: "Plan frequency as contracted (snapshot)" }
     }),
     /** Snapshot: lead limit at time of contract */
-    planLeadLimit: (0, import_fields89.integer)({
+    planLeadLimit: (0, import_fields105.integer)({
       ui: { description: "Lead limit as contracted (snapshot)" }
     }),
     /** Extra lead-sync credits purchased on top of the plan limit (accumulated) */
-    newCreditsAdded: (0, import_fields89.integer)({
+    newCreditsAdded: (0, import_fields105.integer)({
       defaultValue: 0,
       ui: { description: "Extra credits purchased and added to this subscription" }
     }),
     /** Snapshot: Stripe Price ID at time of contract */
-    planStripePriceId: (0, import_fields89.text)({
+    planStripePriceId: (0, import_fields105.text)({
       ui: { description: "Stripe Price ID as contracted (snapshot)" }
     }),
     /** Snapshot: currency at time of contract */
-    planCurrency: (0, import_fields89.text)({
+    planCurrency: (0, import_fields105.text)({
       ui: { description: "Currency as contracted (snapshot, e.g. mxn)" }
     }),
-    planFeatures: (0, import_fields89.json)({
+    planFeatures: (0, import_fields105.json)({
       ui: {
         description: "Features included in this subscription (snapshot from plan at contract time). Check subscription.planFeatures for enabled features."
       }
     }),
     /** Subscription status (e.g. active, cancelled). Use query subscriptionStatus to verify against Stripe and get activeInStripe. */
-    status: (0, import_fields89.select)({
+    status: (0, import_fields105.select)({
       type: "string",
       options: [...SUBSCRIPTION_STATUS_OPTIONS],
       defaultValue: "active",
       ui: { description: "Current subscription status" }
     }),
     /** Date when the subscription was activated */
-    activatedAt: (0, import_fields89.calendarDay)({
+    activatedAt: (0, import_fields105.calendarDay)({
       ui: { description: "Date when the subscription was activated" }
     }),
     /** End of current billing period (Stripe current_period_end) */
-    currentPeriodEnd: (0, import_fields89.calendarDay)({
+    currentPeriodEnd: (0, import_fields105.calendarDay)({
       ui: { description: "End of current billing period" }
     }),
     /** Stripe Subscription ID (e.g. sub_xxx) */
-    stripeSubscriptionId: (0, import_fields89.text)({
+    stripeSubscriptionId: (0, import_fields105.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Subscription ID" }
     }),
     /** Stripe Customer ID if needed (e.g. cus_xxx) */
-    stripeCustomerId: (0, import_fields89.text)({
+    stripeCustomerId: (0, import_fields105.text)({
       db: { isNullable: true },
       ui: { description: "Stripe Customer ID" }
     }),
     /** Payments associated with this subscription */
-    saasPayments: (0, import_fields89.relationship)({
+    saasPayments: (0, import_fields105.relationship)({
       ref: "SaasPayment.subscription",
       many: true,
       ui: { description: "Payments for this subscription" }
     }),
-    creditPeriods: (0, import_fields89.relationship)({
+    creditPeriods: (0, import_fields105.relationship)({
       ref: "SaasCompanyCreditPeriod.subscription",
       many: true,
       ui: { description: "Credit periods linked to this subscription" }
     }),
     /** Subscription plan for this company */
-    plan: (0, import_fields89.relationship)({
+    plan: (0, import_fields105.relationship)({
       ref: "SaasPlan.subscriptions",
       many: false,
       ui: {
         description: "Subscription plan (defines cost, frequency, lead limit)"
       }
     }),
-    saasSubscriptionLogs: (0, import_fields89.relationship)({
+    saasSubscriptionLogs: (0, import_fields105.relationship)({
       ref: "SaasSubscriptionLog.createdSubscription",
       many: true,
       ui: { description: "Logs de creaci\xF3n que generaron o referencian esta suscripci\xF3n" }
     }),
-    createdAt: (0, import_fields89.timestamp)({
+    createdAt: (0, import_fields105.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields89.timestamp)({
+    updatedAt: (0, import_fields105.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19204,8 +20699,8 @@ var SaasCompanySubscription_default = (0, import_core89.list)({
 });
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var import_core90 = require("@keystone-6/core");
-var import_fields90 = require("@keystone-6/core/fields");
+var import_core106 = require("@keystone-6/core");
+var import_fields106 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.access.ts
 function paymentMethodFilter(session2) {
@@ -19231,7 +20726,7 @@ var saasPaymentMethodAccess = {
 };
 
 // models/Saas/SaasPaymentMethod/SaasPaymentMethod.ts
-var SaasPaymentMethod_default = (0, import_core90.list)({
+var SaasPaymentMethod_default = (0, import_core106.list)({
   access: saasPaymentMethodAccess,
   ui: {
     listView: {
@@ -19246,61 +20741,61 @@ var SaasPaymentMethod_default = (0, import_core90.list)({
   },
   fields: {
     /** User that owns this payment method */
-    user: (0, import_fields90.relationship)({
+    user: (0, import_fields106.relationship)({
       ref: "User.saasPaymentMethods",
       many: false,
       ui: { description: "User who owns this card" }
     }),
     /** Card type (e.g. card) */
-    cardType: (0, import_fields90.text)({
+    cardType: (0, import_fields106.text)({
       ui: { description: "Payment method type from Stripe (e.g. card)" }
     }),
     /** Last 4 digits of the card */
-    lastFourDigits: (0, import_fields90.text)({
+    lastFourDigits: (0, import_fields106.text)({
       ui: { description: "Last 4 digits of the card" }
     }),
-    expMonth: (0, import_fields90.text)({
+    expMonth: (0, import_fields106.text)({
       ui: { description: "Expiration month (1-12)" }
     }),
-    expYear: (0, import_fields90.text)({
+    expYear: (0, import_fields106.text)({
       ui: { description: "Expiration year" }
     }),
     /** Processor identifier (e.g. stripe), placeholder allowed */
-    stripeProcessorId: (0, import_fields90.text)({
+    stripeProcessorId: (0, import_fields106.text)({
       ui: { description: "Payment processor ID (e.g. stripe)" }
     }),
     /** Stripe PaymentMethod ID (pm_xxx) */
-    stripePaymentMethodId: (0, import_fields90.text)({
+    stripePaymentMethodId: (0, import_fields106.text)({
       isIndexed: "unique",
       ui: { description: "Stripe PaymentMethod ID" }
     }),
-    address: (0, import_fields90.text)({
+    address: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: { description: "Billing address" }
     }),
-    postalCode: (0, import_fields90.text)({
+    postalCode: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: { description: "Postal / ZIP code" }
     }),
-    ownerName: (0, import_fields90.text)({
+    ownerName: (0, import_fields106.text)({
       ui: { description: "Cardholder name" }
     }),
     /** Two-letter country code (e.g. US, MX) */
-    country: (0, import_fields90.text)({
+    country: (0, import_fields106.text)({
       db: { isNullable: true },
       ui: { description: "Country code from card" }
     }),
     /** Payments made with this payment method */
-    saasPayments: (0, import_fields90.relationship)({
+    saasPayments: (0, import_fields106.relationship)({
       ref: "SaasPayment.paymentMethod",
       many: true,
       ui: { description: "Payments that used this card" }
     }),
-    createdAt: (0, import_fields90.timestamp)({
+    createdAt: (0, import_fields106.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields90.timestamp)({
+    updatedAt: (0, import_fields106.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -19308,8 +20803,8 @@ var SaasPaymentMethod_default = (0, import_core90.list)({
 });
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var import_core91 = require("@keystone-6/core");
-var import_fields91 = require("@keystone-6/core/fields");
+var import_core107 = require("@keystone-6/core");
+var import_fields107 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasPayment/SaasPayment.access.ts
 function paymentFilter(session2) {
@@ -19335,7 +20830,7 @@ var saasPaymentAccess = {
 };
 
 // models/Saas/SaasPayment/SaasPayment.ts
-var SaasPayment_default = (0, import_core91.list)({
+var SaasPayment_default = (0, import_core107.list)({
   access: saasPaymentAccess,
   ui: {
     listView: {
@@ -19353,30 +20848,30 @@ var SaasPayment_default = (0, import_core91.list)({
   },
   fields: {
     /** User who made the payment */
-    user: (0, import_fields91.relationship)({
+    user: (0, import_fields107.relationship)({
       ref: "User.saasPayments",
       many: false,
       ui: { description: "User who made this payment" }
     }),
     /** When no linked SaasPaymentMethod (e.g. failed attempt), store type as string (e.g. 'card') */
-    paymentMethodType: (0, import_fields91.text)({
+    paymentMethodType: (0, import_fields107.text)({
       db: { isNullable: true },
       ui: {
         description: "Payment method type when no card is linked (e.g. 'card' for failed attempts)"
       }
     }),
     /** Saved payment method used (when payment succeeded and we have a method id) */
-    paymentMethod: (0, import_fields91.relationship)({
+    paymentMethod: (0, import_fields107.relationship)({
       ref: "SaasPaymentMethod.saasPayments",
       many: false,
       ui: { description: "Saved payment method used for this payment" }
     }),
-    amount: (0, import_fields91.decimal)({
+    amount: (0, import_fields107.decimal)({
       scale: 6,
       defaultValue: "0",
       ui: { description: "Amount charged (e.g. in cents or unit currency)" }
     }),
-    status: (0, import_fields91.select)({
+    status: (0, import_fields107.select)({
       type: "string",
       options: [
         { label: "Pendiente", value: "pending" },
@@ -19389,38 +20884,38 @@ var SaasPayment_default = (0, import_core91.list)({
       defaultValue: "pending",
       ui: { description: "Payment status" }
     }),
-    processorStripeChargeId: (0, import_fields91.text)({
+    processorStripeChargeId: (0, import_fields107.text)({
       defaultValue: "",
       ui: { description: "Stripe PaymentIntent or Charge ID" }
     }),
-    stripeErrorMessage: (0, import_fields91.text)({
+    stripeErrorMessage: (0, import_fields107.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "Stripe error message (e.g. when status is failed)"
       }
     }),
-    notes: (0, import_fields91.text)({
+    notes: (0, import_fields107.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Optional notes" }
     }),
     /** Plan this payment is for (optional) */
-    plan: (0, import_fields91.relationship)({
+    plan: (0, import_fields107.relationship)({
       ref: "SaasPlan.saasPayments",
       many: false,
       ui: { description: "Plan this payment is associated with" }
     }),
     /** Subscription this payment is for (optional) */
-    subscription: (0, import_fields91.relationship)({
+    subscription: (0, import_fields107.relationship)({
       ref: "SaasCompanySubscription.saasPayments",
       many: false,
       ui: { description: "Subscription this payment is associated with" }
     }),
-    createdAt: (0, import_fields91.timestamp)({
+    createdAt: (0, import_fields107.timestamp)({
       defaultValue: { kind: "now" },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     }),
-    updatedAt: (0, import_fields91.timestamp)({
+    updatedAt: (0, import_fields107.timestamp)({
       db: { updatedAt: true },
       ui: { createView: { fieldMode: "hidden" }, listView: { fieldMode: "read" } }
     })
@@ -19428,8 +20923,8 @@ var SaasPayment_default = (0, import_core91.list)({
 });
 
 // models/Saas/Project/SaasProject.ts
-var import_core92 = require("@keystone-6/core");
-var import_fields92 = require("@keystone-6/core/fields");
+var import_core108 = require("@keystone-6/core");
+var import_fields108 = require("@keystone-6/core/fields");
 
 // models/Saas/Project/SaasProject.access.ts
 var getCompanyId12 = (session2) => session2?.data?.company?.id;
@@ -19473,7 +20968,7 @@ var PROJECT_STATUS_OPTIONS = Object.entries(PROJECT_STATUS).map(
 );
 
 // models/Saas/Project/SaasProject.ts
-var SaasProject_default = (0, import_core92.list)({
+var SaasProject_default = (0, import_core108.list)({
   access: projectAccess,
   ui: {
     listView: {
@@ -19488,78 +20983,78 @@ var SaasProject_default = (0, import_core92.list)({
     }
   },
   fields: {
-    name: (0, import_fields92.text)({
+    name: (0, import_fields108.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del proyecto" }
     }),
-    serviceType: (0, import_fields92.text)({
+    serviceType: (0, import_fields108.text)({
       isIndexed: true,
       ui: {
         description: "Tipo de servicio (ej: Desarrollo web, Remodelaci\xF3n, Tratamiento, Campa\xF1a marketing)"
       }
     }),
-    responsible: (0, import_fields92.relationship)({
+    responsible: (0, import_fields108.relationship)({
       ref: "User.projectsResponsible",
       many: false,
       ui: { description: "Responsable del proyecto" }
     }),
-    startDate: (0, import_fields92.calendarDay)({
+    startDate: (0, import_fields108.calendarDay)({
       ui: { description: "Fecha de inicio" }
     }),
-    estimatedEndDate: (0, import_fields92.calendarDay)({
+    estimatedEndDate: (0, import_fields108.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Fecha estimada de fin" }
     }),
-    description: (0, import_fields92.text)({
+    description: (0, import_fields108.text)({
       ui: {
         displayMode: "textarea",
         description: "Descripci\xF3n del proyecto o alcance"
       }
     }),
-    status: (0, import_fields92.select)({
+    status: (0, import_fields108.select)({
       type: "string",
       options: PROJECT_STATUS_OPTIONS,
       defaultValue: "Pendiente",
       isIndexed: true,
       ui: { description: "Estado del proyecto" }
     }),
-    urlData: (0, import_fields92.text)({
+    urlData: (0, import_fields108.text)({
       db: { isNullable: true },
       ui: { description: "URL de la data del proyecto" }
     }),
-    company: (0, import_fields92.relationship)({
+    company: (0, import_fields108.relationship)({
       ref: "SaasCompany.projects",
       many: false,
       ui: { description: "Empresa a la que pertenece el proyecto" }
     }),
-    businessLead: (0, import_fields92.relationship)({
+    businessLead: (0, import_fields108.relationship)({
       ref: "TechBusinessLead.projects",
       many: false,
       ui: {
         description: "Cliente o lead del que surgi\xF3 este proyecto (venta cerrada)"
       }
     }),
-    proposal: (0, import_fields92.relationship)({
+    proposal: (0, import_fields108.relationship)({
       ref: "TechProposal.project",
       many: false,
       ui: {
         description: "Propuesta comprada que origin\xF3 este proyecto (opcional)"
       }
     }),
-    quotations: (0, import_fields92.relationship)({
+    quotations: (0, import_fields108.relationship)({
       ref: "SaasQuotation.project",
       many: true,
       ui: { description: "Cotizaciones asociadas a este proyecto" }
     }),
-    createdAt: (0, import_fields92.timestamp)({
+    createdAt: (0, import_fields108.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields92.timestamp)({
+    updatedAt: (0, import_fields108.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19570,8 +21065,8 @@ var SaasProject_default = (0, import_core92.list)({
 });
 
 // models/Saas/Quotation/SaasQuotation.ts
-var import_core93 = require("@keystone-6/core");
-var import_fields93 = require("@keystone-6/core/fields");
+var import_core109 = require("@keystone-6/core");
+var import_fields109 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/SaasQuotation.access.ts
 var getCompanyId13 = (session2) => session2?.data?.company?.id;
@@ -19674,7 +21169,7 @@ var quotationHooks = {
 };
 
 // models/Saas/Quotation/SaasQuotation.ts
-var SaasQuotation_default = (0, import_core93.list)({
+var SaasQuotation_default = (0, import_core109.list)({
   access: quotationAccess,
   hooks: quotationHooks,
   ui: {
@@ -19692,117 +21187,117 @@ var SaasQuotation_default = (0, import_core93.list)({
     }
   },
   fields: {
-    company: (0, import_fields93.relationship)({
+    company: (0, import_fields109.relationship)({
       ref: "SaasCompany.quotations",
       many: false,
       ui: { description: "Empresa a la que pertenece la cotizaci\xF3n" }
     }),
-    lead: (0, import_fields93.relationship)({
+    lead: (0, import_fields109.relationship)({
       ref: "TechBusinessLead.quotations",
       many: false,
       ui: { description: "Lead asociado (opcional)" }
     }),
-    project: (0, import_fields93.relationship)({
+    project: (0, import_fields109.relationship)({
       ref: "SaasProject.quotations",
       many: false,
       ui: { description: "Proyecto asociado (opcional)" }
     }),
-    quotationNumber: (0, import_fields93.text)({
+    quotationNumber: (0, import_fields109.text)({
       isIndexed: true,
       validation: { isRequired: true },
       ui: {
         description: "Consecutivo por empresa (ej. Q-2026-0012); se asigna al crear si se deja vac\xEDo"
       }
     }),
-    status: (0, import_fields93.select)({
+    status: (0, import_fields109.select)({
       type: "string",
       options: [...QUOTATION_STATUS_OPTIONS],
       defaultValue: QUOTATION_STATUS.DRAFT,
       isIndexed: true,
       ui: { description: "Estado de la cotizaci\xF3n" }
     }),
-    currency: (0, import_fields93.text)({
+    currency: (0, import_fields109.text)({
       defaultValue: "MXN",
       ui: { description: "Moneda (ISO o etiqueta interna)" }
     }),
-    exchangeRate: (0, import_fields93.float)({
+    exchangeRate: (0, import_fields109.float)({
       defaultValue: 1,
       ui: { description: "Tipo de cambio respecto a moneda base (1 = sin conversi\xF3n)" }
     }),
-    subtotal: (0, import_fields93.float)({
+    subtotal: (0, import_fields109.float)({
       defaultValue: 0,
       ui: { description: "Subtotal antes de impuestos (suma de l\xEDneas netas)" }
     }),
-    discountTotal: (0, import_fields93.float)({
+    discountTotal: (0, import_fields109.float)({
       defaultValue: 0,
       ui: { description: "Total descuentos en l\xEDneas" }
     }),
-    taxTotal: (0, import_fields93.float)({
+    taxTotal: (0, import_fields109.float)({
       defaultValue: 0,
       ui: { description: "Total impuestos" }
     }),
-    total: (0, import_fields93.float)({
+    total: (0, import_fields109.float)({
       defaultValue: 0,
       ui: { description: "Total a pagar" }
     }),
-    validUntil: (0, import_fields93.calendarDay)({
+    validUntil: (0, import_fields109.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Vigencia de la cotizaci\xF3n" }
     }),
-    sentAt: (0, import_fields93.timestamp)({
+    sentAt: (0, import_fields109.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de env\xEDo al cliente" }
     }),
-    acceptedAt: (0, import_fields93.timestamp)({
+    acceptedAt: (0, import_fields109.timestamp)({
       db: { isNullable: true },
       ui: { description: "Fecha de aceptaci\xF3n" }
     }),
-    notes: (0, import_fields93.text)({
+    notes: (0, import_fields109.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Notas internas o para el cliente" }
     }),
-    terms: (0, import_fields93.text)({
+    terms: (0, import_fields109.text)({
       db: { isNullable: true },
       ui: {
         displayMode: "textarea",
         description: "T\xE9rminos y condiciones mostrados en la cotizaci\xF3n"
       }
     }),
-    createdBy: (0, import_fields93.relationship)({
+    createdBy: (0, import_fields109.relationship)({
       ref: "User.quotationsCreated",
       many: false,
       ui: { description: "Usuario que cre\xF3 el registro" }
     }),
-    assignedSeller: (0, import_fields93.relationship)({
+    assignedSeller: (0, import_fields109.relationship)({
       ref: "User.quotationsAssignedSeller",
       many: false,
       ui: { description: "Vendedor asignado" }
     }),
-    pdfFileOrUrl: (0, import_fields93.text)({
+    pdfFileOrUrl: (0, import_fields109.text)({
       db: { isNullable: true },
       ui: { description: "URL o clave del PDF generado (opcional)" }
     }),
-    quotationProducts: (0, import_fields93.relationship)({
+    quotationProducts: (0, import_fields109.relationship)({
       ref: "SaasQuotationProduct.quotation",
       many: true,
       ui: { description: "Conceptos / partidas" }
     }),
-    showDiscount: (0, import_fields93.checkbox)({
+    showDiscount: (0, import_fields109.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar descuento en la cotizaci\xF3n" }
     }),
-    showNotes: (0, import_fields93.checkbox)({
+    showNotes: (0, import_fields109.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar notas en la cotizaci\xF3n" }
     }),
-    createdAt: (0, import_fields93.timestamp)({
+    createdAt: (0, import_fields109.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields93.timestamp)({
+    updatedAt: (0, import_fields109.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -19813,8 +21308,8 @@ var SaasQuotation_default = (0, import_core93.list)({
 });
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var import_core94 = require("@keystone-6/core");
-var import_fields94 = require("@keystone-6/core/fields");
+var import_core110 = require("@keystone-6/core");
+var import_fields110 = require("@keystone-6/core/fields");
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.access.ts
 var getCompanyId14 = (session2) => session2?.data?.company?.id;
@@ -20004,7 +21499,7 @@ var quotationProductHooks = {
 };
 
 // models/Saas/Quotation/Product/SaasQuotationProduct.ts
-var SaasQuotationProduct_default = (0, import_core94.list)({
+var SaasQuotationProduct_default = (0, import_core110.list)({
   access: quotationProductAccess,
   hooks: quotationProductHooks,
   ui: {
@@ -20013,60 +21508,60 @@ var SaasQuotationProduct_default = (0, import_core94.list)({
     }
   },
   fields: {
-    quotation: (0, import_fields94.relationship)({
+    quotation: (0, import_fields110.relationship)({
       ref: "SaasQuotation.quotationProducts",
       many: false,
       ui: { description: "Cotizaci\xF3n" }
     }),
-    description: (0, import_fields94.text)({
+    description: (0, import_fields110.text)({
       validation: { isRequired: true },
       ui: {
         displayMode: "textarea",
         description: "Concepto: servicio, producto, horas, paquete, etc."
       }
     }),
-    quantity: (0, import_fields94.float)({
+    quantity: (0, import_fields110.float)({
       defaultValue: 1,
       ui: { description: "Cantidad (puede ser fracci\xF3n, ej. horas)" }
     }),
-    unitPrice: (0, import_fields94.float)({
+    unitPrice: (0, import_fields110.float)({
       defaultValue: 0,
       ui: { description: "Precio unitario" }
     }),
-    discountType: (0, import_fields94.select)({
+    discountType: (0, import_fields110.select)({
       type: "string",
       options: [...QUOTATION_DISCOUNT_TYPE_OPTIONS],
       defaultValue: QUOTATION_DISCOUNT_TYPE.NONE,
       ui: { description: "Tipo de descuento en la l\xEDnea" }
     }),
-    discountValue: (0, import_fields94.float)({
+    discountValue: (0, import_fields110.float)({
       defaultValue: 0,
       ui: {
         description: "Descuento: porcentaje (0\u2013100) si tipo es porcentaje; monto si tipo es monto fijo"
       }
     }),
-    taxRate: (0, import_fields94.float)({
+    taxRate: (0, import_fields110.float)({
       defaultValue: 0,
       ui: { description: "Tasa de impuesto en % (ej. 16 para IVA)" }
     }),
-    lineSubtotal: (0, import_fields94.float)({
+    lineSubtotal: (0, import_fields110.float)({
       defaultValue: 0,
       ui: {
         description: "Subtotal l\xEDnea sin impuesto (cantidad \xD7 precio \u2212 descuento)"
       }
     }),
-    lineTotal: (0, import_fields94.float)({
+    lineTotal: (0, import_fields110.float)({
       defaultValue: 0,
       ui: { description: "Total l\xEDnea con impuesto" }
     }),
-    createdAt: (0, import_fields94.timestamp)({
+    createdAt: (0, import_fields110.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields94.timestamp)({
+    updatedAt: (0, import_fields110.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20077,8 +21572,8 @@ var SaasQuotationProduct_default = (0, import_core94.list)({
 });
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var import_core95 = require("@keystone-6/core");
-var import_fields95 = require("@keystone-6/core/fields");
+var import_core111 = require("@keystone-6/core");
+var import_fields111 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.access.ts
 var getCompanyId15 = (session2) => session2?.data?.company?.id;
@@ -20120,7 +21615,7 @@ var saasReferralCommissionAccess = {
 };
 
 // models/Saas/SaasReferralCommission/SaasReferralCommission.ts
-var SaasReferralCommission_default = (0, import_core95.list)({
+var SaasReferralCommission_default = (0, import_core111.list)({
   access: saasReferralCommissionAccess,
   ui: {
     listView: {
@@ -20139,27 +21634,27 @@ var SaasReferralCommission_default = (0, import_core95.list)({
     }
   },
   fields: {
-    referrer: (0, import_fields95.relationship)({
+    referrer: (0, import_fields111.relationship)({
       ref: "User",
       ui: { description: "User who receives the commission (referrer)" }
     }),
-    referredUser: (0, import_fields95.relationship)({
+    referredUser: (0, import_fields111.relationship)({
       ref: "User",
       ui: { description: "User who was referred and purchased the plan" }
     }),
-    company: (0, import_fields95.relationship)({
+    company: (0, import_fields111.relationship)({
       ref: "SaasCompany",
       ui: { description: "Company associated with the subscription" }
     }),
-    subscription: (0, import_fields95.relationship)({
+    subscription: (0, import_fields111.relationship)({
       ref: "SaasCompanySubscription",
       ui: { description: "Subscription that originated this commission" }
     }),
-    plan: (0, import_fields95.relationship)({
+    plan: (0, import_fields111.relationship)({
       ref: "SaasPlan",
       ui: { description: "Plan associated with this commission" }
     }),
-    type: (0, import_fields95.select)({
+    type: (0, import_fields111.select)({
       type: "string",
       options: [
         { label: "Upfront", value: "UPFRONT" },
@@ -20167,30 +21662,30 @@ var SaasReferralCommission_default = (0, import_core95.list)({
       ],
       ui: { displayMode: "segmented-control" }
     }),
-    percentage: (0, import_fields95.float)({
+    percentage: (0, import_fields111.float)({
       ui: { description: "Percentage applied to plan cost to compute amount" }
     }),
-    amount: (0, import_fields95.float)({
+    amount: (0, import_fields111.float)({
       ui: { description: "Commission amount (snapshot at creation time)" }
     }),
-    currency: (0, import_fields95.text)({
+    currency: (0, import_fields111.text)({
       defaultValue: "mxn",
       ui: { description: "Currency code, e.g. mxn, usd" }
     }),
-    periodIndex: (0, import_fields95.float)({
+    periodIndex: (0, import_fields111.float)({
       ui: {
         description: "0 for upfront, 1..N for recurring periods (e.g. months after signup)"
       }
     }),
-    periodStart: (0, import_fields95.calendarDay)({
+    periodStart: (0, import_fields111.calendarDay)({
       db: { isNullable: true },
       ui: { description: "Start date of the commission period (if applicable)" }
     }),
-    periodEnd: (0, import_fields95.calendarDay)({
+    periodEnd: (0, import_fields111.calendarDay)({
       db: { isNullable: true },
       ui: { description: "End date of the commission period (if applicable)" }
     }),
-    status: (0, import_fields95.select)({
+    status: (0, import_fields111.select)({
       type: "string",
       options: [
         { label: "Pending", value: "PENDING" },
@@ -20201,18 +21696,18 @@ var SaasReferralCommission_default = (0, import_core95.list)({
       defaultValue: "PENDING",
       ui: { displayMode: "segmented-control" }
     }),
-    notes: (0, import_fields95.text)({
+    notes: (0, import_fields111.text)({
       db: { isNullable: true },
       ui: { description: "Optional notes about this commission (e.g. cancellation reason)" }
     }),
-    createdAt: (0, import_fields95.timestamp)({
+    createdAt: (0, import_fields111.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields95.timestamp)({
+    updatedAt: (0, import_fields111.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20223,8 +21718,8 @@ var SaasReferralCommission_default = (0, import_core95.list)({
 });
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var import_core96 = require("@keystone-6/core");
-var import_fields96 = require("@keystone-6/core/fields");
+var import_core112 = require("@keystone-6/core");
+var import_fields112 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.access.ts
 var getCompanyId16 = (session2) => session2?.data?.company?.id;
@@ -20250,7 +21745,7 @@ var saasSubscriptionLogAccess = {
 };
 
 // models/Saas/SaasSubscriptionLog/SaasSubscriptionLog.ts
-var SaasSubscriptionLog_default = (0, import_core96.list)({
+var SaasSubscriptionLog_default = (0, import_core112.list)({
   access: saasSubscriptionLogAccess,
   ui: {
     listView: {
@@ -20265,71 +21760,71 @@ var SaasSubscriptionLog_default = (0, import_core96.list)({
     }
   },
   fields: {
-    user: (0, import_fields96.relationship)({
+    user: (0, import_fields112.relationship)({
       ref: "User.saasSubscriptionLogs",
       many: false,
       ui: { description: "Usuario que intent\xF3 contratar (si se resolvi\xF3 por email)" }
     }),
-    company: (0, import_fields96.relationship)({
+    company: (0, import_fields112.relationship)({
       ref: "SaasCompany.saasSubscriptionLogs",
       many: false,
       ui: { description: "Empresa del usuario" }
     }),
-    plan: (0, import_fields96.relationship)({
+    plan: (0, import_fields112.relationship)({
       ref: "SaasPlan.saasSubscriptionLogs",
       many: false,
       ui: { description: "Plan solicitado (si se resolvi\xF3)" }
     }),
-    createdSubscription: (0, import_fields96.relationship)({
+    createdSubscription: (0, import_fields112.relationship)({
       ref: "SaasCompanySubscription.saasSubscriptionLogs",
       many: false,
       ui: { description: "Registro SaasCompanySubscription creado en un intento exitoso" }
     }),
-    success: (0, import_fields96.checkbox)({
+    success: (0, import_fields112.checkbox)({
       defaultValue: false,
       ui: { description: "Si la mutaci\xF3n devolvi\xF3 success: true" }
     }),
     /** Código corto para filtrar (ej. TOTAL_MISMATCH, SUCCESS) */
-    step: (0, import_fields96.text)({
+    step: (0, import_fields112.text)({
       isIndexed: true,
       ui: { description: "Paso / motivo (SAAS_SUBSCRIPTION_LOG_STEP)" }
     }),
     /** Mismo mensaje que recibió el cliente en GraphQL */
-    message: (0, import_fields96.text)({
+    message: (0, import_fields112.text)({
       ui: { displayMode: "textarea", description: "Mensaje devuelto al cliente" }
     }),
     /** Copia del payload de respuesta (success, message, subscriptionId, paymentId, extras) */
-    responseSnapshot: (0, import_fields96.json)({
+    responseSnapshot: (0, import_fields112.json)({
       ui: { description: "Snapshot del resultado devuelto al cliente" }
     }),
-    emailMasked: (0, import_fields96.text)({
+    emailMasked: (0, import_fields112.text)({
       ui: { description: "Email del intento (enmascarado)" }
     }),
-    planIdRequested: (0, import_fields96.text)({
+    planIdRequested: (0, import_fields112.text)({
       ui: { description: "planId enviado en el input" }
     }),
-    totalSubmitted: (0, import_fields96.text)({
+    totalSubmitted: (0, import_fields112.text)({
       ui: { description: "total enviado por el cliente" }
     }),
-    paymentMethodIdSubmitted: (0, import_fields96.text)({
+    paymentMethodIdSubmitted: (0, import_fields112.text)({
       ui: { description: "ID interno del m\xE9todo de pago" }
     }),
-    paymentTypeSubmitted: (0, import_fields96.text)({
+    paymentTypeSubmitted: (0, import_fields112.text)({
       ui: { description: "paymentType del input" }
     }),
-    durationMs: (0, import_fields96.integer)({
+    durationMs: (0, import_fields112.integer)({
       db: { isNullable: true },
       ui: { description: "Duraci\xF3n del intento en ms" }
     }),
-    stripeCustomerId: (0, import_fields96.text)({
+    stripeCustomerId: (0, import_fields112.text)({
       db: { isNullable: true },
       ui: { description: "Stripe customer id al finalizar (si aplica)" }
     }),
-    stripeSubscriptionId: (0, import_fields96.text)({
+    stripeSubscriptionId: (0, import_fields112.text)({
       db: { isNullable: true },
       ui: { description: "Stripe subscription id al finalizar (si aplica)" }
     }),
-    createdAt: (0, import_fields96.timestamp)({
+    createdAt: (0, import_fields112.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del intento" }
     })
@@ -20337,8 +21832,8 @@ var SaasSubscriptionLog_default = (0, import_core96.list)({
 });
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var import_core97 = require("@keystone-6/core");
-var import_fields97 = require("@keystone-6/core/fields");
+var import_core113 = require("@keystone-6/core");
+var import_fields113 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspace/SaasWorkspace.access.ts
 var getCompanyId17 = (session2) => session2?.data?.company?.id;
@@ -20446,7 +21941,7 @@ var saasWorkspaceSeedCrmStatusesHook = {
 };
 
 // models/Saas/SaasWorkspace/SaasWorkspace.ts
-var SaasWorkspace_default = (0, import_core97.list)({
+var SaasWorkspace_default = (0, import_core113.list)({
   access: saasWorkspaceAccess,
   hooks: {
     afterOperation: saasWorkspaceSeedCrmStatusesHook.afterOperation
@@ -20457,63 +21952,63 @@ var SaasWorkspace_default = (0, import_core97.list)({
     }
   },
   fields: {
-    name: (0, import_fields97.text)({
+    name: (0, import_fields113.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre del \xE1rea (ej. Recursos Humanos, Dise\xF1o)" }
     }),
-    showActivities: (0, import_fields97.checkbox)({
+    showActivities: (0, import_fields113.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar actividades de CRM en este workspace" }
     }),
-    showProposals: (0, import_fields97.checkbox)({
+    showProposals: (0, import_fields113.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar propuestas de CRM en este workspace" }
     }),
-    showFollowUpTasks: (0, import_fields97.checkbox)({
+    showFollowUpTasks: (0, import_fields113.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de seguimiento de CRM en este workspace" }
     }),
-    showTasks: (0, import_fields97.checkbox)({
+    showTasks: (0, import_fields113.checkbox)({
       defaultValue: true,
       ui: { description: "Mostrar tareas de workspace en este workspace" }
     }),
-    company: (0, import_fields97.relationship)({
+    company: (0, import_fields113.relationship)({
       ref: "SaasCompany.workspaces",
       many: false,
       ui: { description: "Empresa (tenant) a la que pertenece" }
     }),
-    members: (0, import_fields97.relationship)({
+    members: (0, import_fields113.relationship)({
       ref: "User.workspaces",
       many: true,
       ui: { description: "Usuarios con acceso a este workspace" }
     }),
-    salesActivities: (0, import_fields97.relationship)({
+    salesActivities: (0, import_fields113.relationship)({
       ref: "TechSalesActivity.workspace",
       many: true,
       ui: { hideCreate: true, description: "Actividades de CRM" }
     }),
-    tasks: (0, import_fields97.relationship)({
+    tasks: (0, import_fields113.relationship)({
       ref: "TechTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace (CRM)" }
     }),
-    proposals: (0, import_fields97.relationship)({
+    proposals: (0, import_fields113.relationship)({
       ref: "TechProposal.workspace",
       many: true,
       ui: { hideCreate: true, description: "Propuestas de CRM" }
     }),
-    calendarEvents: (0, import_fields97.relationship)({
+    calendarEvents: (0, import_fields113.relationship)({
       ref: "TechCalendarEvent.workspace",
       many: true,
       ui: { hideCreate: true, description: "Eventos de calendario del workspace" }
     }),
-    followUpTasks: (0, import_fields97.relationship)({
+    followUpTasks: (0, import_fields113.relationship)({
       ref: "TechFollowUpTask.workspace",
       many: true,
       ui: { hideCreate: true, description: "Tareas de seguimiento de CRM" }
     }),
-    crmStatuses: (0, import_fields97.relationship)({
+    crmStatuses: (0, import_fields113.relationship)({
       ref: "SaasWorkspaceCrmStatus.workspace",
       many: true,
       ui: { hideCreate: true, description: "Estados CRM din\xE1micos por tipo" }
@@ -20522,8 +22017,8 @@ var SaasWorkspace_default = (0, import_core97.list)({
 });
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var import_core98 = require("@keystone-6/core");
-var import_fields98 = require("@keystone-6/core/fields");
+var import_core114 = require("@keystone-6/core");
+var import_fields114 = require("@keystone-6/core/fields");
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.access.ts
 var getCompanyId18 = (session2) => session2?.data?.company?.id;
@@ -20768,7 +22263,7 @@ var saasWorkspaceCrmStatusHooks = {
 };
 
 // models/Saas/SaasWorkspaceCrmStatus/SaasWorkspaceCrmStatus.ts
-var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
+var SaasWorkspaceCrmStatus_default = (0, import_core114.list)({
   access: saasWorkspaceCrmStatusAccess,
   hooks: saasWorkspaceCrmStatusHooks,
   ui: {
@@ -20777,58 +22272,58 @@ var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
     }
   },
   fields: {
-    workspace: (0, import_fields98.relationship)({
+    workspace: (0, import_fields114.relationship)({
       ref: "SaasWorkspace.crmStatuses",
       many: false,
       ui: { description: "Workspace al que pertenece este estado" }
     }),
-    name: (0, import_fields98.text)({
+    name: (0, import_fields114.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Nombre visible (p. ej. Kanban)" }
     }),
-    color: (0, import_fields98.text)({
+    color: (0, import_fields114.text)({
       validation: { isRequired: true },
       ui: { description: 'Color en hex de 6 d\xEDgitos, ej. "#2563EB"' }
     }),
-    key: (0, import_fields98.text)({
+    key: (0, import_fields114.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Clave estable para l\xF3gica de negocio (no cambiar en producci\xF3n a la ligera)"
       }
     }),
-    order: (0, import_fields98.integer)({
+    order: (0, import_fields114.integer)({
       defaultValue: 0,
       isIndexed: true,
       ui: { description: "Orden en la UI (menor primero)" }
     }),
-    isDefault: (0, import_fields98.checkbox)({
+    isDefault: (0, import_fields114.checkbox)({
       defaultValue: false,
       ui: {
         description: "Estado por defecto al crear registros CRM en el workspace (solo uno activo por workspace)"
       }
     }),
-    isArchived: (0, import_fields98.checkbox)({
+    isArchived: (0, import_fields114.checkbox)({
       defaultValue: false,
       ui: { description: "Ocultar en selectores sin borrar historial" }
     }),
-    followUpTasks: (0, import_fields98.relationship)({
+    followUpTasks: (0, import_fields114.relationship)({
       ref: "TechFollowUpTask.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    proposals: (0, import_fields98.relationship)({
+    proposals: (0, import_fields114.relationship)({
       ref: "TechProposal.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    salesActivities: (0, import_fields98.relationship)({
+    salesActivities: (0, import_fields114.relationship)({
       ref: "TechSalesActivity.statusCrm",
       many: true,
       ui: { hideCreate: true }
     }),
-    tasks: (0, import_fields98.relationship)({
+    tasks: (0, import_fields114.relationship)({
       ref: "TechTask.statusCrm",
       many: true,
       ui: { hideCreate: true, description: "Tareas de workspace en este estado" }
@@ -20837,8 +22332,8 @@ var SaasWorkspaceCrmStatus_default = (0, import_core98.list)({
 });
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var import_core99 = require("@keystone-6/core");
-var import_fields99 = require("@keystone-6/core/fields");
+var import_core115 = require("@keystone-6/core");
+var import_fields115 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.access.ts
 var techWhatsAppMessageAccess = {
@@ -20855,7 +22350,7 @@ var techWhatsAppMessageAccess = {
 };
 
 // models/Saas/Tech/WhatsAppMessage/TechWhatsAppMessage.ts
-var TechWhatsAppMessage_default = (0, import_core99.list)({
+var TechWhatsAppMessage_default = (0, import_core115.list)({
   access: techWhatsAppMessageAccess,
   ui: {
     listView: {
@@ -20870,12 +22365,12 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     }
   },
   fields: {
-    company: (0, import_fields99.relationship)({
+    company: (0, import_fields115.relationship)({
       ref: "SaasCompany.whatsappMessages",
       many: false,
       ui: { description: "Empresa due\xF1a del n\xFAmero de WhatsApp" }
     }),
-    businessLead: (0, import_fields99.relationship)({
+    businessLead: (0, import_fields115.relationship)({
       ref: "TechBusinessLead.whatsappMessages",
       many: false,
       ui: { description: "Lead asociado (vac\xEDo si no matche\xF3 ning\xFAn tel\xE9fono conocido)" }
@@ -20883,7 +22378,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     /** Conversación interna con alguien del equipo (vendedor) en vez de con un lead. Un
      * mensaje tiene `businessLead` O `teamMember`; si no tiene ninguno, no se pudo matchear
      * el teléfono y solo lo ven los admins de la empresa. */
-    teamMember: (0, import_fields99.relationship)({
+    teamMember: (0, import_fields115.relationship)({
       ref: "User.whatsappMessagesAsTeamMember",
       many: false,
       ui: {
@@ -20892,14 +22387,14 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
     }),
     /** Quién abrió el chat interno. Junto con `teamMember` define quién puede verlo
      * (ver whatsappMessageScopedWhere): solo esas dos personas, además de los admins. */
-    internalInitiator: (0, import_fields99.relationship)({
+    internalInitiator: (0, import_fields115.relationship)({
       ref: "User.whatsappInternalChatsStarted",
       many: false,
       ui: {
         description: "Qui\xE9n abri\xF3 la conversaci\xF3n interna. Con teamMember define qui\xE9n la puede ver."
       }
     }),
-    direction: (0, import_fields99.select)({
+    direction: (0, import_fields115.select)({
       type: "string",
       options: [
         { label: "Entrante", value: "inbound" },
@@ -20909,7 +22404,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       validation: { isRequired: true },
       isIndexed: true
     }),
-    source: (0, import_fields99.select)({
+    source: (0, import_fields115.select)({
       type: "string",
       options: [
         { label: "Cloud API", value: "api" },
@@ -20919,21 +22414,21 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       isIndexed: true,
       ui: { description: "Si lleg\xF3 en vivo por la Cloud API o se import\xF3 de un .txt exportado" }
     }),
-    senderLabel: (0, import_fields99.text)({
+    senderLabel: (0, import_fields115.text)({
       db: { isNullable: true },
       ui: {
         description: "Nombre del remitente: en un .txt importado, tal cual ven\xEDa (direction 'unknown'); en un mensaje entrante en vivo, el nombre de perfil de WhatsApp de quien escribi\xF3."
       }
     }),
-    waMessageId: (0, import_fields99.text)({
+    waMessageId: (0, import_fields115.text)({
       db: { isNullable: true },
       isIndexed: "unique",
       ui: { description: "ID de Meta. Usado para no duplicar reintentos del webhook." }
     }),
-    fromPhone: (0, import_fields99.text)({ db: { isNullable: true } }),
-    toPhone: (0, import_fields99.text)({ db: { isNullable: true } }),
-    body: (0, import_fields99.text)({ ui: { displayMode: "textarea" } }),
-    messageKind: (0, import_fields99.select)({
+    fromPhone: (0, import_fields115.text)({ db: { isNullable: true } }),
+    toPhone: (0, import_fields115.text)({ db: { isNullable: true } }),
+    body: (0, import_fields115.text)({ ui: { displayMode: "textarea" } }),
+    messageKind: (0, import_fields115.select)({
       type: "string",
       options: [
         { label: "Texto", value: "text" },
@@ -20941,7 +22436,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       defaultValue: "text"
     }),
-    mediaKey: (0, import_fields99.text)({
+    mediaKey: (0, import_fields115.text)({
       db: { isNullable: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -20949,7 +22444,7 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
         description: "Key del archivo en R2 (no la URL \u2014 se firma al vuelo, ver mediaUrl)"
       }
     }),
-    mediaType: (0, import_fields99.select)({
+    mediaType: (0, import_fields115.select)({
       type: "string",
       options: [
         { label: "Imagen", value: "image" },
@@ -20957,8 +22452,8 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       db: { isNullable: true }
     }),
-    mediaFileName: (0, import_fields99.text)({ db: { isNullable: true } }),
-    status: (0, import_fields99.select)({
+    mediaFileName: (0, import_fields115.text)({ db: { isNullable: true } }),
+    status: (0, import_fields115.select)({
       type: "string",
       options: [
         { label: "Enviado", value: "sent" },
@@ -20967,16 +22462,16 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
       ],
       defaultValue: "sent"
     }),
-    sentBy: (0, import_fields99.relationship)({
+    sentBy: (0, import_fields115.relationship)({
       ref: "User.whatsappMessagesSent",
       many: false,
       ui: { description: "Usuario que mand\xF3 el mensaje (solo salientes)" }
     }),
-    errorMessage: (0, import_fields99.text)({
+    errorMessage: (0, import_fields115.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si el env\xEDo fall\xF3" }
     }),
-    createdAt: (0, import_fields99.timestamp)({
+    createdAt: (0, import_fields115.timestamp)({
       defaultValue: { kind: "now" },
       ui: { description: "Momento del mensaje" }
     })
@@ -20984,8 +22479,8 @@ var TechWhatsAppMessage_default = (0, import_core99.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.ts
-var import_core100 = require("@keystone-6/core");
-var import_fields100 = require("@keystone-6/core/fields");
+var import_core116 = require("@keystone-6/core");
+var import_fields116 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarAccount.access.ts
 function googleCalendarAccountVisibleWhere(session2) {
@@ -21038,7 +22533,7 @@ var hiddenTokenAccess = {
   create: () => false,
   update: () => false
 };
-var GoogleCalendarAccount_default = (0, import_core100.list)({
+var GoogleCalendarAccount_default = (0, import_core116.list)({
   access: googleCalendarAccountAccess,
   hooks: googleCalendarAccountHooks,
   ui: {
@@ -21055,7 +22550,7 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
     }
   },
   fields: {
-    scopeType: (0, import_fields100.select)({
+    scopeType: (0, import_fields116.select)({
       type: "string",
       options: [...GOOGLE_CALENDAR_SCOPE_TYPE_OPTIONS],
       defaultValue: "personal" /* PERSONAL */,
@@ -21063,27 +22558,27 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
       isIndexed: true,
       ui: { description: "Personal (de un usuario) o compartida por toda la empresa" }
     }),
-    user: (0, import_fields100.relationship)({
+    user: (0, import_fields116.relationship)({
       ref: "User.googleCalendarAccounts",
       many: false,
       ui: { description: "Due\xF1o de la cuenta (solo si es personal)" }
     }),
-    company: (0, import_fields100.relationship)({
+    company: (0, import_fields116.relationship)({
       ref: "SaasCompany.googleCalendarAccounts",
       many: false,
       ui: { description: "Empresa due\xF1a de la cuenta (solo si es compartida)" }
     }),
-    connectedByUser: (0, import_fields100.relationship)({
+    connectedByUser: (0, import_fields116.relationship)({
       ref: "User.connectedGoogleCalendarAccounts",
       many: false,
       ui: { description: "Qui\xE9n autoriz\xF3 la conexi\xF3n en Google (auditor\xEDa)" }
     }),
-    googleAccountEmail: (0, import_fields100.text)({
+    googleAccountEmail: (0, import_fields116.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "Correo de la cuenta de Google conectada" }
     }),
-    accessTokenEncrypted: (0, import_fields100.text)({
+    accessTokenEncrypted: (0, import_fields116.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -21093,7 +22588,7 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    refreshTokenEncrypted: (0, import_fields100.text)({
+    refreshTokenEncrypted: (0, import_fields116.text)({
       db: { isNullable: true },
       access: hiddenTokenAccess,
       ui: {
@@ -21103,39 +22598,39 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
         description: "Solo mutaciones custom v\xEDa sudo"
       }
     }),
-    tokenExpiresAt: (0, import_fields100.timestamp)({
+    tokenExpiresAt: (0, import_fields116.timestamp)({
       db: { isNullable: true },
       ui: { description: "Cu\xE1ndo expira el access token actual" }
     }),
-    scope: (0, import_fields100.text)({
+    scope: (0, import_fields116.text)({
       db: { isNullable: true },
       ui: { description: "Scopes de Google otorgados" }
     }),
-    isActive: (0, import_fields100.checkbox)({
+    isActive: (0, import_fields116.checkbox)({
       defaultValue: true,
       ui: {
         description: "false si Google revoc\xF3 el acceso: el usuario debe reconectar la cuenta"
       }
     }),
-    lastSyncedAt: (0, import_fields100.timestamp)({
+    lastSyncedAt: (0, import_fields116.timestamp)({
       db: { isNullable: true },
       ui: { description: "\xDAltima lectura exitosa desde Google" }
     }),
-    lastSyncError: (0, import_fields100.text)({
+    lastSyncError: (0, import_fields116.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "\xDAltimo error al hablar con Google" }
     }),
-    calendars: (0, import_fields100.relationship)({
+    calendars: (0, import_fields116.relationship)({
       ref: "GoogleCalendarSelection.account",
       many: true,
       ui: { hideCreate: true, description: "Calendarios de esta cuenta" }
     }),
-    syncLogs: (0, import_fields100.relationship)({
+    syncLogs: (0, import_fields116.relationship)({
       ref: "TechGoogleCalendarSyncLog.account",
       many: true,
       ui: { hideCreate: true, description: "Historial de llamadas a Google" }
     }),
-    createdAt: (0, import_fields100.timestamp)({
+    createdAt: (0, import_fields116.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -21146,8 +22641,8 @@ var GoogleCalendarAccount_default = (0, import_core100.list)({
 });
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var import_core101 = require("@keystone-6/core");
-var import_fields101 = require("@keystone-6/core/fields");
+var import_core117 = require("@keystone-6/core");
+var import_fields117 = require("@keystone-6/core/fields");
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.access.ts
 var googleCalendarSelectionAccess = {
@@ -21167,7 +22662,7 @@ var googleCalendarSelectionAccess = {
 };
 
 // models/Saas/GoogleCalendarAccount/GoogleCalendarSelection/GoogleCalendarSelection.ts
-var GoogleCalendarSelection_default = (0, import_core101.list)({
+var GoogleCalendarSelection_default = (0, import_core117.list)({
   access: googleCalendarSelectionAccess,
   ui: {
     labelField: "calendarName",
@@ -21176,52 +22671,52 @@ var GoogleCalendarSelection_default = (0, import_core101.list)({
     }
   },
   fields: {
-    account: (0, import_fields101.relationship)({
+    account: (0, import_fields117.relationship)({
       ref: "GoogleCalendarAccount.calendars",
       many: false,
       ui: { description: "Cuenta de Google a la que pertenece este calendario" }
     }),
-    googleCalendarId: (0, import_fields101.text)({
+    googleCalendarId: (0, import_fields117.text)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: { description: "calendarId en Google (el principal suele ser el correo)" }
     }),
-    calendarName: (0, import_fields101.text)({
+    calendarName: (0, import_fields117.text)({
       validation: { isRequired: true },
       ui: { description: "Nombre visible del calendario" }
     }),
-    isPrimary: (0, import_fields101.checkbox)({ defaultValue: false }),
-    isSelected: (0, import_fields101.checkbox)({
+    isPrimary: (0, import_fields117.checkbox)({ defaultValue: false }),
+    isSelected: (0, import_fields117.checkbox)({
       defaultValue: false,
       ui: {
         description: "Si est\xE1 marcado, se ve en el calendario unificado y recibe los eventos creados en Kadesh"
       }
     }),
-    colorHex: (0, import_fields101.text)({ db: { isNullable: true } }),
+    colorHex: (0, import_fields117.text)({ db: { isNullable: true } }),
     // Qué registros del CRM se envían a este calendario (los eventos creados a mano eligen
     // sus calendarios destino uno a uno en `TechCalendarEvent.googleTargets`).
-    pushActivities: (0, import_fields101.checkbox)({
+    pushActivities: (0, import_fields117.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar actividades de venta nuevas a este calendario" }
     }),
-    pushProposals: (0, import_fields101.checkbox)({
+    pushProposals: (0, import_fields117.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar propuestas nuevas a este calendario" }
     }),
-    pushFollowUps: (0, import_fields101.checkbox)({
+    pushFollowUps: (0, import_fields117.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas de seguimiento nuevas a este calendario" }
     }),
-    pushTasks: (0, import_fields101.checkbox)({
+    pushTasks: (0, import_fields117.checkbox)({
       defaultValue: true,
       ui: { description: "Enviar tareas nuevas a este calendario" }
     }),
-    targetedEvents: (0, import_fields101.relationship)({
+    targetedEvents: (0, import_fields117.relationship)({
       ref: "TechCalendarEvent.googleTargets",
       many: true,
       ui: { hideCreate: true, description: "Eventos creados a mano que eligieron este calendario" }
     }),
-    eventLinks: (0, import_fields101.relationship)({
+    eventLinks: (0, import_fields117.relationship)({
       ref: "TechCalendarEventGoogleLink.calendarSelection",
       many: true,
       ui: { hideCreate: true, description: "Eventos de Kadesh enviados a este calendario" }
@@ -21230,8 +22725,8 @@ var GoogleCalendarSelection_default = (0, import_core101.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var import_core102 = require("@keystone-6/core");
-var import_fields102 = require("@keystone-6/core/fields");
+var import_core118 = require("@keystone-6/core");
+var import_fields118 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.access.ts
 function calendarEventScopedWhere(session2) {
@@ -21652,8 +23147,8 @@ var PUSH_FLAG_BY_SOURCE = {
 };
 var SELECTION_TARGET_QUERY = `id googleCalendarId account { ${ACCOUNT_TOKEN_QUERY} }`;
 var DAY_MS5 = 24 * 60 * 60 * 1e3;
-function toDateOnly(iso3) {
-  return new Date(iso3).toISOString().slice(0, 10);
+function toDateOnly(iso4) {
+  return new Date(iso4).toISOString().slice(0, 10);
 }
 function buildGoogleEventBody(event) {
   const base = {
@@ -21973,7 +23468,7 @@ var techCalendarEventHooks = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEvent.ts
-var TechCalendarEvent_default = (0, import_core102.list)({
+var TechCalendarEvent_default = (0, import_core118.list)({
   access: techCalendarEventAccess,
   hooks: techCalendarEventHooks,
   ui: {
@@ -21983,27 +23478,27 @@ var TechCalendarEvent_default = (0, import_core102.list)({
     }
   },
   fields: {
-    title: (0, import_fields102.text)({ validation: { isRequired: true } }),
-    description: (0, import_fields102.text)({
+    title: (0, import_fields118.text)({ validation: { isRequired: true } }),
+    description: (0, import_fields118.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     }),
-    startAt: (0, import_fields102.timestamp)({
+    startAt: (0, import_fields118.timestamp)({
       validation: { isRequired: true },
       isIndexed: true,
       ui: {
         description: "Inicio. En eventos de d\xEDa completo se usa la fecha en UTC (00:00Z)"
       }
     }),
-    endAt: (0, import_fields102.timestamp)({
+    endAt: (0, import_fields118.timestamp)({
       db: { isNullable: true },
       ui: {
         description: "Fin (opcional). Sin fin, el evento dura 60 min; en d\xEDa completo, es el \xFAltimo d\xEDa incluido"
       }
     }),
-    allDay: (0, import_fields102.checkbox)({ defaultValue: false }),
-    location: (0, import_fields102.text)({ db: { isNullable: true } }),
-    sourceType: (0, import_fields102.select)({
+    allDay: (0, import_fields118.checkbox)({ defaultValue: false }),
+    location: (0, import_fields118.text)({ db: { isNullable: true } }),
+    sourceType: (0, import_fields118.select)({
       type: "string",
       options: [...CALENDAR_EVENT_SOURCE_OPTIONS],
       defaultValue: "native" /* NATIVE */,
@@ -22011,46 +23506,46 @@ var TechCalendarEvent_default = (0, import_core102.list)({
       isIndexed: true,
       ui: { description: "Creado a mano o generado desde un registro del CRM" }
     }),
-    salesActivity: (0, import_fields102.relationship)({
+    salesActivity: (0, import_fields118.relationship)({
       ref: "TechSalesActivity.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    followUpTask: (0, import_fields102.relationship)({
+    followUpTask: (0, import_fields118.relationship)({
       ref: "TechFollowUpTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    task: (0, import_fields102.relationship)({
+    task: (0, import_fields118.relationship)({
       ref: "TechTask.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    proposal: (0, import_fields102.relationship)({
+    proposal: (0, import_fields118.relationship)({
       ref: "TechProposal.calendarEvent",
       many: false,
       db: { foreignKey: true },
       ui: { hideCreate: true }
     }),
-    createdBy: (0, import_fields102.relationship)({
+    createdBy: (0, import_fields118.relationship)({
       ref: "User.createdCalendarEvents",
       many: false,
       ui: { description: "Usuario due\xF1o del evento (su cuenta personal recibe el push)" }
     }),
-    company: (0, import_fields102.relationship)({
+    company: (0, import_fields118.relationship)({
       ref: "SaasCompany.calendarEvents",
       many: false,
       ui: { description: "Empresa (su cuenta compartida recibe el push)" }
     }),
-    workspace: (0, import_fields102.relationship)({
+    workspace: (0, import_fields118.relationship)({
       ref: "SaasWorkspace.calendarEvents",
       many: false,
       ui: { description: "Workspace del CRM, si aplica" }
     }),
-    googleTargets: (0, import_fields102.relationship)({
+    googleTargets: (0, import_fields118.relationship)({
       ref: "GoogleCalendarSelection.targetedEvents",
       many: true,
       ui: {
@@ -22058,19 +23553,19 @@ var TechCalendarEvent_default = (0, import_core102.list)({
         description: "Calendarios de Google elegidos al crear el evento (solo eventos nativos; los del CRM siguen la configuraci\xF3n de cada calendario)"
       }
     }),
-    googleLinks: (0, import_fields102.relationship)({
+    googleLinks: (0, import_fields118.relationship)({
       ref: "TechCalendarEventGoogleLink.event",
       many: true,
       ui: { hideCreate: true, description: "Copias de este evento en Google Calendar" }
     }),
-    createdAt: (0, import_fields102.timestamp)({
+    createdAt: (0, import_fields118.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         createView: { fieldMode: "hidden" },
         listView: { fieldMode: "read" }
       }
     }),
-    updatedAt: (0, import_fields102.timestamp)({
+    updatedAt: (0, import_fields118.timestamp)({
       db: { updatedAt: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -22081,8 +23576,8 @@ var TechCalendarEvent_default = (0, import_core102.list)({
 });
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var import_core103 = require("@keystone-6/core");
-var import_fields103 = require("@keystone-6/core/fields");
+var import_core119 = require("@keystone-6/core");
+var import_fields119 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.access.ts
 var techCalendarEventGoogleLinkAccess = {
@@ -22102,7 +23597,7 @@ var techCalendarEventGoogleLinkAccess = {
 };
 
 // models/Saas/Tech/CalendarEvent/TechCalendarEventGoogleLink/TechCalendarEventGoogleLink.ts
-var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
+var TechCalendarEventGoogleLink_default = (0, import_core119.list)({
   access: techCalendarEventGoogleLinkAccess,
   ui: {
     listView: {
@@ -22115,26 +23610,26 @@ var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
     }
   },
   fields: {
-    event: (0, import_fields103.relationship)({
+    event: (0, import_fields119.relationship)({
       ref: "TechCalendarEvent.googleLinks",
       many: false
     }),
-    calendarSelection: (0, import_fields103.relationship)({
+    calendarSelection: (0, import_fields119.relationship)({
       ref: "GoogleCalendarSelection.eventLinks",
       many: false
     }),
-    googleEventId: (0, import_fields103.text)({
+    googleEventId: (0, import_fields119.text)({
       db: { isNullable: true },
       isIndexed: true,
       ui: { description: "id del evento en Google (se llena tras el push exitoso)" }
     }),
-    lastPushedAt: (0, import_fields103.timestamp)({ db: { isNullable: true } }),
-    lastPushStatus: (0, import_fields103.select)({
+    lastPushedAt: (0, import_fields119.timestamp)({ db: { isNullable: true } }),
+    lastPushStatus: (0, import_fields119.select)({
       type: "string",
       options: [...GOOGLE_LINK_STATUS_OPTIONS],
       defaultValue: "pending" /* PENDING */
     }),
-    lastPushError: (0, import_fields103.text)({
+    lastPushError: (0, import_fields119.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea" }
     })
@@ -22142,8 +23637,8 @@ var TechCalendarEventGoogleLink_default = (0, import_core103.list)({
 });
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var import_core104 = require("@keystone-6/core");
-var import_fields104 = require("@keystone-6/core/fields");
+var import_core120 = require("@keystone-6/core");
+var import_fields120 = require("@keystone-6/core/fields");
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.access.ts
 var techGoogleCalendarSyncLogAccess = {
@@ -22165,7 +23660,7 @@ var techGoogleCalendarSyncLogAccess = {
 };
 
 // models/Saas/Tech/GoogleCalendarSyncLog/TechGoogleCalendarSyncLog.ts
-var TechGoogleCalendarSyncLog_default = (0, import_core104.list)({
+var TechGoogleCalendarSyncLog_default = (0, import_core120.list)({
   access: techGoogleCalendarSyncLogAccess,
   ui: {
     listView: {
@@ -22180,29 +23675,29 @@ var TechGoogleCalendarSyncLog_default = (0, import_core104.list)({
     }
   },
   fields: {
-    account: (0, import_fields104.relationship)({
+    account: (0, import_fields120.relationship)({
       ref: "GoogleCalendarAccount.syncLogs",
       many: false
     }),
-    direction: (0, import_fields104.select)({
+    direction: (0, import_fields120.select)({
       type: "string",
       options: [...GOOGLE_SYNC_DIRECTION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    operation: (0, import_fields104.select)({
+    operation: (0, import_fields120.select)({
       type: "string",
       options: [...GOOGLE_SYNC_OPERATION_OPTIONS],
       validation: { isRequired: true },
       isIndexed: true
     }),
-    success: (0, import_fields104.checkbox)({ defaultValue: false }),
-    errorMessage: (0, import_fields104.text)({
+    success: (0, import_fields120.checkbox)({ defaultValue: false }),
+    errorMessage: (0, import_fields120.text)({
       db: { isNullable: true },
       ui: { displayMode: "textarea", description: "Error si la llamada fall\xF3 (sin tokens)" }
     }),
-    durationMs: (0, import_fields104.integer)({ db: { isNullable: true } }),
-    createdAt: (0, import_fields104.timestamp)({ defaultValue: { kind: "now" } })
+    durationMs: (0, import_fields120.integer)({ db: { isNullable: true } }),
+    createdAt: (0, import_fields120.timestamp)({ defaultValue: { kind: "now" } })
   }
 });
 
@@ -22281,6 +23776,22 @@ var schema_default = withActivityHooks({
   SaasWorkspaceCrmStatus: SaasWorkspaceCrmStatus_default,
   Schedule: Schedule_default,
   SocialMedia: SocialMedia_default,
+  StoreAddress: StoreAddress_default,
+  StoreBrand: StoreBrand_default,
+  StoreCategory: StoreCategory_default,
+  StoreCoupon: StoreCoupon_default,
+  StoreCouponRedemption: StoreCouponRedemption_default,
+  StoreOrder: StoreOrder_default,
+  StoreOrderEvent: StoreOrderEvent_default,
+  StoreOrderItem: StoreOrderItem_default,
+  StorePayment: StorePayment_default,
+  StoreProduct: StoreProduct_default,
+  StoreProductImage: StoreProductImage_default,
+  StoreProductReview: StoreProductReview_default,
+  StoreProductVariant: StoreProductVariant_default,
+  StoreSettings: StoreSettings_default,
+  StoreShipment: StoreShipment_default,
+  StoreWishlistItem: StoreWishlistItem_default,
   SystemRelease: SystemRelease_default,
   Tag: Tag_default,
   TechBusinessLead: TechBusinessLead_default,
@@ -22313,7 +23824,7 @@ var schema_default = withActivityHooks({
 });
 
 // keystone.ts
-var import_core105 = require("@keystone-6/core");
+var import_core121 = require("@keystone-6/core");
 
 // auth/auth.ts
 var import_crypto5 = require("crypto");
@@ -22761,6 +24272,47 @@ var RATE_LIMIT_RULES = [
     windowMs: DAY
   },
   {
+    key: "store_review_user",
+    label: "Rese\xF1as de productos por persona",
+    fields: ["submitStoreProductReview", "deleteMyStoreProductReview"],
+    scope: "user",
+    limit: 20,
+    windowMs: DAY
+  },
+  {
+    // Each attempt reserves stock and may open a Stripe PaymentIntent.
+    key: "store_order_ip",
+    label: "Pedidos de la tienda por IP",
+    fields: ["placeStoreOrder"],
+    scope: "ip",
+    limit: 15,
+    windowMs: HOUR
+  },
+  {
+    key: "store_order_actions_user",
+    label: "Comprobantes, pagos y cancelaciones de pedidos por persona",
+    fields: ["uploadStoreTransferProof", "resumeStoreOrderPayment", "cancelMyStoreOrder"],
+    scope: "user",
+    limit: 30,
+    windowMs: HOUR
+  },
+  {
+    key: "store_address_user",
+    label: "Direcciones de env\xEDo guardadas por persona",
+    fields: ["saveMyStoreAddress", "deleteMyStoreAddress"],
+    scope: "user",
+    limit: 30,
+    windowMs: HOUR
+  },
+  {
+    key: "store_wishlist_user",
+    label: "Cambios en la lista de deseos por persona",
+    fields: ["setStoreWishlist"],
+    scope: "user",
+    limit: 120,
+    windowMs: HOUR
+  },
+  {
     key: "contact_ip",
     label: "Mensajes de contacto por IP",
     fields: ["createContactForm", "createContactForms"],
@@ -23051,13 +24603,13 @@ async function provisionSignupCompany(context, userId, companyName) {
 var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
 var MAX_TEXT = 200;
 var MAX_PATH2 = 300;
-function text86(value, max = MAX_TEXT) {
+function text103(value, max = MAX_TEXT) {
   if (typeof value !== "string") return void 0;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : void 0;
 }
 function hostOf(value) {
-  const raw = text86(value, 500);
+  const raw = text103(value, 500);
   if (!raw) return void 0;
   try {
     return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase() || void 0;
@@ -23066,7 +24618,7 @@ function hostOf(value) {
   }
 }
 function pathOf(value) {
-  const raw = text86(value, MAX_PATH2);
+  const raw = text103(value, MAX_PATH2);
   if (!raw || !raw.startsWith("/")) return void 0;
   return raw.split(/[?#]/)[0] || void 0;
 }
@@ -23075,14 +24627,14 @@ function cleanAttribution(input) {
   const source = input;
   const out = {};
   for (const key of UTM_KEYS) {
-    const value = text86(source[key]);
+    const value = text103(source[key]);
     if (value) out[key] = value.toLowerCase();
   }
   const referrer = hostOf(source.referrer);
   if (referrer) out.referrer = referrer;
   const landingPath = pathOf(source.landingPath);
   if (landingPath) out.landingPath = landingPath;
-  const firstSeen = text86(source.firstSeenAt, 40);
+  const firstSeen = text103(source.firstSeenAt, 40);
   if (firstSeen && !Number.isNaN(new Date(firstSeen).getTime())) out.firstSeenAt = firstSeen;
   return Object.keys(out).length ? out : null;
 }
@@ -23156,7 +24708,7 @@ var resolver = {
   }, context) => {
     const startedAt = Date.now();
     const isSaas = product === PRODUCT.SAAS;
-    const fail14 = async (message, email, userId) => {
+    const fail16 = async (message, email, userId) => {
       await writeUserAuthLog(context, {
         startedAt,
         source: USER_AUTH_LOG_SOURCE.GOOGLE_AUTH,
@@ -23174,7 +24726,7 @@ var resolver = {
     };
     const payload = await verifyGoogleIdToken(idToken);
     if (!payload) {
-      return fail14("Token de Google inv\xE1lido o expirado", "");
+      return fail16("Token de Google inv\xE1lido o expirado", "");
     }
     let user = await context.sudo().query.User.findOne({
       where: { email: payload.email },
@@ -23199,7 +24751,7 @@ var resolver = {
         if (isSaas) {
           const signupRoleIds = await findSignupRoleIds(context);
           if (signupRoleIds.length !== SIGNUP_ROLE_NAMES.length) {
-            return fail14(
+            return fail16(
               "No se pudieron asignar los roles de empresa. Contacta a soporte.",
               payload.email
             );
@@ -23224,14 +24776,14 @@ var resolver = {
           await provisionSignupCompany(context, user.id, baseName);
         }
       } catch (err) {
-        return fail14(
+        return fail16(
           err instanceof Error ? err.message : "Error al crear usuario",
           payload.email
         );
       }
     }
     if (await loginBlockedReason(context, user.id)) {
-      return fail14(SUSPENDED_MESSAGE, payload.email, user.id);
+      return fail16(SUSPENDED_MESSAGE, payload.email, user.id);
     }
     user = await context.sudo().query.User.updateOne({
       where: { id: user.id },
@@ -23239,14 +24791,14 @@ var resolver = {
       query: USER_QUERY
     });
     if (!context.sessionStrategy) {
-      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail16("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     const sessionToken = await context.sessionStrategy.start({
       data: { listKey: "User", itemId: user.id },
       context
     });
     if (typeof sessionToken !== "string" || sessionToken.length === 0) {
-      return fail14("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
+      return fail16("No se pudo iniciar la sesi\xF3n.", payload.email, user.id);
     }
     await writeUserAuthLog(context, {
       startedAt,
@@ -23819,8 +25371,8 @@ var importPetPlace_default = {
 function formatReviewTech(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text89 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text89}`;
+  const text106 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text106}`;
 }
 
 // utils/helpers/tech/build_prompt_text.ts
@@ -24976,8 +26528,8 @@ async function getPlaceDetails3(placeId, apiKey2) {
 function formatReview(review) {
   const author = review.author_name || "An\xF3nimo";
   const rating = review.rating ?? 0;
-  const text89 = (review.text || "").trim();
-  return `\u2B50 ${rating} - ${author}: ${text89}`;
+  const text106 = (review.text || "").trim();
+  return `\u2B50 ${rating} - ${author}: ${text106}`;
 }
 function buildReviewsAndPrompt2(details, category) {
   const positiveReviews = (details.reviews || []).filter(
@@ -26758,14 +28310,14 @@ function trimOrEmpty(value, max) {
   return (value ?? "").trim().slice(0, max);
 }
 function parseCustomEmails(raw) {
-  const list103 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
-  if (list103.length === 0) {
+  const list119 = (raw ?? []).map((email) => email.trim()).filter(Boolean);
+  if (list119.length === 0) {
     return {
       emails: [],
       error: "Agrega al menos un correo para el env\xEDo a usuarios espec\xEDficos."
     };
   }
-  if (list103.length > MAX_CUSTOM_RECIPIENTS) {
+  if (list119.length > MAX_CUSTOM_RECIPIENTS) {
     return {
       emails: [],
       error: `M\xE1ximo ${MAX_CUSTOM_RECIPIENTS} correos por env\xEDo a usuarios espec\xEDficos.`
@@ -26773,7 +28325,7 @@ function parseCustomEmails(raw) {
   }
   const seen = /* @__PURE__ */ new Set();
   const emails = [];
-  for (const email of list103) {
+  for (const email of list119) {
     if (!EMAIL_REGEX2.test(email)) {
       return { emails: [], error: `Correo inv\xE1lido: ${email}` };
     }
@@ -26958,11 +28510,11 @@ var PROMPT_INJECTION_POLICY = `Reglas de prioridad (inquebrantables):
 - Cumple el formato pedido por la instrucci\xF3n de la funci\xF3n.`;
 var UNTRUSTED_OPEN = "<untrusted_data>";
 var UNTRUSTED_CLOSE = "</untrusted_data>";
-function stripSpoofedDelimiters(text89) {
-  return text89.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
+function stripSpoofedDelimiters(text106) {
+  return text106.replace(/<\/?untrusted_data\b[^>]*>/gi, "");
 }
-function wrapUntrustedData(source, text89) {
-  const cleaned = stripSpoofedDelimiters(text89 ?? "").trim() || "(vac\xEDo)";
+function wrapUntrustedData(source, text106) {
+  const cleaned = stripSpoofedDelimiters(text106 ?? "").trim() || "(vac\xEDo)";
   return `${UNTRUSTED_OPEN} source="${source}"
 ${cleaned}
 ${UNTRUSTED_CLOSE}`;
@@ -27002,9 +28554,9 @@ function tokensToCredits(usage) {
   if (billable <= 0) return 0;
   return Math.ceil(billable / BILLABLE_TOKENS_PER_CREDIT);
 }
-function estimateTokensFromText(text89) {
-  if (!text89) return 0;
-  return Math.max(1, Math.ceil(text89.length / CHARS_PER_TOKEN_ESTIMATE));
+function estimateTokensFromText(text106) {
+  if (!text106) return 0;
+  return Math.max(1, Math.ceil(text106.length / CHARS_PER_TOKEN_ESTIMATE));
 }
 function estimateCreditsForPrompt(params) {
   const inputTokens = estimateTokensFromText(params.systemPrompt) + estimateTokensFromText(params.userPrompt);
@@ -27038,15 +28590,15 @@ async function complete(params) {
       response.status
     );
   }
-  const text89 = payload?.content?.find((part) => part.type === "text")?.text;
-  if (!text89) {
+  const text106 = payload?.content?.find((part) => part.type === "text")?.text;
+  if (!text106) {
     throw new AiProviderError("Anthropic no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text106,
     usage: {
       inputTokens: payload?.usage?.input_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usage?.output_tokens ?? estimateTokensFromText(text106)
     }
   };
 }
@@ -27091,15 +28643,15 @@ async function complete2(params) {
       response.status
     );
   }
-  const text89 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!text89) {
+  const text106 = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
+  if (!text106) {
     throw new AiProviderError("Gemini no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text106,
     usage: {
       inputTokens: payload?.usageMetadata?.promptTokenCount ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usageMetadata?.candidatesTokenCount ?? estimateTokensFromText(text106)
     }
   };
 }
@@ -27136,15 +28688,15 @@ async function complete3(params) {
       response.status
     );
   }
-  const text89 = payload?.choices?.[0]?.message?.content?.trim();
-  if (!text89) {
+  const text106 = payload?.choices?.[0]?.message?.content?.trim();
+  if (!text106) {
     throw new AiProviderError("OpenAI no devolvi\xF3 texto");
   }
   return {
-    text: text89,
+    text: text106,
     usage: {
       inputTokens: payload?.usage?.prompt_tokens ?? estimateTokensFromText(systemPrompt + userPrompt),
-      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text89)
+      outputTokens: payload?.usage?.completion_tokens ?? estimateTokensFromText(text106)
     }
   };
 }
@@ -27235,21 +28787,21 @@ async function oldestInWindow(context, where) {
   return rows2[0]?.createdAt ?? null;
 }
 function quotaError(quota, label, kind, retryAfterSec) {
-  const wait = `Espera ${retryAfterSec} s y vuelve a intentar.`;
+  const wait2 = `Espera ${retryAfterSec} s y vuelve a intentar.`;
   if (kind === "rpm") {
     return new AiRateLimitError(
-      `${quota.model} lleg\xF3 a ${quota.rpm} solicitudes por minuto (${label}). ${wait}`,
+      `${quota.model} lleg\xF3 a ${quota.rpm} solicitudes por minuto (${label}). ${wait2}`,
       retryAfterSec
     );
   }
   if (kind === "tpm") {
     return new AiRateLimitError(
-      `${quota.model} super\xF3 ${quota.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait}`,
+      `${quota.model} super\xF3 ${quota.tpmInput.toLocaleString("es-MX")} tokens de entrada por minuto (${label}). ${wait2}`,
       retryAfterSec
     );
   }
   return new AiRateLimitError(
-    `${quota.model} lleg\xF3 a ${quota.rpd} solicitudes por d\xEDa (${label}). ${wait}`,
+    `${quota.model} lleg\xF3 a ${quota.rpd} solicitudes por d\xEDa (${label}). ${wait2}`,
     retryAfterSec
   );
 }
@@ -27822,8 +29374,8 @@ function money(value) {
 function joinExtra(parts) {
   return parts.filter((part) => Boolean(part && part.trim())).join(" \xB7 ");
 }
-function parseDigestActions(text89) {
-  const stripped = text89.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseDigestActions(text106) {
+  const stripped = text106.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const objStart = stripped.indexOf("{");
   const arrStart = stripped.indexOf("[");
   let parsed = null;
@@ -28343,11 +29895,11 @@ async function saveMarketInsight(context, params) {
     query: INSIGHT_QUERY2
   });
 }
-function parseMarketInsight(text89) {
-  const match = text89.match(/\{[\s\S]*\}/);
+function parseMarketInsight(text106) {
+  const match = text106.match(/\{[\s\S]*\}/);
   if (!match) {
     return {
-      summary: text89.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
+      summary: text106.trim().slice(0, 800) || "No se pudo interpretar el an\xE1lisis.",
       actions: []
     };
   }
@@ -28358,12 +29910,12 @@ function parseMarketInsight(text89) {
       detail: String(item.detail ?? "").trim()
     })).filter((item) => item.title && item.detail).slice(0, 3);
     return {
-      summary: String(parsed.summary ?? "").trim() || text89.trim().slice(0, 800),
+      summary: String(parsed.summary ?? "").trim() || text106.trim().slice(0, 800),
       actions
     };
   } catch {
     return {
-      summary: text89.trim().slice(0, 800),
+      summary: text106.trim().slice(0, 800),
       actions: []
     };
   }
@@ -28903,8 +30455,8 @@ function fallbackCompanyBriefPillars(company) {
     return { key, title: meta.title, summary, gaps };
   });
 }
-function parseJsonObject(text89) {
-  const stripped = text89.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+function parseJsonObject(text106) {
+  const stripped = text106.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = stripped.indexOf("{");
   const end = stripped.lastIndexOf("}");
   if (start === -1 || end === -1) return null;
@@ -28914,8 +30466,8 @@ function parseJsonObject(text89) {
     return null;
   }
 }
-function parseCompanyBriefPillars(text89, company) {
-  const parsed = parseJsonObject(text89);
+function parseCompanyBriefPillars(text106, company) {
+  const parsed = parseJsonObject(text106);
   const raw = Array.isArray(parsed?.pillars) ? parsed.pillars : [];
   const byKey = /* @__PURE__ */ new Map();
   for (const item of raw) {
@@ -29235,33 +30787,33 @@ function encodeDenueCondition(value, fallback) {
   const words = parts.length ? parts : [fallback];
   return words.map((word) => encodeURIComponent(word)).join(",");
 }
-function isDenueEmptyBody(text89) {
-  const trimmed = text89.trim().toLowerCase();
+function isDenueEmptyBody(text106) {
+  const trimmed = text106.trim().toLowerCase();
   if (!trimmed) return true;
   return trimmed.includes("no hay resultados") || trimmed.includes("sin resultados") || trimmed === "null";
 }
 async function parseDenueList(res) {
-  const text89 = await res.text();
-  if (isDenueEmptyBody(text89)) {
+  const text106 = await res.text();
+  if (isDenueEmptyBody(text106)) {
     console.log("[INEGI DENUE] empty body treated as no results", {
       status: res.status,
-      preview: text89.slice(0, 120)
+      preview: text106.slice(0, 120)
     });
     return [];
   }
   if (!res.ok) {
     console.error("[INEGI DENUE] HTTP error body", {
       status: res.status,
-      preview: text89.slice(0, 200)
+      preview: text106.slice(0, 200)
     });
-    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text89.slice(0, 200)}`);
+    throw new Error(`INEGI DENUE HTTP ${res.status}: ${text106.slice(0, 200)}`);
   }
   let data;
   try {
-    data = JSON.parse(text89);
+    data = JSON.parse(text106);
   } catch {
     throw new Error(
-      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text89.slice(0, 200)}`
+      `INEGI DENUE devolvi\xF3 una respuesta no JSON: ${text106.slice(0, 200)}`
     );
   }
   if (!Array.isArray(data)) {
@@ -29360,17 +30912,17 @@ async function getIndicator(indicatorId, geographicArea, recent = true, source =
   const area = geographicArea.trim() || "00";
   const url = `${INDICADORES_BASE}/${encodeURIComponent(indicatorId)}/es/${encodeURIComponent(area)}/${recent}/${source}/2.0/${token}?type=json`;
   const res = await inegiFetch(url);
-  const text89 = await res.text();
+  const text106 = await res.text();
   if (!res.ok) {
     throw new Error(
-      `INEGI Indicadores HTTP ${res.status}: ${text89.slice(0, 200)}`
+      `INEGI Indicadores HTTP ${res.status}: ${text106.slice(0, 200)}`
     );
   }
   try {
-    return JSON.parse(text89);
+    return JSON.parse(text106);
   } catch {
     throw new Error(
-      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text89.slice(0, 200)}`
+      `INEGI Indicadores devolvi\xF3 una respuesta no JSON: ${text106.slice(0, 200)}`
     );
   }
 }
@@ -32964,8 +34516,8 @@ function cleanNotes(value) {
   return (value ?? "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim().slice(0, SIGHTING_NOTES_MAX);
 }
 function coordinate(value, min, max) {
-  const num = Number.parseFloat(value);
-  return Number.isFinite(num) && num >= min && num <= max ? num : null;
+  const num2 = Number.parseFloat(value);
+  return Number.isFinite(num2) && num2 >= min && num2 <= max ? num2 : null;
 }
 var resolver29 = {
   reportAnimalSighting: async (_root, { input }, context) => {
@@ -33160,9 +34712,9 @@ var typeDefs33 = `
   }
 `;
 var definition30 = `pawLeaderboard(period: String, take: Int): [PawLeaderboardEntry!]!`;
-var cache = /* @__PURE__ */ new Map();
+var cache2 = /* @__PURE__ */ new Map();
 function invalidatePawLeaderboard() {
-  cache.clear();
+  cache2.clear();
 }
 async function allTimeRankOf(context, userId) {
   try {
@@ -33256,11 +34808,11 @@ var resolver30 = {
     const take = Math.min(Math.max(1, Number.isFinite(requested) ? requested : LEADERBOARD_DEFAULT_TAKE), LEADERBOARD_MAX_TAKE);
     const now = Date.now();
     const version = pawsLedgerVersion();
-    let cached = cache.get(period);
+    let cached = cache2.get(period);
     if (!cached || cached.version !== version || now - cached.at >= LEADERBOARD_CACHE_MS) {
       try {
         cached = { value: await loadLeaderboard(context, period), at: now, version };
-        cache.set(period, cached);
+        cache2.set(period, cached);
       } catch (error) {
         console.error("[pawLeaderboard]", error);
       }
@@ -33308,10 +34860,2272 @@ var resolver31 = {
 };
 var paws_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
+// graphql/customs/mutations/store/setStoreWishlist.ts
+var typeDefs35 = `
+  type StoreWishlistResult {
+    success: Boolean!
+    message: String!
+    "Whether the product is saved after this call."
+    saved: Boolean!
+  }
+`;
+var definition32 = `
+  setStoreWishlist(productId: ID!, saved: Boolean!): StoreWishlistResult!
+`;
+var resolver32 = {
+  /** Saves a product to the wishlist or takes it out. One row per person and product. */
+  setStoreWishlist: async (_root, { productId, saved }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar productos.", saved: false };
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) {
+      return { success: false, message: "La tienda a\xFAn no est\xE1 disponible.", saved: false };
+    }
+    try {
+      const prisma = storePrisma(context);
+      const key = `${userId}:${productId}`;
+      if (!saved) {
+        const removed = await prisma.storeWishlistItem.deleteMany({ where: { key } });
+        if (removed instanceof Error) throw removed;
+        return { success: true, message: "Listo.", saved: false };
+      }
+      const [product, count2] = await Promise.all([
+        prisma.storeProduct.findUnique({ where: { id: productId }, select: { status: true } }),
+        prisma.storeWishlistItem.count({ where: { userId } })
+      ]);
+      if (product instanceof Error) throw product;
+      if (count2 instanceof Error) throw count2;
+      if (!product || product.status !== STORE_PRODUCT_STATUS.ACTIVE) {
+        return { success: false, message: "Este producto ya no est\xE1 disponible.", saved: false };
+      }
+      if (Number(count2) >= STORE_WISHLIST_MAX) {
+        return { success: false, message: "Tu lista de deseos est\xE1 llena.", saved: false };
+      }
+      const row = await prisma.storeWishlistItem.upsert({
+        where: { key },
+        create: { key, user: { connect: { id: userId } }, product: { connect: { id: productId } } },
+        update: {}
+      });
+      if (row instanceof Error) throw row;
+      return { success: true, message: "Guardado en tu lista de deseos.", saved: true };
+    } catch (error) {
+      console.error("[setStoreWishlist]", error);
+      return { success: false, message: "No pudimos guardar el producto. Intenta de nuevo.", saved: false };
+    }
+  }
+};
+var setStoreWishlist_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+
+// graphql/customs/mutations/store/storeProductReviews.ts
+var typeDefs36 = `
+  input StoreProductReviewInput {
+    productId: ID!
+    "1 to 5"
+    rating: Int!
+    title: String
+    body: String
+  }
+
+  type StoreProductReviewResult {
+    success: Boolean!
+    message: String!
+    reviewId: ID
+    "Stars of the product after this change."
+    ratingAverage: Float
+    ratingCount: Int
+  }
+`;
+var definition33 = `
+  submitStoreProductReview(input: StoreProductReviewInput!): StoreProductReviewResult!
+  deleteMyStoreProductReview(productId: ID!): StoreProductReviewResult!
+`;
+var EMPTY2 = { reviewId: null, ratingAverage: null, ratingCount: null };
+function fail7(message) {
+  return { success: false, message, ...EMPTY2 };
+}
+var resolver33 = {
+  /** Writes or edits the caller's review of a product. */
+  submitStoreProductReview: async (_root, { input }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail7("Inicia sesi\xF3n para dejar tu rese\xF1a.");
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) return fail7("La tienda a\xFAn no est\xE1 disponible.");
+    const rating = Number(input.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return fail7("La calificaci\xF3n debe ser de 1 a 5 estrellas.");
+    }
+    const title = (input.title ?? "").trim();
+    const body = (input.body ?? "").trim();
+    if (title.length > STORE_REVIEW_TITLE_MAX) return fail7("El t\xEDtulo es demasiado largo.");
+    if (body.length > STORE_REVIEW_BODY_MAX) return fail7("La rese\xF1a es demasiado larga.");
+    try {
+      const prisma = storePrisma(context);
+      const key = `${userId}:${input.productId}`;
+      const [product, existing] = await Promise.all([
+        prisma.storeProduct.findUnique({
+          where: { id: input.productId },
+          select: { id: true, name: true, status: true }
+        }),
+        prisma.storeProductReview.findUnique({ where: { key }, select: { id: true, status: true } })
+      ]);
+      if (product instanceof Error) throw product;
+      if (existing instanceof Error) throw existing;
+      if (!product || product.status !== STORE_PRODUCT_STATUS.ACTIVE) {
+        return fail7("Este producto ya no est\xE1 disponible.");
+      }
+      if (existing?.status === STORE_REVIEW_STATUS.HIDDEN) {
+        return fail7("Tu rese\xF1a de este producto fue retirada por el equipo de Kadesh.");
+      }
+      const delivered = await prisma.storeOrderItem.findFirst({
+        where: {
+          productId: input.productId,
+          order: { userId, paymentStatus: STORE_PAYMENT_STATUS.PAID },
+          shipment: { status: STORE_SHIPMENT_STATUS.DELIVERED }
+        },
+        select: { id: true }
+      });
+      if (delivered instanceof Error) throw delivered;
+      const verifiedPurchase = Boolean(delivered);
+      const saved = await prisma.storeProductReview.upsert({
+        where: { key },
+        create: {
+          key,
+          rating,
+          title,
+          body,
+          verifiedPurchase,
+          status: STORE_REVIEW_STATUS.PUBLISHED,
+          product: { connect: { id: input.productId } },
+          user: { connect: { id: userId } }
+        },
+        update: { rating, title, body, verifiedPurchase },
+        select: { id: true }
+      });
+      if (saved instanceof Error) throw saved;
+      const stars = await recomputeStoreProductRating(context, input.productId);
+      bumpStoreCatalogVersion();
+      void pawsOnStoreProductReview(context, { userId, productId: input.productId, shouldHave: verifiedPurchase });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_REVIEW_ADDED,
+        summary: `${existing ? "Edit\xF3 su rese\xF1a de" : "Calific\xF3"} "${String(product.name).slice(0, 80)}" con ${rating} estrellas`,
+        entityType: "StoreProduct",
+        entityId: input.productId,
+        metadata: { rating, count: body.length, edited: Boolean(existing) }
+      });
+      return {
+        success: true,
+        message: existing ? "Actualizamos tu rese\xF1a." : "\xA1Gracias por tu rese\xF1a!",
+        reviewId: saved.id,
+        ratingAverage: stars?.ratingAverage ?? null,
+        ratingCount: stars?.ratingCount ?? null
+      };
+    } catch (error) {
+      console.error("[submitStoreProductReview]", error);
+      return fail7("No pudimos guardar tu rese\xF1a. Intenta de nuevo.");
+    }
+  },
+  /** Deletes the caller's own review of a product. */
+  deleteMyStoreProductReview: async (_root, { productId }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return fail7("Inicia sesi\xF3n para borrar tu rese\xF1a.");
+    try {
+      const prisma = storePrisma(context);
+      const removed = await prisma.storeProductReview.deleteMany({ where: { key: `${userId}:${productId}` } });
+      if (removed instanceof Error) throw removed;
+      if (Number(removed.count) === 0) return fail7("No encontramos tu rese\xF1a de este producto.");
+      const stars = await recomputeStoreProductRating(context, productId);
+      bumpStoreCatalogVersion();
+      void pawsOnStoreProductReview(context, { userId, productId, shouldHave: false });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_REVIEW_DELETED,
+        summary: "Borr\xF3 su rese\xF1a de un producto",
+        entityType: "StoreProduct",
+        entityId: productId
+      });
+      return {
+        success: true,
+        message: "Borramos tu rese\xF1a.",
+        reviewId: null,
+        ratingAverage: stars?.ratingAverage ?? null,
+        ratingCount: stars?.ratingCount ?? null
+      };
+    } catch (error) {
+      console.error("[deleteMyStoreProductReview]", error);
+      return fail7("No pudimos borrar tu rese\xF1a. Intenta de nuevo.");
+    }
+  }
+};
+var storeProductReviews_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+
+// utils/store/address.ts
+function clean5(value, max) {
+  return (value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+function validateStoreAddress(input) {
+  const recipientName = clean5(input?.recipientName, 120);
+  if (recipientName.length < 3) return { ok: false, message: "Escribe el nombre de quien recibe." };
+  const phone = normalizeMxPhone(input?.phone ?? "");
+  if (!phone.ok) return { ok: false, message: "El tel\xE9fono de quien recibe debe tener 10 d\xEDgitos." };
+  const street = clean5(input?.street, 160);
+  if (!street) return { ok: false, message: "Escribe la calle." };
+  const exteriorNumber = clean5(input?.exteriorNumber, 20);
+  if (!exteriorNumber) return { ok: false, message: "Escribe el n\xFAmero exterior (o \xABS/N\xBB)." };
+  const neighborhood = clean5(input?.neighborhood, 120);
+  if (!neighborhood) return { ok: false, message: "Escribe la colonia." };
+  const city = clean5(input?.city, 120);
+  if (!city) return { ok: false, message: "Escribe el municipio o alcald\xEDa." };
+  const stateCode = normalizeStateCode(input?.state);
+  if (!stateCode) return { ok: false, message: "Elige el estado." };
+  const postalCode = (input?.postalCode ?? "").replace(/\D/g, "");
+  if (postalCode.length !== 5) return { ok: false, message: "El c\xF3digo postal debe tener 5 d\xEDgitos." };
+  return {
+    ok: true,
+    data: {
+      label: clean5(input?.label, 40),
+      recipientName,
+      phone: phone.digits,
+      street,
+      exteriorNumber,
+      interiorNumber: clean5(input?.interiorNumber, 20),
+      neighborhood,
+      city,
+      stateCode,
+      postalCode,
+      references: clean5(input?.references, 300)
+    }
+  };
+}
+function storeStateName(code) {
+  return stateByCode(code)?.name ?? "";
+}
+function toStoreAddress(row, prefix2 = "") {
+  const read = (field) => {
+    const key = prefix2 ? `${prefix2}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field;
+    return row[key] ?? "";
+  };
+  const stateCode = read("stateCode");
+  return {
+    id: prefix2 ? null : row.id,
+    label: prefix2 ? null : read("label") || null,
+    recipientName: read("recipientName"),
+    phone: read("phone"),
+    street: read("street"),
+    exteriorNumber: read("exteriorNumber"),
+    interiorNumber: read("interiorNumber") || null,
+    neighborhood: read("neighborhood"),
+    city: read("city"),
+    stateCode,
+    stateName: storeStateName(stateCode),
+    postalCode: read("postalCode"),
+    references: read("references") || null,
+    isDefault: prefix2 ? false : Boolean(row.isDefault)
+  };
+}
+var STORE_ADDRESS_TYPEDEFS = `
+  input StoreShippingAddressInput {
+    label: String
+    recipientName: String!
+    "10 digits"
+    phone: String!
+    street: String!
+    exteriorNumber: String!
+    interiorNumber: String
+    "Colonia"
+    neighborhood: String!
+    "Municipio o alcald\xEDa"
+    city: String!
+    "INEGI code (16), name or slug of the state"
+    state: String!
+    "5 digits"
+    postalCode: String!
+    references: String
+  }
+
+  type StoreShippingAddress {
+    id: ID
+    label: String
+    recipientName: String!
+    phone: String!
+    street: String!
+    exteriorNumber: String!
+    interiorNumber: String
+    neighborhood: String!
+    city: String!
+    "INEGI code of the state"
+    stateCode: String!
+    stateName: String!
+    postalCode: String!
+    references: String
+    isDefault: Boolean!
+  }
+`;
+
+// utils/store/coupons.ts
+var MONEY_WHOLE = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+var MONEY_CENTS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 });
+var MONEY = { format: (pesos) => (Number.isInteger(pesos) ? MONEY_WHOLE : MONEY_CENTS).format(pesos) };
+function no(code, message) {
+  return { applied: false, code, message };
+}
+function allocate(lines, discount) {
+  const perLine = /* @__PURE__ */ new Map();
+  const base = lines.reduce((sum, line) => sum + line.lineTotalCents, 0);
+  if (discount <= 0 || base <= 0) return perLine;
+  let left = discount;
+  lines.forEach((line, index) => {
+    const share = index === lines.length - 1 ? left : Math.min(left, Math.floor(discount * line.lineTotalCents / base));
+    perLine.set(line.variantId, Math.min(share, line.lineTotalCents));
+    left -= share;
+  });
+  return perLine;
+}
+async function evaluateCoupon(context, input) {
+  const code = normalizeCouponCode(input.code);
+  if (!code) return null;
+  const prisma = storePrisma(context);
+  const coupon = await prisma.storeCoupon.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      code: true,
+      type: true,
+      value: true,
+      minSubtotalCents: true,
+      maxDiscountCents: true,
+      startsAt: true,
+      endsAt: true,
+      usageLimit: true,
+      usageLimitPerUser: true,
+      usedCount: true,
+      firstOrderOnly: true,
+      isActive: true,
+      categories: { select: { id: true } },
+      products: { select: { id: true } }
+    }
+  });
+  if (coupon instanceof Error) throw coupon;
+  const now = Date.now();
+  if (!coupon) return no(code, "Ese cup\xF3n no existe.");
+  if (coupon.isActive === false) return no(code, "Ese cup\xF3n ya no est\xE1 activo.");
+  if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return no(code, "Ese cup\xF3n todav\xEDa no empieza.");
+  if (coupon.endsAt && new Date(coupon.endsAt).getTime() <= now) return no(code, "Ese cup\xF3n ya venci\xF3.");
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) return no(code, "Ese cup\xF3n ya se agot\xF3.");
+  if (coupon.minSubtotalCents && input.subtotalCents < coupon.minSubtotalCents) {
+    return no(code, `Ese cup\xF3n aplica desde ${MONEY.format(coupon.minSubtotalCents / 100)} de compra.`);
+  }
+  if (input.userId) {
+    if (coupon.usageLimitPerUser != null) {
+      const used = await prisma.storeCouponRedemption.count({ where: { couponId: coupon.id, userId: input.userId } });
+      if (used instanceof Error) throw used;
+      if (Number(used) >= coupon.usageLimitPerUser) return no(code, "Ya usaste ese cup\xF3n.");
+    }
+    if (coupon.firstOrderOnly) {
+      const earlier = await prisma.storeOrder.count({
+        where: {
+          userId: input.userId,
+          OR: [
+            { paymentStatus: { in: [STORE_PAYMENT_STATUS.PAID, STORE_PAYMENT_STATUS.REFUNDED] } },
+            {
+              couponCode: coupon.code,
+              status: STORE_ORDER_STATUS.OPEN,
+              paymentStatus: { in: [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.IN_REVIEW] }
+            }
+          ]
+        }
+      });
+      if (earlier instanceof Error) throw earlier;
+      if (Number(earlier) > 0) return no(code, "Ese cup\xF3n es solo para tu primera compra.");
+    }
+  }
+  const categoryIds = new Set(coupon.categories.map((category) => category.id));
+  const productIds = new Set(coupon.products.map((product) => product.id));
+  const scoped = categoryIds.size > 0 || productIds.size > 0;
+  const eligible = input.lines.filter(
+    (line) => line.lineTotalCents > 0 && (!scoped || line.productId && productIds.has(line.productId) || line.categoryId && categoryIds.has(line.categoryId) || line.parentCategoryId && categoryIds.has(line.parentCategoryId))
+  );
+  if (eligible.length === 0) return no(code, "Ese cup\xF3n no aplica a los productos de tu carrito.");
+  if (coupon.type === STORE_COUPON_TYPE.FREE_SHIPPING) {
+    if (input.shippingCents <= 0) return no(code, "Tu env\xEDo ya es gratis: guarda ese cup\xF3n para otra compra.");
+    return {
+      applied: true,
+      code,
+      couponId: coupon.id,
+      discountCents: 0,
+      freeShipping: true,
+      perLine: /* @__PURE__ */ new Map(),
+      message: "Cup\xF3n aplicado: env\xEDo gratis."
+    };
+  }
+  const eligibleTotal = eligible.reduce((sum, line) => sum + line.lineTotalCents, 0);
+  let discount = coupon.type === STORE_COUPON_TYPE.PERCENT ? Math.floor(eligibleTotal * Math.min(100, Math.max(0, coupon.value)) / 100) : Math.max(0, coupon.value);
+  if (coupon.maxDiscountCents) discount = Math.min(discount, coupon.maxDiscountCents);
+  discount = Math.min(discount, eligibleTotal);
+  discount = Math.min(discount, Math.max(0, input.subtotalCents + input.shippingCents - STORE_MIN_ORDER_TOTAL_CENTS));
+  if (discount <= 0) return no(code, "Ese cup\xF3n no aplica a un pedido de este monto.");
+  return {
+    applied: true,
+    code,
+    couponId: coupon.id,
+    discountCents: discount,
+    freeShipping: false,
+    perLine: allocate(eligible, discount),
+    message: `Cup\xF3n aplicado: ${MONEY.format(discount / 100)} de descuento.`
+  };
+}
+async function reserveCoupon(context, input) {
+  const prisma = storePrisma(context);
+  const taken = await prisma.$queryRaw`
+    UPDATE "StoreCoupon" SET "usedCount" = "usedCount" + 1
+    WHERE "id" = ${input.couponId} AND "isActive" = true
+      AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")
+    RETURNING "id", "usageLimitPerUser"
+  `;
+  if (taken instanceof Error) throw taken;
+  const coupon = taken[0];
+  if (!coupon) return false;
+  const created = await prisma.storeCouponRedemption.create({
+    data: {
+      key: `${input.couponId}:${input.orderId}`,
+      coupon: { connect: { id: input.couponId } },
+      order: { connect: { id: input.orderId } },
+      user: { connect: { id: input.userId } },
+      discountCents: input.discountCents
+    }
+  });
+  if (created instanceof Error) {
+    const undone = await prisma.$queryRaw`
+      UPDATE "StoreCoupon" SET "usedCount" = GREATEST(0, "usedCount" - 1) WHERE "id" = ${input.couponId} RETURNING "id"
+    `;
+    if (undone instanceof Error) console.error("[store] could not undo coupon use:", input.couponId, undone);
+    throw created;
+  }
+  if (coupon.usageLimitPerUser != null) {
+    const mine = await prisma.storeCouponRedemption.count({ where: { couponId: input.couponId, userId: input.userId } });
+    if (mine instanceof Error) throw mine;
+    if (Number(mine) > coupon.usageLimitPerUser) {
+      await releaseStoreOrderCoupon(context, input.orderId);
+      return false;
+    }
+  }
+  return true;
+}
+async function releaseStoreOrderCoupon(context, orderId) {
+  try {
+    const rows2 = await storePrisma(context).$queryRaw`
+      WITH gone AS (
+        DELETE FROM "StoreCouponRedemption" r WHERE r."order" = ${orderId} RETURNING r."coupon" AS coupon
+      )
+      UPDATE "StoreCoupon" c SET "usedCount" = GREATEST(0, c."usedCount" - g.n)
+      FROM (SELECT coupon, count(*)::int AS n FROM gone WHERE coupon IS NOT NULL GROUP BY coupon) g
+      WHERE c."id" = g.coupon
+      RETURNING c."id"
+    `;
+    if (rows2 instanceof Error) throw rows2;
+  } catch (error) {
+    console.error("[store] could not release the coupon of an order:", orderId, error);
+  }
+}
+
+// utils/store/emails.ts
+var MONEY2 = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+function formatStoreMoney(cents) {
+  return MONEY2.format((Number(cents) || 0) / 100);
+}
+function storeOrderUrl(orderNumber) {
+  return petSiteUrl(`/perfil?tab=pedidos&pedido=${encodeURIComponent(orderNumber)}`);
+}
+function formatDeadline(date) {
+  if (!date) return "";
+  return new Date(date).toLocaleString("es-MX", {
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Mexico_City"
+  });
+}
+function storeProofWhatsappUrl(phone, order) {
+  const text106 = [
+    `Hola, te mando el comprobante de mi transferencia del pedido ${order.number}.`,
+    "",
+    `Total: ${formatStoreMoney(order.totalCents)}`,
+    `Concepto: ${order.number}`,
+    ...order.customerName ? [`A nombre de: ${order.customerName}`] : [],
+    "",
+    "Productos:",
+    ...order.items.map((item) => `\u2022 ${item.quantity} \xD7 ${item.name}${item.variantTitle ? ` (${item.variantTitle})` : ""}`),
+    "",
+    "Adjunto la foto del comprobante."
+  ].join("\n");
+  return `https://wa.me/52${phone.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(text106)}`;
+}
+async function sendStoreOrderEmail(context, orderId, kind, extra = {}) {
+  try {
+    const order = await storePrisma(context).storeOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        number: true,
+        email: true,
+        customerName: true,
+        subtotalCents: true,
+        couponCode: true,
+        couponDiscountCents: true,
+        shippingCents: true,
+        totalCents: true,
+        expiresAt: true,
+        cancelReason: true,
+        items: {
+          select: {
+            name: true,
+            variantTitle: true,
+            quantity: true,
+            totalCents: true,
+            product: { select: { slug: true, status: true } }
+          },
+          take: 50
+        }
+      }
+    });
+    if (order instanceof Error) throw order;
+    const to = order?.email?.trim();
+    if (!order || !to) return;
+    const url = storeOrderUrl(order.number);
+    const name = order.customerName?.trim().split(/\s+/)[0] || "ah\xED";
+    const itemsTable = emailInfoTable([
+      ...order.items.map((item) => [
+        `${escapeHtml(item.name)}${item.variantTitle ? ` (${escapeHtml(item.variantTitle)})` : ""} \xD7 ${item.quantity}`,
+        escapeHtml(formatStoreMoney(item.totalCents))
+      ]),
+      ...Number(order.couponDiscountCents) > 0 ? [[`Cup\xF3n ${escapeHtml(order.couponCode ?? "")}`, `\u2212${escapeHtml(formatStoreMoney(order.couponDiscountCents))}`]] : [],
+      ["Env\xEDo", order.shippingCents > 0 ? escapeHtml(formatStoreMoney(order.shippingCents)) : "Gratis"],
+      ["Total", `<strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>`]
+    ]);
+    let subject = "";
+    let title = "";
+    let preheader = "";
+    let body = "";
+    if (kind === "placed_transfer") {
+      const settings = await getStoreSettings(context);
+      subject = `Tu pedido ${order.number}: datos para la transferencia`;
+      title = "Falta tu transferencia";
+      const whatsapp = settings.supportWhatsapp;
+      preheader = `Transfiere ${formatStoreMoney(order.totalCents)} y ${whatsapp ? "m\xE1ndanos tu comprobante por WhatsApp" : "sube tu comprobante"}.`;
+      body = `
+        ${emailParagraph(`Apartamos tu pedido <strong>${escapeHtml(order.number)}</strong>. Para confirmarlo, transfiere el total y ${whatsapp ? "m\xE1ndanos la foto de tu comprobante por WhatsApp" : "sube tu comprobante"}.`)}
+        ${emailInfoTable([
+        ["Monto", `<strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>`],
+        ["Banco", escapeHtml(settings.bankName || "\u2014")],
+        ["Beneficiario", escapeHtml(settings.bankBeneficiary || "\u2014")],
+        ["CLABE", escapeHtml(settings.bankClabe || "\u2014")],
+        ["Concepto", escapeHtml(order.number)]
+      ])}
+        ${settings.bankNote ? emailParagraph(escapeHtml(settings.bankNote)) : ""}
+        ${order.expiresAt ? emailCallout("pet", `Tienes hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>. Despu\xE9s el pedido se cancela solo.`) : ""}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir mi comprobante", url)}
+        ${itemsTable}`;
+    } else if (kind === "paid") {
+      subject = `Recibimos tu pago: pedido ${order.number}`;
+      title = "\xA1Gracias por tu compra!";
+      preheader = `Tu pedido ${order.number} est\xE1 pagado y lo estamos preparando.`;
+      body = `
+        ${emailParagraph(`Recibimos el pago de tu pedido <strong>${escapeHtml(order.number)}</strong>. Ya lo estamos preparando y te avisamos en cuanto salga.`)}
+        ${itemsTable}
+        ${emailButton("pet", "Ver mi pedido", url)}`;
+    } else if (kind === "shipped") {
+      subject = `Tu pedido ${order.number} va en camino`;
+      title = "Tu pedido va en camino";
+      preheader = extra.trackingCode ? `Gu\xEDa ${extra.trackingCode}` : "Ya sali\xF3 hacia tu direcci\xF3n.";
+      const tracking = [];
+      if (extra.carrier) tracking.push(["Paqueter\xEDa", escapeHtml(extra.carrier)]);
+      if (extra.trackingCode) tracking.push(["Gu\xEDa", escapeHtml(extra.trackingCode)]);
+      body = `
+        ${emailParagraph(`Un paquete de tu pedido <strong>${escapeHtml(order.number)}</strong> ya sali\xF3 hacia tu direcci\xF3n.`)}
+        ${tracking.length ? emailInfoTable(tracking) : ""}
+        ${emailButton("pet", extra.trackingUrl ? "Rastrear mi paquete" : "Ver mi pedido", extra.trackingUrl || url)}`;
+    } else if (kind === "delivered") {
+      subject = `Entregamos tu pedido ${order.number}`;
+      title = "Tu pedido lleg\xF3";
+      preheader = "Cu\xE9ntanos qu\xE9 te pareci\xF3.";
+      const reviewable = order.items.filter((item) => item.product?.slug && item.product.status === "active").slice(0, 5);
+      body = `
+        ${emailParagraph(`Tu pedido <strong>${escapeHtml(order.number)}</strong> aparece como entregado. Si algo no lleg\xF3 bien, responde a este correo y lo resolvemos.`)}
+        ${reviewable.length > 0 ? `${emailParagraph("\xBFQu\xE9 te parecieron? Tu rese\xF1a le ayuda a otras personas a elegir, y ganas huellitas por cada producto que rese\xF1es.")}
+        ${reviewable.map((item) => emailButton("pet", `Rese\xF1ar ${item.name.slice(0, 40)}`, petSiteUrl(`/tienda/${item.product.slug}#resenas`))).join("")}` : ""}
+        ${emailButton("pet", "Ver mi pedido", url)}`;
+    } else if (kind === "transfer_rejected") {
+      subject = `No pudimos confirmar tu transferencia: pedido ${order.number}`;
+      title = "No pudimos confirmar tu transferencia";
+      const whatsapp = (await getStoreSettings(context)).supportWhatsapp;
+      preheader = whatsapp ? "M\xE1ndanos de nuevo tu comprobante." : "Sube de nuevo tu comprobante.";
+      body = `
+        ${emailParagraph(`Revisamos el comprobante de tu pedido <strong>${escapeHtml(order.number)}</strong> y no pudimos confirmar el pago.`)}
+        ${extra.note ? emailCallout("pet", escapeHtml(extra.note)) : ""}
+        ${order.expiresAt ? emailParagraph(`Puedes mandar otro hasta el <strong>${escapeHtml(formatDeadline(order.expiresAt))}</strong>.`) : ""}
+        ${whatsapp ? emailButton("pet", "Mandar comprobante por WhatsApp", storeProofWhatsappUrl(whatsapp, order)) : emailButton("pet", "Subir otro comprobante", url)}`;
+    } else if (kind === "refunded") {
+      subject = `Reembolsamos tu pedido ${order.number}`;
+      title = "Reembolsamos tu pedido";
+      preheader = `${formatStoreMoney(order.totalCents)} de vuelta.`;
+      body = `
+        ${emailParagraph(`Cancelamos tu pedido <strong>${escapeHtml(order.number)}</strong> y te devolvimos <strong>${escapeHtml(formatStoreMoney(order.totalCents))}</strong>. Con tarjeta, el banco puede tardar de 5 a 10 d\xEDas h\xE1biles en mostrarlo.`)}
+        ${extra.note ? emailCallout("pet", escapeHtml(extra.note)) : ""}
+        ${emailButton("pet", "Ver mi pedido", url)}`;
+    } else {
+      subject = `Cancelamos tu pedido ${order.number}`;
+      title = "Tu pedido se cancel\xF3";
+      preheader = "No se hizo ning\xFAn cobro.";
+      body = `
+        ${emailParagraph(`El pedido <strong>${escapeHtml(order.number)}</strong> se cancel\xF3 y no se hizo ning\xFAn cobro.`)}
+        ${extra.note || order.cancelReason ? emailCallout("pet", escapeHtml(extra.note || order.cancelReason || "")) : ""}
+        ${emailButton("pet", "Volver a la tienda", petSiteUrl("/tienda"))}`;
+    }
+    await sendEmail({
+      to,
+      subject,
+      html: renderEmailLayout({
+        brand: "pet",
+        preheader,
+        eyebrow: "Tienda",
+        title,
+        bodyHtml: `${emailGreeting(name)}${body}`,
+        footerNote: `Recibiste este correo por tu pedido ${order.number} en la tienda de Kadesh Pet.`
+      }),
+      fromName: EMAIL_BRANDS.pet.name
+    });
+  } catch (error) {
+    console.error("[store] could not send order email:", kind, orderId, error);
+  }
+}
+
+// utils/store/orders.ts
+var import_crypto6 = require("crypto");
+function unwrap2(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+var NUMBER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newStoreOrderNumber() {
+  let code = "";
+  for (let i = 0; i < 8; i += 1) code += NUMBER_ALPHABET[(0, import_crypto6.randomInt)(NUMBER_ALPHABET.length)];
+  return `KP-${code}`;
+}
+function isUniqueViolation(error) {
+  const text106 = error instanceof Error ? `${error.message} ${error.code ?? ""}` : String(error);
+  const prismaCode = error?.extensions?.prisma?.code ?? error?.code;
+  return prismaCode === "P2002" || /23505|unique constraint|duplicate key/i.test(text106);
+}
+async function addStoreOrderEvent(context, input) {
+  try {
+    const created = await storePrisma(context).storeOrderEvent.create({
+      data: {
+        order: { connect: { id: input.orderId } },
+        type: input.type,
+        ...input.actorId ? { actor: { connect: { id: input.actorId } } } : {},
+        message: input.message ?? "",
+        isPublic: Boolean(input.isPublic),
+        fromStatus: input.fromStatus ?? "",
+        toStatus: input.toStatus ?? "",
+        metadata: input.metadata ?? void 0
+      }
+    });
+    if (created instanceof Error) throw created;
+  } catch (error) {
+    console.error("[store] could not write order event:", input.type, input.orderId, error);
+  }
+}
+async function recomputeProducts(context, productIds) {
+  for (const productId of new Set(productIds.filter((id) => Boolean(id)))) {
+    await recomputeStoreProductTotals(context, productId);
+  }
+}
+async function reserveStoreStock(context, lines) {
+  const prisma = storePrisma(context);
+  const taken = [];
+  for (const line of lines) {
+    if (!line.tracked || line.quantity < 1) continue;
+    const rows2 = await prisma.$queryRaw`
+      UPDATE "StoreProductVariant" SET "stock" = "stock" - ${line.quantity}::int
+      WHERE "id" = ${line.variantId} AND "stock" >= ${line.quantity}::int
+      RETURNING "id"
+    `;
+    if (rows2 instanceof Error || rows2.length === 0) {
+      await releaseStoreStock(context, taken);
+      if (rows2 instanceof Error) throw rows2;
+      return null;
+    }
+    taken.push({ variantId: line.variantId, productId: line.productId, quantity: line.quantity });
+  }
+  await recomputeProducts(context, taken.map((entry) => entry.productId));
+  return taken;
+}
+async function releaseStoreStock(context, taken) {
+  const prisma = storePrisma(context);
+  for (const entry of taken) {
+    const rows2 = await prisma.$queryRaw`
+      UPDATE "StoreProductVariant" SET "stock" = "stock" + ${entry.quantity}::int WHERE "id" = ${entry.variantId} RETURNING "id"
+    `;
+    if (rows2 instanceof Error) console.error("[store] could not release stock:", entry.variantId, rows2);
+  }
+  await recomputeProducts(context, taken.map((entry) => entry.productId));
+}
+async function restoreStoreOrderStock(context, orderId) {
+  const rows2 = await storePrisma(context).$queryRaw`
+    WITH held AS (
+      SELECT i."id", i."variant", i."reservedQuantity" AS qty
+      FROM "StoreOrderItem" i
+      WHERE i."order" = ${orderId} AND i."reservedQuantity" > 0 AND i."variant" IS NOT NULL
+      FOR UPDATE
+    ),
+    zeroed AS (
+      UPDATE "StoreOrderItem" i SET "reservedQuantity" = 0 FROM held WHERE i."id" = held."id"
+      RETURNING held."variant" AS variant, held.qty AS qty
+    )
+    UPDATE "StoreProductVariant" v SET "stock" = v."stock" + r.qty
+    FROM (SELECT variant, sum(qty)::int AS qty FROM zeroed GROUP BY variant) r
+    WHERE v."id" = r.variant
+    RETURNING v."product" AS "productId"
+  `;
+  if (rows2 instanceof Error) throw rows2;
+  await recomputeProducts(context, rows2.map((row) => row.productId));
+}
+async function orderBrief(context, orderId) {
+  const order = await storePrisma(context).storeOrder.findUnique({
+    where: { id: orderId },
+    select: { id: true, number: true, userId: true, totalCents: true, customerName: true }
+  });
+  if (order instanceof Error) throw order;
+  return order;
+}
+function notifyBuyer(context, order, type, title, body) {
+  if (!order.userId) return;
+  void notify(context, {
+    audience: [order.userId],
+    product: "pet",
+    type,
+    title,
+    body,
+    entityType: "StoreOrder",
+    entityId: order.id,
+    url: storeOrderUrl(order.number)
+  });
+}
+function notifyAdmins(context, order, type, title, body) {
+  void notify(context, {
+    audience: "platform_admins",
+    product: "pet",
+    type,
+    title,
+    body,
+    entityType: "StoreOrder",
+    entityId: order.id,
+    metadata: { orderNumber: order.number }
+  });
+}
+var UNPAID = [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.IN_REVIEW, STORE_PAYMENT_STATUS.FAILED];
+var OPEN_ATTEMPTS = [
+  STORE_PAYMENT_ATTEMPT_STATUS.PENDING,
+  STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW,
+  STORE_PAYMENT_ATTEMPT_STATUS.FAILED
+];
+async function settlePayment(context, orderId, input) {
+  const updated = await storePrisma(context).storePayment.updateMany({
+    where: { orderId, provider: input.provider, status: { in: OPEN_ATTEMPTS } },
+    data: {
+      status: STORE_PAYMENT_ATTEMPT_STATUS.SUCCEEDED,
+      errorMessage: "",
+      ...input.stripeChargeId ? { stripeChargeId: input.stripeChargeId } : {},
+      ...input.stripePaymentIntentId ? { stripePaymentIntentId: input.stripePaymentIntentId } : {},
+      ...input.reviewedById ? { reviewedById: input.reviewedById, reviewedAt: /* @__PURE__ */ new Date() } : {}
+    }
+  });
+  if (updated instanceof Error) console.error("[store] could not settle payment:", orderId, updated);
+}
+async function createShipments(context, orderId) {
+  const prisma = storePrisma(context);
+  const items = unwrap2(
+    await prisma.storeOrderItem.findMany({
+      where: { orderId },
+      select: { id: true, source: true, dropiSupplierId: true }
+    })
+  );
+  const groups = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    const dropi = item.source === STORE_PRODUCT_SOURCE.DROPI;
+    const key = dropi ? `dropi:${item.dropiSupplierId ?? "none"}` : "own";
+    const group = groups.get(key) ?? {
+      provider: dropi ? STORE_SHIPMENT_PROVIDER.DROPI : STORE_SHIPMENT_PROVIDER.OWN,
+      supplierId: dropi ? item.dropiSupplierId : null,
+      itemIds: []
+    };
+    group.itemIds.push(item.id);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    const created = await prisma.storeShipment.create({
+      data: {
+        order: { connect: { id: orderId } },
+        provider: group.provider,
+        status: group.provider === STORE_SHIPMENT_PROVIDER.DROPI ? STORE_SHIPMENT_STATUS.PENDING_APPROVAL : STORE_SHIPMENT_STATUS.PENDING,
+        dropiSupplierId: group.supplierId,
+        items: { connect: group.itemIds.map((id) => ({ id })) }
+      }
+    });
+    if (created instanceof Error) throw created;
+  }
+}
+async function bumpSalesCount(context, orderId, sign) {
+  const rows2 = await storePrisma(context).$queryRaw`
+    UPDATE "StoreProduct" p SET "salesCount" = GREATEST(0, COALESCE(p."salesCount", 0) + ${sign}::int * s.qty)
+    FROM (
+      SELECT i."product" AS product, sum(i."quantity")::int AS qty
+      FROM "StoreOrderItem" i WHERE i."order" = ${orderId} AND i."product" IS NOT NULL GROUP BY i."product"
+    ) s
+    WHERE p."id" = s.product
+    RETURNING p."id"
+  `;
+  if (rows2 instanceof Error) console.error("[store] could not update sales count:", orderId, rows2);
+}
+async function markStoreOrderPaid(context, orderId, input) {
+  const prisma = storePrisma(context);
+  const claimed = unwrap2(
+    await prisma.storeOrder.updateMany({
+      where: { id: orderId, status: STORE_ORDER_STATUS.OPEN, paymentStatus: { in: UNPAID } },
+      data: { paymentStatus: STORE_PAYMENT_STATUS.PAID, paidAt: /* @__PURE__ */ new Date(), expiresAt: null }
+    })
+  );
+  if (claimed.count !== 1) {
+    const late = unwrap2(
+      await prisma.storeOrder.updateMany({
+        where: { id: orderId, status: STORE_ORDER_STATUS.CANCELLED, paymentStatus: { in: UNPAID } },
+        data: { paymentStatus: STORE_PAYMENT_STATUS.PAID, paidAt: /* @__PURE__ */ new Date() }
+      })
+    );
+    if (late.count === 1) {
+      const order2 = await orderBrief(context, orderId);
+      const reopened = await prisma.storePayment.updateMany({
+        where: { orderId, provider: input.provider, status: STORE_PAYMENT_ATTEMPT_STATUS.CANCELLED },
+        data: { status: STORE_PAYMENT_ATTEMPT_STATUS.PENDING }
+      });
+      if (reopened instanceof Error) console.error("[store] could not reopen payment:", orderId, reopened);
+      await settlePayment(context, orderId, input);
+      await addStoreOrderEvent(context, {
+        orderId,
+        type: STORE_ORDER_EVENT.PAID_AFTER_CANCEL,
+        message: "Lleg\xF3 el pago de un pedido que ya estaba cancelado. Hay que reembolsarlo."
+      });
+      if (order2) {
+        notifyAdmins(
+          context,
+          order2,
+          NOTIFICATION_TYPE.STORE_ADMIN_PAID_AFTER_CANCEL,
+          `Pago de un pedido cancelado: ${order2.number}`,
+          `Llegaron ${formatStoreMoney(order2.totalCents)} de un pedido que ya se hab\xEDa cancelado. Hay que reembolsarlo.`
+        );
+      }
+      return "paid_after_cancel";
+    }
+    const exists = unwrap2(await prisma.storeOrder.findUnique({ where: { id: orderId }, select: { id: true } }));
+    return exists ? "already_paid" : "not_found";
+  }
+  await settlePayment(context, orderId, input);
+  await createShipments(context, orderId);
+  await bumpSalesCount(context, orderId, 1);
+  await addStoreOrderEvent(context, {
+    orderId,
+    type: STORE_ORDER_EVENT.PAID,
+    actorId: input.reviewedById ?? null,
+    message: input.provider === STORE_PAYMENT_METHOD.TRANSFER ? "Confirmamos tu transferencia." : "Recibimos tu pago.",
+    isPublic: true,
+    toStatus: STORE_PAYMENT_STATUS.PAID
+  });
+  const order = await orderBrief(context, orderId);
+  if (order) {
+    notifyBuyer(
+      context,
+      order,
+      NOTIFICATION_TYPE.STORE_ORDER_PAID,
+      "Recibimos tu pago",
+      `Tu pedido ${order.number} est\xE1 pagado y lo estamos preparando.`
+    );
+    notifyAdmins(
+      context,
+      order,
+      NOTIFICATION_TYPE.STORE_ADMIN_ORDER_PAID,
+      `Pedido pagado: ${order.number}`,
+      `${order.customerName || "Alguien"} pag\xF3 ${formatStoreMoney(order.totalCents)}. Falta surtirlo.`
+    );
+  }
+  void sendStoreOrderEmail(context, orderId, "paid");
+  return "paid";
+}
+async function cancelUnpaidStoreOrder(context, orderId, input) {
+  const prisma = storePrisma(context);
+  const claimed = unwrap2(
+    await prisma.storeOrder.updateMany({
+      where: { id: orderId, status: STORE_ORDER_STATUS.OPEN, paymentStatus: { in: UNPAID } },
+      data: {
+        status: STORE_ORDER_STATUS.CANCELLED,
+        cancelledAt: /* @__PURE__ */ new Date(),
+        cancelReason: input.reason.slice(0, 300),
+        expiresAt: null
+      }
+    })
+  );
+  if (claimed.count !== 1) return false;
+  await restoreStoreOrderStock(context, orderId);
+  await releaseStoreOrderCoupon(context, orderId);
+  const order = unwrap2(
+    await prisma.storeOrder.findUnique({
+      where: { id: orderId },
+      select: { id: true, number: true, userId: true, totalCents: true, customerName: true, stripePaymentIntentId: true }
+    })
+  );
+  if (order?.stripePaymentIntentId) {
+    try {
+      await stripe_default.paymentIntents.cancel(order.stripePaymentIntentId);
+    } catch (error) {
+      console.warn("[store] could not cancel PaymentIntent:", order.stripePaymentIntentId, error?.message);
+    }
+  }
+  const payments = await prisma.storePayment.updateMany({
+    where: { orderId, status: { in: OPEN_ATTEMPTS } },
+    data: { status: STORE_PAYMENT_ATTEMPT_STATUS.CANCELLED }
+  });
+  if (payments instanceof Error) console.error("[store] could not close payments:", orderId, payments);
+  await addStoreOrderEvent(context, {
+    orderId,
+    type: input.eventType ?? STORE_ORDER_EVENT.CANCELLED,
+    actorId: input.actorId ?? null,
+    message: input.reason,
+    isPublic: true,
+    toStatus: STORE_ORDER_STATUS.CANCELLED
+  });
+  if (order && input.notifyBuyer) {
+    notifyBuyer(context, order, NOTIFICATION_TYPE.STORE_ORDER_CANCELLED, "Tu pedido se cancel\xF3", `${order.number}: ${input.reason}`);
+    void sendStoreOrderEmail(context, orderId, "cancelled", { note: input.reason });
+  }
+  return true;
+}
+async function refundStoreOrder(context, orderId, input) {
+  const prisma = storePrisma(context);
+  const order = unwrap2(
+    await prisma.storeOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        number: true,
+        userId: true,
+        totalCents: true,
+        customerName: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        stripePaymentIntentId: true
+      }
+    })
+  );
+  if (!order) return { success: false, message: "No encontramos el pedido." };
+  if (order.paymentStatus === STORE_PAYMENT_STATUS.REFUNDED) return { success: false, message: "Este pedido ya est\xE1 reembolsado." };
+  if (order.paymentStatus !== STORE_PAYMENT_STATUS.PAID) return { success: false, message: "Este pedido no est\xE1 pagado." };
+  let stripeRefundId = input.stripeRefundId ?? null;
+  const card = order.paymentMethod === STORE_PAYMENT_METHOD.CARD;
+  if (card && !input.alreadyRefundedOnStripe) {
+    if (!order.stripePaymentIntentId) return { success: false, message: "El pedido no tiene un cobro de Stripe que reembolsar." };
+    try {
+      const refund = await stripe_default.refunds.create(
+        { payment_intent: order.stripePaymentIntentId, reason: "requested_by_customer", metadata: { kind: "store_order", orderId } },
+        { idempotencyKey: `store-refund-${orderId}` }
+      );
+      stripeRefundId = refund?.id ?? null;
+    } catch (error) {
+      console.error("[store] Stripe refund failed:", orderId, error);
+      return { success: false, message: "Stripe no pudo hacer el reembolso. Revisa el cobro en Stripe e intenta de nuevo." };
+    }
+  }
+  const claimed = unwrap2(
+    await prisma.storeOrder.updateMany({
+      where: { id: orderId, paymentStatus: STORE_PAYMENT_STATUS.PAID },
+      data: {
+        paymentStatus: STORE_PAYMENT_STATUS.REFUNDED,
+        status: STORE_ORDER_STATUS.CANCELLED,
+        cancelledAt: /* @__PURE__ */ new Date(),
+        cancelReason: input.reason.slice(0, 300)
+      }
+    })
+  );
+  if (claimed.count !== 1) return { success: true, message: "El pedido ya estaba reembolsado." };
+  const payments = await prisma.storePayment.updateMany({
+    where: { orderId, status: STORE_PAYMENT_ATTEMPT_STATUS.SUCCEEDED },
+    data: { status: STORE_PAYMENT_ATTEMPT_STATUS.REFUNDED, refundedCents: order.totalCents, stripeRefundId }
+  });
+  if (payments instanceof Error) console.error("[store] could not mark payment refunded:", orderId, payments);
+  const shipments = await prisma.storeShipment.updateMany({
+    where: { orderId, status: { notIn: [STORE_SHIPMENT_STATUS.DELIVERED, STORE_SHIPMENT_STATUS.RETURNED] } },
+    data: { status: STORE_SHIPMENT_STATUS.CANCELLED }
+  });
+  if (shipments instanceof Error) console.error("[store] could not cancel shipments:", orderId, shipments);
+  if (input.restock) await restoreStoreOrderStock(context, orderId);
+  await bumpSalesCount(context, orderId, -1);
+  await releaseStoreOrderCoupon(context, orderId);
+  void pawsOnStorePurchaseUndone(context, { orderId });
+  await addStoreOrderEvent(context, {
+    orderId,
+    type: STORE_ORDER_EVENT.REFUNDED,
+    actorId: input.actorId ?? null,
+    message: card ? `Reembolsamos ${formatStoreMoney(order.totalCents)} a tu tarjeta.` : `Reembolso de ${formatStoreMoney(order.totalCents)} por transferencia.`,
+    isPublic: true,
+    toStatus: STORE_PAYMENT_STATUS.REFUNDED,
+    metadata: { reason: input.reason, restock: input.restock, stripeRefundId }
+  });
+  notifyBuyer(
+    context,
+    order,
+    NOTIFICATION_TYPE.STORE_ORDER_CANCELLED,
+    "Reembolsamos tu pedido",
+    `${order.number}: te devolvimos ${formatStoreMoney(order.totalCents)}.`
+  );
+  void sendStoreOrderEmail(context, orderId, "refunded", { note: input.reason });
+  return {
+    success: true,
+    message: card ? "Pedido reembolsado en Stripe y cancelado." : "Pedido cancelado. Falta devolver la transferencia a la persona: eso se hace desde el banco."
+  };
+}
+function fulfillmentFromShipments(statuses) {
+  const live = statuses.filter((status) => status !== STORE_SHIPMENT_STATUS.CANCELLED);
+  if (live.length === 0) return STORE_FULFILLMENT_STATUS.UNFULFILLED;
+  const delivered = live.filter((status) => status === STORE_SHIPMENT_STATUS.DELIVERED).length;
+  const returned = live.filter((status) => status === STORE_SHIPMENT_STATUS.RETURNED).length;
+  const moving = live.filter((status) => STORE_SHIPMENT_ON_THE_WAY.includes(status)).length;
+  if (delivered === live.length) return STORE_FULFILLMENT_STATUS.DELIVERED;
+  if (returned === live.length) return STORE_FULFILLMENT_STATUS.RETURNED;
+  if (delivered + moving === live.length) return STORE_FULFILLMENT_STATUS.SHIPPED;
+  if (delivered + moving > 0) return STORE_FULFILLMENT_STATUS.PARTIAL;
+  return STORE_FULFILLMENT_STATUS.UNFULFILLED;
+}
+async function recomputeStoreFulfillment(context, orderId) {
+  const prisma = storePrisma(context);
+  const shipments = unwrap2(
+    await prisma.storeShipment.findMany({ where: { orderId }, select: { status: true } })
+  );
+  const next = fulfillmentFromShipments(shipments.map((shipment) => shipment.status));
+  const changed = unwrap2(
+    await prisma.storeOrder.updateMany({
+      where: { id: orderId, fulfillmentStatus: { not: next } },
+      data: { fulfillmentStatus: next }
+    })
+  );
+  if (changed.count === 1 && next === STORE_FULFILLMENT_STATUS.DELIVERED) {
+    const completed = unwrap2(
+      await prisma.storeOrder.updateMany({
+        where: { id: orderId, status: STORE_ORDER_STATUS.OPEN, paymentStatus: STORE_PAYMENT_STATUS.PAID },
+        data: { status: STORE_ORDER_STATUS.COMPLETED }
+      })
+    );
+    if (completed.count === 1) {
+      await addStoreOrderEvent(context, {
+        orderId,
+        type: STORE_ORDER_EVENT.COMPLETED,
+        message: "Entregamos todo tu pedido.",
+        isPublic: true,
+        toStatus: STORE_ORDER_STATUS.COMPLETED
+      });
+      const order = await orderBrief(context, orderId);
+      if (order) {
+        notifyBuyer(
+          context,
+          order,
+          NOTIFICATION_TYPE.STORE_ORDER_DELIVERED,
+          "Tu pedido lleg\xF3",
+          `Entregamos tu pedido ${order.number}. Cu\xE9ntanos qu\xE9 te parecieron tus productos.`
+        );
+      }
+      void sendStoreOrderEmail(context, orderId, "delivered");
+    }
+  }
+  return next;
+}
+var SHIPMENT_STATUSES = new Set(Object.values(STORE_SHIPMENT_STATUS));
+var SHIPMENT_PUBLIC_LABEL = {
+  pending: "Preparando tu paquete",
+  pending_approval: "Preparando tu paquete",
+  requested: "Preparando tu paquete",
+  label_created: "Listo para salir",
+  in_transit: "En camino",
+  delivered: "Entregado",
+  exception: "Con un contratiempo",
+  returned: "Devuelto",
+  cancelled: "Cancelado"
+};
+async function updateStoreShipment(context, shipmentId, input) {
+  if (!SHIPMENT_STATUSES.has(input.status)) return { success: false, message: "Estatus de env\xEDo no v\xE1lido." };
+  const prisma = storePrisma(context);
+  const shipment = unwrap2(
+    await prisma.storeShipment.findUnique({
+      where: { id: shipmentId },
+      select: {
+        id: true,
+        status: true,
+        provider: true,
+        orderId: true,
+        shippedAt: true,
+        deliveredAt: true,
+        carrier: true,
+        trackingCode: true,
+        trackingUrl: true,
+        order: { select: { paymentStatus: true, status: true } }
+      }
+    })
+  );
+  if (!shipment?.orderId || !shipment.order) return { success: false, message: "No encontramos el env\xEDo." };
+  if (shipment.order.paymentStatus !== STORE_PAYMENT_STATUS.PAID) {
+    return { success: false, message: "El pedido de este env\xEDo no est\xE1 pagado." };
+  }
+  if (!storeShipmentNextStatuses(shipment.provider, shipment.status).includes(input.status)) {
+    const from = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === shipment.status)?.label ?? shipment.status;
+    const to = STORE_SHIPMENT_STATUS_OPTIONS.find((option) => option.value === input.status)?.label ?? input.status;
+    return { success: false, message: `Un env\xEDo no puede pasar de "${from}" a "${to}".` };
+  }
+  const trackingUrl = (input.trackingUrl ?? shipment.trackingUrl ?? "").trim();
+  if (trackingUrl && !/^https:\/\//i.test(trackingUrl)) {
+    return { success: false, message: "El enlace de rastreo debe empezar con https://." };
+  }
+  const carrier = (input.carrier ?? shipment.carrier ?? "").trim();
+  const trackingCode = (input.trackingCode ?? shipment.trackingCode ?? "").trim();
+  const leaving = STORE_SHIPMENT_ON_THE_WAY.includes(input.status) || input.status === STORE_SHIPMENT_STATUS.DELIVERED;
+  const firstTimeOut = leaving && !shipment.shippedAt;
+  const now = /* @__PURE__ */ new Date();
+  const updated = await prisma.storeShipment.update({
+    where: { id: shipmentId },
+    data: {
+      status: input.status,
+      carrier,
+      trackingCode,
+      trackingUrl,
+      ...typeof input.shippingCostCents === "number" ? { shippingCostCents: Math.max(0, Math.floor(input.shippingCostCents)) } : {},
+      ...firstTimeOut ? { shippedAt: now } : {},
+      ...input.status === STORE_SHIPMENT_STATUS.DELIVERED && !shipment.deliveredAt ? { deliveredAt: now } : {}
+    }
+  });
+  if (updated instanceof Error) throw updated;
+  const statusChanged = shipment.status !== input.status;
+  if (statusChanged || firstTimeOut) {
+    await addStoreOrderEvent(context, {
+      orderId: shipment.orderId,
+      type: firstTimeOut ? STORE_ORDER_EVENT.SHIPPED : STORE_ORDER_EVENT.SHIPMENT_UPDATED,
+      actorId: input.actorId ?? null,
+      message: `${SHIPMENT_PUBLIC_LABEL[input.status]}${firstTimeOut && trackingCode ? `. Gu\xEDa ${trackingCode}${carrier ? ` (${carrier})` : ""}` : ""}`,
+      isPublic: true,
+      fromStatus: shipment.status,
+      toStatus: input.status,
+      metadata: { shipmentId }
+    });
+  }
+  if (firstTimeOut && input.status !== STORE_SHIPMENT_STATUS.DELIVERED) {
+    const order = await orderBrief(context, shipment.orderId);
+    if (order) {
+      notifyBuyer(
+        context,
+        order,
+        NOTIFICATION_TYPE.STORE_ORDER_SHIPPED,
+        "Tu pedido va en camino",
+        trackingCode ? `${order.number}: gu\xEDa ${trackingCode}${carrier ? ` (${carrier})` : ""}.` : `Un paquete de ${order.number} ya sali\xF3.`
+      );
+    }
+    void sendStoreOrderEmail(context, shipment.orderId, "shipped", { carrier, trackingCode, trackingUrl });
+  }
+  if (statusChanged && input.status === STORE_SHIPMENT_STATUS.DELIVERED) {
+    void pawsOnStoreShipmentDelivered(context, shipmentId);
+  } else if (statusChanged && input.status === STORE_SHIPMENT_STATUS.RETURNED) {
+    void pawsOnStorePurchaseUndone(context, { shipmentId });
+  }
+  await recomputeStoreFulfillment(context, shipment.orderId);
+  return { success: true, message: "Env\xEDo actualizado." };
+}
+async function settleStoreCardPayment(context, order) {
+  if (!order.stripePaymentIntentId) return false;
+  const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
+  if (intent.status !== "succeeded") return false;
+  const result5 = await markStoreOrderPaid(context, order.id, {
+    provider: STORE_PAYMENT_METHOD.CARD,
+    stripePaymentIntentId: intent.id,
+    stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null
+  });
+  return result5 === "paid" || result5 === "already_paid";
+}
+
+// utils/store/pricing.ts
+var CART_ISSUE = {
+  /** Product or variant gone, paused, or only sold on Mercado Libre. */
+  UNAVAILABLE: "unavailable",
+  OUT_OF_STOCK: "out_of_stock",
+  /** There is stock, but less than asked: `quantity` was lowered. */
+  QUANTITY_REDUCED: "quantity_reduced"
+};
+function normalizeCartItems(items) {
+  const byVariant = /* @__PURE__ */ new Map();
+  for (const item of items ?? []) {
+    const variantId = typeof item?.variantId === "string" ? item.variantId.trim() : "";
+    const quantity = Math.floor(Number(item?.quantity));
+    if (!variantId || !Number.isFinite(quantity) || quantity < 1) continue;
+    byVariant.set(variantId, (byVariant.get(variantId) ?? 0) + quantity);
+  }
+  return [...byVariant.entries()].slice(0, STORE_CART_MAX_LINES).map(([variantId, quantity]) => ({ variantId, quantity }));
+}
+function shippingFor(subtotalCents, settings) {
+  if (subtotalCents <= 0) return 0;
+  if (settings.freeShippingMinCents > 0 && subtotalCents >= settings.freeShippingMinCents) return 0;
+  return settings.shippingFlatCents;
+}
+async function quoteCart(context, rawItems, options = {}) {
+  const settings = await getStoreSettings(context);
+  const items = normalizeCartItems(rawItems);
+  const prisma = storePrisma(context);
+  const rows2 = items.length ? await prisma.storeProductVariant.findMany({
+    where: { id: { in: items.map((item) => item.variantId) } },
+    select: {
+      id: true,
+      title: true,
+      sku: true,
+      priceCents: true,
+      compareAtPriceCents: true,
+      costCents: true,
+      stock: true,
+      isActive: true,
+      dropiVariationId: true,
+      product: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          source: true,
+          status: true,
+          inventoryPolicy: true,
+          externalId: true,
+          dropiSupplierId: true,
+          categoryId: true,
+          category: { select: { parentId: true } }
+        }
+      }
+    }
+  }) : [];
+  if (rows2 instanceof Error) throw rows2;
+  const variants = new Map(rows2.map((row) => [row.id, row]));
+  const covers = await loadStoreCovers(
+    context,
+    [...new Set(rows2.map((row) => row.product?.id).filter((id) => Boolean(id)))]
+  );
+  const messages = [];
+  const lines = items.map((item) => {
+    const variant = variants.get(item.variantId);
+    const product = variant?.product ?? null;
+    const price = Number(variant?.priceCents) || 0;
+    const sellable = Boolean(variant && product) && variant.isActive !== false && product.status === STORE_PRODUCT_STATUS.ACTIVE && product.source !== STORE_PRODUCT_SOURCE.MERCADO_LIBRE && price > 0;
+    const tracked = product?.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED;
+    const stock = Math.max(0, Number(variant?.stock) || 0);
+    const maxQuantity = sellable ? tracked ? Math.min(stock, STORE_CART_MAX_QUANTITY) : STORE_CART_MAX_QUANTITY : 0;
+    const quantity = Math.min(item.quantity, maxQuantity);
+    const name = product?.name ?? "Producto no disponible";
+    let issue = null;
+    if (!sellable) {
+      issue = CART_ISSUE.UNAVAILABLE;
+      messages.push(`\xAB${name}\xBB ya no est\xE1 disponible.`);
+    } else if (maxQuantity === 0) {
+      issue = CART_ISSUE.OUT_OF_STOCK;
+      messages.push(`\xAB${name}\xBB se agot\xF3.`);
+    } else if (quantity < item.quantity) {
+      issue = CART_ISSUE.QUANTITY_REDUCED;
+      messages.push(
+        tracked && stock < STORE_CART_MAX_QUANTITY ? `De \xAB${name}\xBB solo ${quantity === 1 ? "queda 1" : `quedan ${quantity}`}.` : `De \xAB${name}\xBB puedes llevar hasta ${maxQuantity} por pedido.`
+      );
+    }
+    const compare = Number(variant?.compareAtPriceCents) || 0;
+    return {
+      variantId: item.variantId,
+      productId: product?.id ?? null,
+      slug: product?.slug ?? null,
+      name,
+      variantTitle: variant?.title || null,
+      coverUrl: product ? covers.get(product.id)?.url ?? null : null,
+      unitPriceCents: sellable ? price : 0,
+      compareAtPriceCents: sellable && compare > price ? compare : null,
+      quantity,
+      requestedQuantity: item.quantity,
+      lineTotalCents: sellable ? price * quantity : 0,
+      maxQuantity,
+      issue,
+      source: product?.source ?? "",
+      sku: variant?.sku || null,
+      tracked,
+      unitCostCents: variant?.costCents ?? null,
+      externalId: product?.externalId ?? null,
+      dropiVariationId: variant?.dropiVariationId ?? null,
+      dropiSupplierId: product?.dropiSupplierId ?? null,
+      categoryId: product?.categoryId ?? null,
+      parentCategoryId: product?.category?.parentId ?? null,
+      discountCents: 0
+    };
+  });
+  const subtotalCents = lines.reduce((sum, line) => sum + line.lineTotalCents, 0);
+  let shippingCents = shippingFor(subtotalCents, settings);
+  const coupon = subtotalCents > 0 ? await evaluateCoupon(context, {
+    code: options.couponCode,
+    lines,
+    subtotalCents,
+    shippingCents,
+    userId: options.userId ?? null
+  }) : null;
+  let couponDiscountCents = 0;
+  if (coupon?.applied) {
+    couponDiscountCents = coupon.discountCents;
+    if (coupon.freeShipping) shippingCents = 0;
+    for (const line of lines) line.discountCents = coupon.perLine.get(line.variantId) ?? 0;
+  }
+  const paymentMethods = [
+    ...isCardAvailable(settings) ? [STORE_PAYMENT_METHOD.CARD] : [],
+    ...isTransferAvailable(settings) ? [STORE_PAYMENT_METHOD.TRANSFER] : []
+  ];
+  const free = settings.freeShippingMinCents;
+  return {
+    lines,
+    itemsCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+    subtotalCents,
+    shippingCents,
+    totalCents: subtotalCents - couponDiscountCents + shippingCents,
+    couponCode: coupon?.code ?? null,
+    couponApplied: Boolean(coupon?.applied),
+    couponDiscountCents,
+    couponMessage: coupon?.message ?? null,
+    couponId: coupon?.applied ? coupon.couponId : null,
+    costCents: lines.reduce((sum, line) => sum + (Number(line.unitCostCents) || 0) * line.quantity, 0),
+    currency: STORE_CURRENCY,
+    freeShippingMinCents: free,
+    // Nothing is missing when a coupon already made the shipping free.
+    missingForFreeShippingCents: shippingCents > 0 && free > 0 && subtotalCents > 0 && subtotalCents < free ? free - subtotalCents : 0,
+    canCheckout: lines.length > 0 && lines.every((line) => !line.issue) && subtotalCents > 0,
+    messages,
+    paymentMethods,
+    returnPolicy: settings.returnPolicy,
+    settings
+  };
+}
+function publicQuote(quote) {
+  return {
+    lines: quote.lines.map((line) => ({
+      variantId: line.variantId,
+      productId: line.productId,
+      slug: line.slug,
+      name: line.name,
+      variantTitle: line.variantTitle,
+      coverUrl: line.coverUrl,
+      unitPriceCents: line.unitPriceCents,
+      compareAtPriceCents: line.compareAtPriceCents,
+      quantity: line.quantity,
+      requestedQuantity: line.requestedQuantity,
+      lineTotalCents: line.lineTotalCents,
+      maxQuantity: line.maxQuantity,
+      issue: line.issue
+    })),
+    itemsCount: quote.itemsCount,
+    subtotalCents: quote.subtotalCents,
+    shippingCents: quote.shippingCents,
+    totalCents: quote.totalCents,
+    couponCode: quote.couponCode,
+    couponApplied: quote.couponApplied,
+    couponDiscountCents: quote.couponDiscountCents,
+    couponMessage: quote.couponMessage,
+    currency: quote.currency,
+    freeShippingMinCents: quote.freeShippingMinCents,
+    missingForFreeShippingCents: quote.missingForFreeShippingCents,
+    canCheckout: quote.canCheckout,
+    messages: quote.messages,
+    paymentMethods: quote.paymentMethods,
+    returnPolicy: quote.returnPolicy
+  };
+}
+var CART_QUOTE_TYPEDEFS = `
+  input StoreCartItemInput {
+    variantId: ID!
+    quantity: Int!
+  }
+
+  type StoreCartLine {
+    variantId: ID!
+    productId: ID
+    slug: String
+    name: String!
+    variantTitle: String
+    coverUrl: String
+    "MXN cents. 0 when the line cannot be bought."
+    unitPriceCents: Int!
+    compareAtPriceCents: Int
+    "What can actually be bought; lower than requestedQuantity when stock is short."
+    quantity: Int!
+    requestedQuantity: Int!
+    lineTotalCents: Int!
+    maxQuantity: Int!
+    "null | unavailable | out_of_stock | quantity_reduced"
+    issue: String
+  }
+
+  type StoreCartQuote {
+    lines: [StoreCartLine!]!
+    itemsCount: Int!
+    subtotalCents: Int!
+    "After a free-shipping coupon."
+    shippingCents: Int!
+    "Subtotal \u2212 couponDiscountCents + shippingCents."
+    totalCents: Int!
+    "The code that was sent (normalized), applied or not."
+    couponCode: String
+    couponApplied: Boolean!
+    couponDiscountCents: Int!
+    "Why the coupon applied or why it did not, ready to show."
+    couponMessage: String
+    currency: String!
+    "0 = shipping is never free."
+    freeShippingMinCents: Int!
+    missingForFreeShippingCents: Int!
+    "Every line can be bought exactly as asked."
+    canCheckout: Boolean!
+    "One sentence per problem, ready to show."
+    messages: [String!]!
+    "stripe_card and/or bank_transfer"
+    paymentMethods: [String!]!
+    returnPolicy: String!
+  }
+`;
+
+// graphql/customs/mutations/store/placeStoreOrder.ts
+var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+var CHECKOUT_KEY_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+var GUEST_REPLAY_MS = 15 * 60 * 1e3;
+var typeDefs37 = `
+  ${CART_QUOTE_TYPEDEFS}
+  ${STORE_ADDRESS_TYPEDEFS}
+
+  input StoreGuestInput {
+    name: String!
+    lastName: String
+    email: String!
+    "10 digits"
+    phone: String!
+    "The password of the account that is created with the order (8 characters or more)."
+    password: String!
+    turnstileToken: String
+  }
+
+  input StorePlaceOrderInput {
+    items: [StoreCartItemInput!]!
+    "stripe_card | bank_transfer"
+    paymentMethod: String!
+    address: StoreShippingAddressInput!
+    "Keep the address in the account for next time."
+    saveAddress: Boolean
+    customerNote: String
+    "Discount code typed in the cart. The order is not placed if it no longer applies."
+    couponCode: String
+    "The total the person saw (MXN cents). The order is not placed if it changed."
+    expectedTotalCents: Int!
+    "web (default) | app"
+    channel: String
+    "Only without a session."
+    guest: StoreGuestInput
+    """
+    Random key (16 to 64 letters, digits, - or _) made once per attempt to pay and sent again on
+    every retry of that attempt. The same key twice answers the order already placed instead of
+    placing another one. Make a new one after an answer with success false.
+    """
+    checkoutKey: String
+  }
+
+  type StoreTransferInstructions {
+    bankName: String!
+    beneficiary: String!
+    clabe: String!
+    note: String
+    "What to write as the concept of the transfer: the order number."
+    reference: String!
+    amountCents: Int!
+    "ISO 8601: unpaid by then, the order cancels itself."
+    expiresAt: String
+  }
+
+  type StorePlaceOrderResult {
+    success: Boolean!
+    message: String!
+    "null | STORE_CLOSED | LOGIN_REQUIRED | EMAIL_EXISTS | INVALID | CART_CHANGED | PRICE_CHANGED | COUPON_INVALID | PAYMENT_UNAVAILABLE | PAYMENT_ERROR"
+    code: String
+    orderNumber: String
+    totalCents: Int
+    "Card: confirm this with Stripe Elements."
+    stripeClientSecret: String
+    "Guest checkout: session token of the account just created."
+    sessionToken: String
+    transfer: StoreTransferInstructions
+    "Fresh quote when the cart or its total changed."
+    quote: StoreCartQuote
+  }
+`;
+var definition34 = `
+  placeStoreOrder(input: StorePlaceOrderInput!): StorePlaceOrderResult!
+`;
+var EMPTY3 = {
+  code: null,
+  orderNumber: null,
+  totalCents: null,
+  stripeClientSecret: null,
+  sessionToken: null,
+  transfer: null,
+  quote: null
+};
+function fail8(code, message, extra = {}) {
+  return { ...EMPTY3, success: false, code, message, ...extra };
+}
+async function loadBuyer(context, userId) {
+  const user = await storePrisma(context).user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, lastName: true, phone: true, stripeCustomerId: true }
+  });
+  if (user instanceof Error) throw user;
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: String(user.email ?? "").trim().toLowerCase(),
+    name: [user.name, user.lastName].filter(Boolean).join(" ").trim(),
+    phone: String(user.phone ?? ""),
+    stripeCustomerId: user.stripeCustomerId || null
+  };
+}
+async function checkGuest(context, guest) {
+  if (!guest) return fail8("LOGIN_REQUIRED", "Inicia sesi\xF3n o llena tus datos para comprar.");
+  const name = (guest.name ?? "").trim();
+  if (name.length < 2) return fail8("INVALID", "Escribe tu nombre.");
+  const email = (guest.email ?? "").trim().toLowerCase();
+  if (!EMAIL_PATTERN3.test(email)) return fail8("INVALID", "Escribe un correo v\xE1lido.");
+  const phone = normalizeMxPhone(guest.phone ?? "");
+  if (!phone.ok) return fail8("INVALID", "Tu tel\xE9fono debe tener 10 d\xEDgitos.");
+  if ((guest.password ?? "").length < STORE_GUEST_MIN_PASSWORD) {
+    return fail8("INVALID", `Tu contrase\xF1a debe tener al menos ${STORE_GUEST_MIN_PASSWORD} caracteres.`);
+  }
+  if (!await verifyTurnstile(guest.turnstileToken, requestIp(context.req))) {
+    return fail8("INVALID", "No pudimos comprobar que eres una persona. Recarga la p\xE1gina e intenta de nuevo.");
+  }
+  const existing = await storePrisma(context).user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true }
+  });
+  if (existing instanceof Error) throw existing;
+  if (existing) return fail8("EMAIL_EXISTS", "Ya hay una cuenta con ese correo. Inicia sesi\xF3n para terminar tu compra.");
+  return { ok: true, name, lastName: (guest.lastName ?? "").trim(), email, phone: phone.digits, password: guest.password };
+}
+async function saveAddressFor(context, userId, address) {
+  try {
+    const prisma = storePrisma(context);
+    const existing = await prisma.storeAddress.findMany({
+      where: { userId },
+      select: { id: true, street: true, exteriorNumber: true, postalCode: true, recipientName: true },
+      take: STORE_ADDRESS_MAX
+    });
+    if (existing instanceof Error) throw existing;
+    const rows2 = existing;
+    const same = rows2.some(
+      (row) => row.street === address.street && row.exteriorNumber === address.exteriorNumber && row.postalCode === address.postalCode && row.recipientName === address.recipientName
+    );
+    if (same || rows2.length >= STORE_ADDRESS_MAX) return;
+    const created = await prisma.storeAddress.create({
+      data: { ...address, isDefault: rows2.length === 0, user: { connect: { id: userId } } }
+    });
+    if (created instanceof Error) throw created;
+  } catch (error) {
+    console.error("[placeStoreOrder] could not save the address:", error);
+  }
+}
+async function createOrderRow(context, params) {
+  const prisma = storePrisma(context);
+  const { buyer, quote, address } = params;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const number = newStoreOrderNumber();
+    const created = await prisma.storeOrder.create({
+      data: {
+        number,
+        checkoutKey: params.checkoutKey,
+        user: { connect: { id: buyer.id } },
+        customerName: buyer.name || address.recipientName,
+        email: buyer.email,
+        phone: buyer.phone || address.phone,
+        channel: params.channel,
+        guestCheckout: params.guestCheckout,
+        unitsCount: quote.itemsCount,
+        subtotalCents: quote.subtotalCents,
+        couponCode: quote.couponApplied ? quote.couponCode : null,
+        couponDiscountCents: quote.couponDiscountCents,
+        shippingCents: quote.shippingCents,
+        totalCents: quote.totalCents,
+        costCents: quote.costCents,
+        paymentMethod: params.paymentMethod,
+        expiresAt: params.expiresAt,
+        shipRecipientName: address.recipientName,
+        shipPhone: address.phone,
+        shipStreet: address.street,
+        shipExteriorNumber: address.exteriorNumber,
+        shipInteriorNumber: address.interiorNumber,
+        shipNeighborhood: address.neighborhood,
+        shipCity: address.city,
+        shipStateCode: address.stateCode,
+        shipPostalCode: address.postalCode,
+        shipReferences: address.references,
+        customerNote: params.customerNote,
+        searchText: normalizeSearchText(
+          [number, buyer.name, address.recipientName, buyer.email, buyer.phone, address.phone].filter(Boolean).join(" ")
+        ),
+        items: {
+          create: quote.lines.map((line) => ({
+            ...line.productId ? { product: { connect: { id: line.productId } } } : {},
+            variant: { connect: { id: line.variantId } },
+            name: line.name,
+            variantTitle: line.variantTitle ?? "",
+            sku: line.sku ?? "",
+            source: line.source,
+            externalId: line.externalId,
+            dropiVariationId: line.dropiVariationId,
+            dropiSupplierId: line.dropiSupplierId,
+            unitPriceCents: line.unitPriceCents,
+            unitCostCents: line.unitCostCents,
+            discountCents: line.discountCents,
+            quantity: line.quantity,
+            totalCents: line.lineTotalCents,
+            reservedQuantity: line.tracked ? line.quantity : 0
+          }))
+        }
+      },
+      select: { id: true, number: true }
+    });
+    if (created instanceof Error) {
+      if (isUniqueViolation(created) && params.checkoutKey && await findOrderByCheckoutKey(context, params.checkoutKey)) {
+        return "duplicate";
+      }
+      if (isUniqueViolation(created) && attempt < 4) continue;
+      throw created;
+    }
+    return created;
+  }
+  throw new Error("Could not generate an order number");
+}
+async function findOrderByCheckoutKey(context, checkoutKey) {
+  const order = await storePrisma(context).storeOrder.findUnique({
+    where: { checkoutKey },
+    select: {
+      id: true,
+      number: true,
+      userId: true,
+      email: true,
+      guestCheckout: true,
+      status: true,
+      paymentStatus: true,
+      paymentMethod: true,
+      totalCents: true,
+      stripePaymentIntentId: true,
+      expiresAt: true,
+      createdAt: true,
+      checkoutKey: true
+    }
+  });
+  if (order instanceof Error) throw order;
+  return order ?? null;
+}
+function createOrderIntent(order, buyer) {
+  return stripe_default.paymentIntents.create(
+    {
+      amount: order.totalCents,
+      currency: "mxn",
+      payment_method_types: ["card"],
+      ...buyer.stripeCustomerId ? { customer: buyer.stripeCustomerId } : {},
+      receipt_email: buyer.email || void 0,
+      description: `Pedido ${order.number} en la tienda de Kadesh Pet`,
+      statement_descriptor_suffix: STORE_STATEMENT_DESCRIPTOR_SUFFIX,
+      metadata: { kind: "store_order", orderId: order.id, orderNumber: order.number }
+    },
+    { idempotencyKey: `store-order-${order.id}` }
+  );
+}
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+async function replayPlacedOrder(context, order, who) {
+  const mine = who.sessionUserId ? order.userId === who.sessionUserId : Boolean(
+    who.guestEmail && order.guestCheckout && order.email === who.guestEmail && Date.now() - new Date(order.createdAt).getTime() < GUEST_REPLAY_MS
+  );
+  const userId = order.userId;
+  if (!mine || !userId) return fail8("INVALID", "No pudimos crear tu pedido. Recarga la p\xE1gina e intenta de nuevo.");
+  if (order.status !== STORE_ORDER_STATUS.OPEN) {
+    return fail8("INVALID", "Ese intento de compra ya no est\xE1 activo. Revisa tu carrito e intenta de nuevo.");
+  }
+  let sessionToken = null;
+  if (!who.sessionUserId && context.sessionStrategy) {
+    const token = await context.sessionStrategy.start({ data: { listKey: "User", itemId: userId }, context });
+    sessionToken = typeof token === "string" && token ? token : null;
+  }
+  const base = { ...EMPTY3, success: true, orderNumber: order.number, totalCents: order.totalCents, sessionToken };
+  if (order.paymentMethod !== STORE_PAYMENT_METHOD.CARD) {
+    const settings = await getStoreSettings(context);
+    return {
+      ...base,
+      message: "Pedido apartado. Falta tu transferencia.",
+      transfer: transferInstructions(settings, { number: order.number, totalCents: order.totalCents, expiresAt: order.expiresAt ?? /* @__PURE__ */ new Date() })
+    };
+  }
+  if (order.paymentStatus === STORE_PAYMENT_STATUS.PAID) {
+    return { ...base, message: "Tu pago ya se hab\xEDa recibido. Tu pedido est\xE1 pagado." };
+  }
+  let clientSecret = null;
+  for (let attempt = 0; attempt < 3 && !clientSecret; attempt += 1) {
+    try {
+      if (order.stripePaymentIntentId) {
+        clientSecret = (await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId)).client_secret ?? null;
+      } else {
+        const buyer = await loadBuyer(context, userId);
+        if (!buyer) break;
+        clientSecret = (await createOrderIntent(order, buyer)).client_secret ?? null;
+      }
+    } catch (error) {
+      if (attempt === 2) console.error("[placeStoreOrder] replay could not read the intent:", order.number, error);
+      await wait(800);
+      const fresh = order.checkoutKey ? await findOrderByCheckoutKey(context, order.checkoutKey) : null;
+      if (fresh?.stripePaymentIntentId) order = { ...order, stripePaymentIntentId: fresh.stripePaymentIntentId };
+    }
+  }
+  if (!clientSecret) {
+    return fail8("PAYMENT_ERROR", "Tu pedido qued\xF3 creado. \xC1brelo en Mis pedidos para pagarlo.", {
+      orderNumber: order.number,
+      totalCents: order.totalCents,
+      sessionToken
+    });
+  }
+  return { ...base, message: "Pedido creado. Falta confirmar el pago.", stripeClientSecret: clientSecret };
+}
+var resolver34 = {
+  placeStoreOrder: async (_root, { input }, context) => {
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) {
+      return fail8("STORE_CLOSED", "La tienda a\xFAn no est\xE1 disponible.");
+    }
+    const sessionUserId = getSessionUserId(context.session);
+    const rawKey = (input.checkoutKey ?? "").trim();
+    if (rawKey && !CHECKOUT_KEY_PATTERN.test(rawKey)) return fail8("INVALID", "Recarga la p\xE1gina e intenta de nuevo.");
+    const checkoutKey = rawKey || null;
+    const guestEmail = sessionUserId ? null : (input.guest?.email ?? "").trim().toLowerCase() || null;
+    try {
+      if (checkoutKey) {
+        const placed = await findOrderByCheckoutKey(context, checkoutKey);
+        if (placed) return await replayPlacedOrder(context, placed, { sessionUserId, guestEmail });
+      }
+      const paymentMethod = (input.paymentMethod ?? "").trim();
+      const address = validateStoreAddress(input.address);
+      if (!address.ok) return fail8("INVALID", address.message);
+      const guest = sessionUserId ? null : await checkGuest(context, input.guest);
+      if (guest && !("ok" in guest)) return guest;
+      const couponCode = (input.couponCode ?? "").trim() || null;
+      const quote = await quoteCart(context, input.items, { couponCode, userId: sessionUserId });
+      if (!quote.canCheckout) {
+        return fail8("CART_CHANGED", quote.messages[0] ?? "Tu carrito cambi\xF3. Rev\xEDsalo antes de pagar.", { quote: publicQuote(quote) });
+      }
+      if (couponCode && !quote.couponApplied) {
+        return fail8("COUPON_INVALID", quote.couponMessage ?? "Ese cup\xF3n ya no aplica.", { quote: publicQuote(quote) });
+      }
+      if (Math.floor(Number(input.expectedTotalCents)) !== quote.totalCents) {
+        return fail8("PRICE_CHANGED", "El total de tu carrito cambi\xF3. Rev\xEDsalo antes de pagar.", { quote: publicQuote(quote) });
+      }
+      if (!quote.paymentMethods.includes(paymentMethod)) {
+        return fail8("PAYMENT_UNAVAILABLE", "Esa forma de pago no est\xE1 disponible. Elige otra.", { quote: publicQuote(quote) });
+      }
+      let buyer;
+      let sessionToken = null;
+      if (sessionUserId) {
+        buyer = await loadBuyer(context, sessionUserId);
+      } else {
+        const form = guest;
+        let created;
+        try {
+          created = await context.sudo().query.User.createOne({
+            data: {
+              name: form.name,
+              lastName: form.lastName,
+              email: form.email,
+              phone: form.phone,
+              password: form.password,
+              product: PRODUCT.PET
+            },
+            query: "id"
+          });
+        } catch (error) {
+          if (!checkoutKey) throw error;
+          for (let attempt = 0; attempt < 4; attempt += 1) {
+            await wait(700);
+            const placed = await findOrderByCheckoutKey(context, checkoutKey);
+            if (placed) return await replayPlacedOrder(context, placed, { sessionUserId, guestEmail });
+          }
+          throw error;
+        }
+        buyer = await loadBuyer(context, created.id);
+        if (context.sessionStrategy) {
+          const token = await context.sessionStrategy.start({ data: { listKey: "User", itemId: created.id }, context });
+          sessionToken = typeof token === "string" && token ? token : null;
+        }
+      }
+      if (!buyer) return fail8("LOGIN_REQUIRED", "Inicia sesi\xF3n para comprar.", { sessionToken });
+      const reserved = await reserveStoreStock(context, quote.lines);
+      if (!reserved) {
+        const fresh = await quoteCart(context, input.items, { couponCode, userId: buyer.id });
+        return fail8("CART_CHANGED", fresh.messages[0] ?? "Un producto de tu carrito se agot\xF3.", {
+          quote: publicQuote(fresh),
+          sessionToken
+        });
+      }
+      const card = paymentMethod === STORE_PAYMENT_METHOD.CARD;
+      const expiresAt = new Date(
+        Date.now() + (card ? quote.settings.cardExpiryMinutes * 6e4 : quote.settings.transferExpiryHours * 36e5)
+      );
+      let order;
+      try {
+        const placed = await createOrderRow(context, {
+          buyer,
+          quote,
+          address: address.data,
+          paymentMethod,
+          customerNote: (input.customerNote ?? "").trim().slice(0, 500),
+          channel: input.channel === STORE_ORDER_CHANNEL.APP ? STORE_ORDER_CHANNEL.APP : STORE_ORDER_CHANNEL.WEB,
+          guestCheckout: !sessionUserId,
+          expiresAt,
+          checkoutKey
+        });
+        if (placed === "duplicate") {
+          await releaseStoreStock(context, reserved);
+          const existing = await findOrderByCheckoutKey(context, checkoutKey);
+          if (!existing) return fail8("INVALID", "No pudimos crear tu pedido. Intenta de nuevo.", { sessionToken });
+          const replay = await replayPlacedOrder(context, existing, {
+            sessionUserId: buyer.id,
+            guestEmail: null
+          });
+          return { ...replay, sessionToken: replay.sessionToken ?? sessionToken };
+        }
+        order = placed;
+      } catch (error) {
+        await releaseStoreStock(context, reserved);
+        throw error;
+      }
+      if (quote.couponId) {
+        const reservedCoupon = await reserveCoupon(context, {
+          couponId: quote.couponId,
+          orderId: order.id,
+          userId: buyer.id,
+          discountCents: quote.couponDiscountCents
+        });
+        if (!reservedCoupon) {
+          await cancelUnpaidStoreOrder(context, order.id, { reason: "El cup\xF3n se agot\xF3 antes de terminar la compra." });
+          const fresh = await quoteCart(context, input.items, { userId: buyer.id });
+          return fail8("COUPON_INVALID", "Ese cup\xF3n se acaba de agotar.", { quote: publicQuote(fresh), sessionToken });
+        }
+      }
+      await addStoreOrderEvent(context, {
+        orderId: order.id,
+        type: STORE_ORDER_EVENT.PLACED,
+        actorId: buyer.id,
+        message: "Hiciste tu pedido.",
+        isPublic: true
+      });
+      const prisma = storePrisma(context);
+      let stripeClientSecret = null;
+      if (card) {
+        try {
+          const intent = await createOrderIntent({ ...order, totalCents: quote.totalCents }, buyer);
+          stripeClientSecret = intent.client_secret ?? null;
+          const linked = await prisma.storeOrder.update({
+            where: { id: order.id },
+            data: { stripePaymentIntentId: intent.id }
+          });
+          if (linked instanceof Error) throw linked;
+          const payment = await prisma.storePayment.create({
+            data: {
+              order: { connect: { id: order.id } },
+              provider: STORE_PAYMENT_METHOD.CARD,
+              amountCents: quote.totalCents,
+              status: STORE_PAYMENT_ATTEMPT_STATUS.PENDING,
+              stripePaymentIntentId: intent.id
+            }
+          });
+          if (payment instanceof Error) throw payment;
+        } catch (error) {
+          console.error("[placeStoreOrder] Stripe failed:", order.number, error);
+          await cancelUnpaidStoreOrder(context, order.id, { reason: "No se pudo iniciar el cobro con tarjeta." });
+          return fail8("PAYMENT_ERROR", "No pudimos iniciar el cobro con tarjeta. Intenta de nuevo o elige transferencia.", {
+            sessionToken
+          });
+        }
+      } else {
+        const payment = await prisma.storePayment.create({
+          data: {
+            order: { connect: { id: order.id } },
+            provider: STORE_PAYMENT_METHOD.TRANSFER,
+            amountCents: quote.totalCents,
+            status: STORE_PAYMENT_ATTEMPT_STATUS.PENDING
+          }
+        });
+        if (payment instanceof Error) throw payment;
+        void sendStoreOrderEmail(context, order.id, "placed_transfer");
+      }
+      if (input.saveAddress !== false) await saveAddressFor(context, buyer.id, address.data);
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_ORDER_PLACED,
+        actorId: buyer.id,
+        summary: `Hizo el pedido ${order.number}`,
+        entityType: "StoreOrder",
+        entityId: order.id,
+        metadata: { totalCents: quote.totalCents, items: quote.itemsCount, paymentMethod, guest: !sessionUserId, coupon: quote.couponApplied }
+      });
+      return {
+        ...EMPTY3,
+        success: true,
+        message: card ? "Pedido creado. Falta confirmar el pago." : "Pedido apartado. Falta tu transferencia.",
+        orderNumber: order.number,
+        totalCents: quote.totalCents,
+        stripeClientSecret,
+        sessionToken,
+        transfer: card ? null : transferInstructions(quote.settings, { number: order.number, totalCents: quote.totalCents, expiresAt })
+      };
+    } catch (error) {
+      console.error("[placeStoreOrder]", error);
+      return fail8("INVALID", "No pudimos crear tu pedido. Intenta de nuevo.");
+    }
+  }
+};
+var placeStoreOrder_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+
+// graphql/customs/mutations/store/storeOrderActions.ts
+var import_stream2 = require("stream");
+var import_image_size2 = require("image-size");
+var typeDefs38 = `
+  type StoreOrderActionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type StoreOrderPaymentResult {
+    success: Boolean!
+    message: String!
+    "Confirm this with Stripe Elements."
+    stripeClientSecret: String
+    totalCents: Int
+  }
+
+  type StoreShippingAddressResult {
+    success: Boolean!
+    message: String!
+    address: StoreShippingAddress
+  }
+
+  type ExpireStoreOrdersResult {
+    success: Boolean!
+    message: String!
+    checked: Int!
+    cancelled: Int!
+    paid: Int!
+  }
+`;
+var definition35 = `
+  uploadStoreTransferProof(orderNumber: String!, file: Upload!, reference: String): StoreOrderActionResult!
+  resumeStoreOrderPayment(orderNumber: String!): StoreOrderPaymentResult!
+  cancelMyStoreOrder(orderNumber: String!): StoreOrderActionResult!
+  saveMyStoreAddress(id: ID, input: StoreShippingAddressInput!, isDefault: Boolean): StoreShippingAddressResult!
+  deleteMyStoreAddress(id: ID!): StoreOrderActionResult!
+  expireStoreOrders(secret: String!): ExpireStoreOrdersResult!
+`;
+async function findOwnOrder(context, userId, orderNumber) {
+  const order = await storePrisma(context).storeOrder.findFirst({
+    where: { number: (orderNumber ?? "").trim().toUpperCase(), userId },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      paymentStatus: true,
+      paymentMethod: true,
+      totalCents: true,
+      stripePaymentIntentId: true
+    }
+  });
+  if (order instanceof Error) throw order;
+  return order;
+}
+async function readCapped(stream, maxBytes) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of stream) {
+    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    size += buffer.length;
+    if (size > maxBytes) {
+      stream.destroy?.();
+      return null;
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks);
+}
+var resolver35 = {
+  /** The buyer uploads the proof of their transfer: the order waits for an admin to confirm it. */
+  uploadStoreTransferProof: async (_root, args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para subir tu comprobante." };
+    try {
+      const order = await findOwnOrder(context, userId, args.orderNumber);
+      if (!order) return { success: false, message: "No encontramos ese pedido." };
+      if (order.paymentMethod !== STORE_PAYMENT_METHOD.TRANSFER) {
+        return { success: false, message: "Este pedido no se paga por transferencia." };
+      }
+      const awaiting = order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.IN_REVIEW;
+      if (order.status !== STORE_ORDER_STATUS.OPEN || !awaiting) {
+        return { success: false, message: "Este pedido ya no espera un comprobante." };
+      }
+      const upload = await args.file;
+      const buffer = await readCapped(upload.createReadStream(), STORE_TRANSFER_PROOF_MAX_BYTES);
+      if (!buffer) return { success: false, message: "El comprobante debe pesar menos de 8 MB." };
+      let type;
+      try {
+        type = (0, import_image_size2.imageSize)(buffer).type;
+      } catch {
+        type = void 0;
+      }
+      if (type !== "jpg" && type !== "png" && type !== "webp") {
+        return { success: false, message: "Sube una foto o captura de tu comprobante (JPG, PNG o WEBP)." };
+      }
+      const stored = await context.images("s3_store").getDataFromStream(import_stream2.Readable.from(buffer), `comprobante.${type}`);
+      const prisma = storePrisma(context);
+      const payment = await prisma.storePayment.updateMany({
+        where: {
+          orderId: order.id,
+          provider: STORE_PAYMENT_METHOD.TRANSFER,
+          status: { in: [STORE_PAYMENT_ATTEMPT_STATUS.PENDING, STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW] }
+        },
+        data: {
+          status: STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW,
+          transferProof_id: stored.id,
+          transferProof_extension: stored.extension,
+          transferProof_filesize: stored.filesize,
+          transferProof_width: stored.width,
+          transferProof_height: stored.height,
+          transferReference: (args.reference ?? "").trim().slice(0, 80),
+          errorMessage: ""
+        }
+      });
+      if (payment instanceof Error) throw payment;
+      const moved = await prisma.storeOrder.updateMany({
+        where: { id: order.id, status: STORE_ORDER_STATUS.OPEN, paymentStatus: { in: [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.IN_REVIEW] } },
+        data: { paymentStatus: STORE_PAYMENT_STATUS.IN_REVIEW, expiresAt: null }
+      });
+      if (moved instanceof Error) throw moved;
+      if (moved.count !== 1) return { success: false, message: "Este pedido ya no espera un comprobante." };
+      await addStoreOrderEvent(context, {
+        orderId: order.id,
+        type: STORE_ORDER_EVENT.TRANSFER_PROOF_UPLOADED,
+        actorId: userId,
+        message: "Subiste tu comprobante. Lo revisamos en horario laboral.",
+        isPublic: true,
+        toStatus: STORE_PAYMENT_STATUS.IN_REVIEW
+      });
+      void notify(context, {
+        audience: "platform_admins",
+        product: "pet",
+        type: NOTIFICATION_TYPE.STORE_ADMIN_TRANSFER_REVIEW,
+        title: `Comprobante por revisar: ${order.number}`,
+        body: "Una persona subi\xF3 el comprobante de su transferencia.",
+        entityType: "StoreOrder",
+        entityId: order.id,
+        metadata: { orderNumber: order.number }
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_TRANSFER_PROOF_UPLOADED,
+        summary: `Subi\xF3 el comprobante del pedido ${order.number}`,
+        entityType: "StoreOrder",
+        entityId: order.id
+      });
+      return { success: true, message: "Recibimos tu comprobante. Te avisamos en cuanto lo confirmemos." };
+    } catch (error) {
+      console.error("[uploadStoreTransferProof]", error);
+      return { success: false, message: "No pudimos subir tu comprobante. Intenta de nuevo." };
+    }
+  },
+  /** Card order still unpaid (the page was closed, the card failed): hands back its PaymentIntent. */
+  resumeStoreOrderPayment: async (_root, { orderNumber }, context) => {
+    const empty4 = { stripeClientSecret: null, totalCents: null };
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para pagar tu pedido.", ...empty4 };
+    try {
+      const order = await findOwnOrder(context, userId, orderNumber);
+      if (!order) return { success: false, message: "No encontramos ese pedido.", ...empty4 };
+      const unpaid = order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED;
+      if (order.status !== STORE_ORDER_STATUS.OPEN || !unpaid || order.paymentMethod !== STORE_PAYMENT_METHOD.CARD || !order.stripePaymentIntentId) {
+        return { success: false, message: "Este pedido ya no se puede pagar con tarjeta.", ...empty4 };
+      }
+      if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+        return { success: true, message: "Tu pago ya se hab\xEDa recibido. Tu pedido est\xE1 pagado.", ...empty4 };
+      }
+      const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
+      if (intent.status === "canceled" || !intent.client_secret) {
+        return { success: false, message: "Este cobro ya venci\xF3. Haz el pedido de nuevo.", ...empty4 };
+      }
+      return { success: true, message: "Listo para pagar.", stripeClientSecret: intent.client_secret, totalCents: order.totalCents };
+    } catch (error) {
+      console.error("[resumeStoreOrderPayment]", error);
+      return { success: false, message: "No pudimos preparar el pago. Intenta de nuevo.", ...empty4 };
+    }
+  },
+  /** The buyer cancels an order they have not paid. */
+  cancelMyStoreOrder: async (_root, { orderNumber }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para cancelar tu pedido." };
+    try {
+      const order = await findOwnOrder(context, userId, orderNumber);
+      if (!order) return { success: false, message: "No encontramos ese pedido." };
+      const cancelled = await cancelUnpaidStoreOrder(context, order.id, {
+        reason: "Lo cancelaste antes de pagar.",
+        actorId: userId
+      });
+      if (!cancelled) {
+        return { success: false, message: "Este pedido ya est\xE1 pagado o cancelado. Si necesitas ayuda, escr\xEDbenos." };
+      }
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.PET_STORE_ORDER_CANCELLED,
+        summary: `Cancel\xF3 el pedido ${order.number}`,
+        entityType: "StoreOrder",
+        entityId: order.id
+      });
+      return { success: true, message: "Cancelamos tu pedido. No se hizo ning\xFAn cobro." };
+    } catch (error) {
+      console.error("[cancelMyStoreOrder]", error);
+      return { success: false, message: "No pudimos cancelar tu pedido. Intenta de nuevo." };
+    }
+  },
+  saveMyStoreAddress: async (_root, args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para guardar tu direcci\xF3n.", address: null };
+    const checked = validateStoreAddress(args.input);
+    if (!checked.ok) return { success: false, message: checked.message, address: null };
+    try {
+      const prisma = storePrisma(context);
+      const mine = await prisma.storeAddress.findMany({ where: { userId }, select: { id: true }, take: STORE_ADDRESS_MAX + 1 });
+      if (mine instanceof Error) throw mine;
+      const ids = mine.map((row) => row.id);
+      if (args.id && !ids.includes(args.id)) return { success: false, message: "No encontramos esa direcci\xF3n.", address: null };
+      if (!args.id && ids.length >= STORE_ADDRESS_MAX) {
+        return { success: false, message: `Puedes guardar hasta ${STORE_ADDRESS_MAX} direcciones. Borra una para agregar otra.`, address: null };
+      }
+      const makeDefault = Boolean(args.isDefault) || ids.length === 0;
+      if (makeDefault) {
+        const cleared = await prisma.storeAddress.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
+        if (cleared instanceof Error) throw cleared;
+      }
+      const saved = args.id ? await prisma.storeAddress.update({ where: { id: args.id }, data: { ...checked.data, ...makeDefault ? { isDefault: true } : {} } }) : await prisma.storeAddress.create({ data: { ...checked.data, isDefault: makeDefault, user: { connect: { id: userId } } } });
+      if (saved instanceof Error) throw saved;
+      return { success: true, message: "Direcci\xF3n guardada.", address: toStoreAddress(saved) };
+    } catch (error) {
+      console.error("[saveMyStoreAddress]", error);
+      return { success: false, message: "No pudimos guardar tu direcci\xF3n. Intenta de nuevo.", address: null };
+    }
+  },
+  deleteMyStoreAddress: async (_root, { id }, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { success: false, message: "Inicia sesi\xF3n para borrar tu direcci\xF3n." };
+    try {
+      const removed = await storePrisma(context).storeAddress.deleteMany({ where: { id, userId } });
+      if (removed instanceof Error) throw removed;
+      return removed.count === 1 ? { success: true, message: "Direcci\xF3n borrada." } : { success: false, message: "No encontramos esa direcci\xF3n." };
+    } catch (error) {
+      console.error("[deleteMyStoreAddress]", error);
+      return { success: false, message: "No pudimos borrar tu direcci\xF3n. Intenta de nuevo." };
+    }
+  },
+  /**
+   * Cron (GitHub Actions, every hour): cancels the orders nobody paid in time and puts their stock
+   * back. A card order is checked with Stripe first: if the charge went through and only the
+   * webhook is missing, it is marked as paid instead.
+   */
+  expireStoreOrders: async (_root, { secret }, context) => {
+    const empty4 = { checked: 0, cancelled: 0, paid: 0 };
+    const expected = process.env.CRON_SECRET?.trim();
+    if (!expected || secret !== expected) return { success: false, message: "No autorizado.", ...empty4 };
+    const prisma = storePrisma(context);
+    const due = await prisma.storeOrder.findMany({
+      where: {
+        status: STORE_ORDER_STATUS.OPEN,
+        paymentStatus: { in: [STORE_PAYMENT_STATUS.PENDING, STORE_PAYMENT_STATUS.FAILED] },
+        expiresAt: { lt: /* @__PURE__ */ new Date() }
+      },
+      orderBy: [{ expiresAt: "asc" }],
+      take: STORE_EXPIRE_MAX_PER_RUN,
+      select: { id: true, paymentMethod: true, stripePaymentIntentId: true }
+    });
+    if (due instanceof Error) return { success: false, message: "No se pudieron leer los pedidos.", ...empty4 };
+    let cancelled = 0;
+    let paid = 0;
+    for (const order of due) {
+      try {
+        if (order.paymentMethod === STORE_PAYMENT_METHOD.CARD && order.stripePaymentIntentId) {
+          const intent = await stripe_default.paymentIntents.retrieve(order.stripePaymentIntentId);
+          if (intent.status === "succeeded") {
+            await markStoreOrderPaid(context, order.id, {
+              provider: STORE_PAYMENT_METHOD.CARD,
+              stripePaymentIntentId: intent.id,
+              stripeChargeId: typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null
+            });
+            paid += 1;
+            continue;
+          }
+          if (intent.status === "processing") continue;
+        }
+        const done = await cancelUnpaidStoreOrder(context, order.id, {
+          reason: "No recibimos el pago a tiempo.",
+          eventType: STORE_ORDER_EVENT.EXPIRED,
+          notifyBuyer: true
+        });
+        if (done) cancelled += 1;
+      } catch (error) {
+        console.error("[expireStoreOrders]", order.id, error);
+      }
+    }
+    return {
+      success: true,
+      message: `Revisados ${due.length}: ${cancelled} cancelados, ${paid} pagados.`,
+      checked: due.length,
+      cancelled,
+      paid
+    };
+  }
+};
+var storeOrderActions_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+
+// graphql/customs/mutations/store/index.ts
+var storeMutations = {
+  typeDefs: `
+    ${setStoreWishlist_default.typeDefs}
+    ${storeProductReviews_default.typeDefs}
+    ${placeStoreOrder_default.typeDefs}
+    ${storeOrderActions_default.typeDefs}
+  `,
+  definition: `
+    ${setStoreWishlist_default.definition}
+    ${storeProductReviews_default.definition}
+    ${placeStoreOrder_default.definition}
+    ${storeOrderActions_default.definition}
+  `,
+  resolver: {
+    ...setStoreWishlist_default.resolver,
+    ...storeProductReviews_default.resolver,
+    ...placeStoreOrder_default.resolver,
+    ...storeOrderActions_default.resolver
+  }
+};
+var store_default = storeMutations;
+
 // graphql/customs/mutations/pet/sendAnimalFollowUps.ts
 var MAX_REMINDERS_PER_RUN = 200;
 var MAX_INACTIVE_PER_RUN = 500;
-var typeDefs35 = `
+var typeDefs39 = `
   type SendAnimalFollowUpsResult {
     success: Boolean!
     message: String!
@@ -33320,11 +37134,11 @@ var typeDefs35 = `
     failed: Int!
   }
 `;
-var definition32 = `
+var definition36 = `
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
 `;
 var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
-function unwrap(value) {
+function unwrap3(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -33358,7 +37172,7 @@ async function findReminderCandidates(prisma, automation) {
     ORDER BY a."lastActivityAt" ASC
     LIMIT ${MAX_REMINDERS_PER_RUN}::int
   `;
-  return unwrap(rows2);
+  return unwrap3(rows2);
 }
 async function findInactiveCandidates(prisma, automation) {
   const now = Date.now();
@@ -33389,12 +37203,12 @@ async function findInactiveCandidates(prisma, automation) {
       )
     LIMIT ${MAX_INACTIVE_PER_RUN}::int
   `;
-  return unwrap(rows2).map((row) => row.id);
+  return unwrap3(rows2).map((row) => row.id);
 }
 async function remind(context, animal) {
   const nextStage = animal.stage + 1;
   const prisma = context.sudo().prisma;
-  const claimed = unwrap(
+  const claimed = unwrap3(
     await prisma.animal.updateMany({
       where: { id: animal.id, followUpStage: animal.stage, outcome: null },
       data: { followUpStage: nextStage, followUpSentAt: /* @__PURE__ */ new Date() }
@@ -33436,7 +37250,7 @@ async function remind(context, animal) {
   }
   return true;
 }
-var resolver32 = {
+var resolver36 = {
   sendAnimalFollowUps: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
@@ -33456,7 +37270,7 @@ var resolver32 = {
         }
       }
       const inactiveIds = await findInactiveCandidates(prisma, automation);
-      const inactivated = inactiveIds.length ? unwrap(
+      const inactivated = inactiveIds.length ? unwrap3(
         await prisma.animal.updateMany({
           where: { id: { in: inactiveIds }, inactiveAt: null },
           data: { inactiveAt: /* @__PURE__ */ new Date() }
@@ -33475,13 +37289,13 @@ var resolver32 = {
     }
   }
 };
-var sendAnimalFollowUps_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var sendAnimalFollowUps_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
 
 // utils/pet/petCard.ts
-var import_stream2 = require("stream");
+var import_stream3 = require("stream");
 var import_graphql5 = require("graphql");
 var MAX_REPORT_PHOTOS = 3;
 var MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -33552,7 +37366,7 @@ async function copyPetPhotosToReport(context, petId, animalId) {
       if (!res.ok) throw new Error(`HTTP ${res.status} al descargar la foto`);
       const buffer = Buffer.from(await res.arrayBuffer());
       if (buffer.length > MAX_PHOTO_BYTES) throw new Error("La foto pesa m\xE1s de 8 MB");
-      const stored = await context.images("s3_animals").getDataFromStream(import_stream2.Readable.from(buffer), `mascota.${extension}`);
+      const stored = await context.images("s3_animals").getDataFromStream(import_stream3.Readable.from(buffer), `mascota.${extension}`);
       const created = await prisma.animalMultimedia.create({
         data: {
           animalId,
@@ -33598,7 +37412,7 @@ async function copyReportPhotosToPet(context, animalId, petId) {
       if (!res.ok) throw new Error(`HTTP ${res.status} al descargar la foto`);
       const buffer = Buffer.from(await res.arrayBuffer());
       if (buffer.length > MAX_PHOTO_BYTES) throw new Error("La foto pesa m\xE1s de 8 MB");
-      const stored = await context.images("s3_pets").getDataFromStream(import_stream2.Readable.from(buffer), `reporte.${extension}`);
+      const stored = await context.images("s3_pets").getDataFromStream(import_stream3.Readable.from(buffer), `reporte.${extension}`);
       const created = await prisma.petMultimedia.create({
         data: {
           petId,
@@ -33758,7 +37572,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs36 = `
+var typeDefs40 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -33791,7 +37605,7 @@ var typeDefs36 = `
     petId: ID
   }
 `;
-var definition33 = `
+var definition37 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -33859,8 +37673,8 @@ function validateInput(input) {
   if (!Number.isInteger(hours) || hours < 0 || hours > ADOPTION_APPLICATION_LIMITS.HOURS_ALONE_MAX) {
     return { ok: false, message: "Escribe cu\xE1ntas horas al d\xEDa estar\xEDa solo (0 a 24)." };
   }
-  for (const text89 of [input.otherPets, input.experience]) {
-    if ((text89 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
+  for (const text106 of [input.otherPets, input.experience]) {
+    if ((text106 ?? "").trim().length > ADOPTION_APPLICATION_LIMITS.TEXT_MAX) {
       return { ok: false, message: `Cada respuesta puede tener hasta ${ADOPTION_APPLICATION_LIMITS.TEXT_MAX} caracteres.` };
     }
   }
@@ -33897,19 +37711,19 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver33 = {
+var resolver37 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail16 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para enviar tu solicitud.");
+      if (!userId) return fail16("Inicia sesi\xF3n para enviar tu solicitud.");
       const sudo = context.sudo();
       const animal = await sudo.query.Animal.findOne({ where: { id: animalId }, query: ANIMAL_FIELDS });
-      if (!animal) return fail14("No encontramos ese animal.");
-      if (animal.duplicateOf) return fail14("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
+      if (!animal) return fail16("No encontramos ese animal.");
+      if (animal.duplicateOf) return fail16("Este reporte se uni\xF3 a otro: solicita desde el reporte principal.");
       const last = await lastReportLog(context, animal.id);
-      if (last?.status !== "in_adoption") return fail14(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
-      if (await canReview(context, animal, userId)) return fail14("Es un animal que t\xFA (o tu equipo) publicaste.");
+      if (last?.status !== "in_adoption") return fail16(`${animalLabel(animal)} ya no est\xE1 en adopci\xF3n.`);
+      if (await canReview(context, animal, userId)) return fail16("Es un animal que t\xFA (o tu equipo) publicaste.");
       const open = await sudo.query.AdoptionApplication.count({
         where: {
           animal: { id: { equals: animal.id } },
@@ -33917,9 +37731,9 @@ var resolver33 = {
           status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES }
         }
       });
-      if (open > 0) return fail14(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
+      if (open > 0) return fail16(`Ya enviaste una solicitud para ${animalLabel(animal)}. Te avisaremos cuando respondan.`);
       const checked = validateInput(input);
-      if (!checked.ok) return fail14(checked.message);
+      if (!checked.ok) return fail16(checked.message);
       const applicant = await sudo.query.User.findOne({
         where: { id: userId },
         query: "name lastName email"
@@ -33964,30 +37778,30 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[submitAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
+      return fail16(errorMessage(error, "No pudimos enviar tu solicitud. Intenta de nuevo."));
     }
   },
   reviewAdoptionApplication: async (_root, { applicationId, status, note }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail16 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
-      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail14("Elige qu\xE9 hacer con la solicitud.");
+      if (!userId) return fail16("Inicia sesi\xF3n para continuar.");
+      if (!ADOPTION_APPLICATION_REVIEW_STATUSES.includes(status)) return fail16("Elige qu\xE9 hacer con la solicitud.");
       const application = await loadApplication(context, applicationId);
       const animal = application.animal;
-      if (!await canReview(context, animal, userId)) return fail14("Solo quien atiende a este animal revisa sus solicitudes.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
-      if (application.status === status) return fail14("La solicitud ya est\xE1 as\xED.");
-      const clean5 = (note ?? "").trim();
-      if (clean5.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
-        return fail14(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
+      if (!await canReview(context, animal, userId)) return fail16("Solo quien atiende a este animal revisa sus solicitudes.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail16("Esta solicitud ya est\xE1 cerrada.");
+      if (application.status === status) return fail16("La solicitud ya est\xE1 as\xED.");
+      const clean6 = (note ?? "").trim();
+      if (clean6.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
+        return fail16(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
       }
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
         data: {
           status,
           // `text` de Keystone: cadena vacía, no null.
-          decisionNote: status === ADOPTION_APPLICATION_STATUS.IN_REVIEW ? "" : clean5,
+          decisionNote: status === ADOPTION_APPLICATION_STATUS.IN_REVIEW ? "" : clean6,
           decidedById: userId,
           decidedAt: /* @__PURE__ */ new Date()
         }
@@ -33995,7 +37809,7 @@ var resolver33 = {
       if (updated instanceof Error) throw updated;
       const name = animalLabel(animal);
       if (application.applicant?.id) {
-        const copy = REVIEW_COPY[status](name, clean5);
+        const copy = REVIEW_COPY[status](name, clean6);
         void notify(context, {
           audience: [application.applicant.id],
           product: "pet",
@@ -34022,24 +37836,24 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[reviewAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
+      return fail16(errorMessage(error, "No pudimos actualizar la solicitud. Intenta de nuevo."));
     }
   },
   editAdoptionApplication: async (_root, { applicationId, input }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail16 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede editarla.");
+      if (!userId || application.applicant?.id !== userId) return fail16("Solo quien envi\xF3 la solicitud puede editarla.");
       const animal = application.animal;
       const name = animalLabel(animal);
       if (application.status !== ADOPTION_APPLICATION_STATUS.SUBMITTED) {
-        return fail14(
+        return fail16(
           ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status) ? `Quien cuida a ${name} ya la est\xE1 revisando, as\xED que ya no se puede editar. Si algo cambi\xF3, cu\xE9ntaselo cuando te contacte.` : "Esta solicitud ya est\xE1 cerrada."
         );
       }
       const checked = validateInput(input);
-      if (!checked.ok) return fail14(checked.message);
+      if (!checked.ok) return fail16(checked.message);
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
         data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
@@ -34070,16 +37884,16 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[editAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
+      return fail16(errorMessage(error, "No pudimos guardar los cambios. Intenta de nuevo."));
     }
   },
   withdrawAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, application: null });
+    const fail16 = (message) => ({ success: false, message, application: null });
     try {
       const userId = getSessionUserId(context.session);
       const application = await loadApplication(context, applicationId);
-      if (!userId || application.applicant?.id !== userId) return fail14("Solo quien envi\xF3 la solicitud puede retirarla.");
-      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail14("Esta solicitud ya est\xE1 cerrada.");
+      if (!userId || application.applicant?.id !== userId) return fail16("Solo quien envi\xF3 la solicitud puede retirarla.");
+      if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail16("Esta solicitud ya est\xE1 cerrada.");
       const updated = await prismaOf8(context).adoptionApplication.update({
         where: { id: application.id },
         data: { status: ADOPTION_APPLICATION_STATUS.WITHDRAWN, decidedAt: /* @__PURE__ */ new Date() }
@@ -34098,40 +37912,40 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[withdrawAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
+      return fail16(errorMessage(error, "No pudimos retirar la solicitud. Intenta de nuevo."));
     }
   },
   completeAdoptionApplication: async (_root, { applicationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, petId: null });
+    const fail16 = (message) => ({ success: false, message, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail16("Inicia sesi\xF3n para continuar.");
       const application = await loadApplication(context, applicationId);
       const animalRow = application.animal;
-      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail14("Primero aprueba la solicitud.");
+      if (application.status !== ADOPTION_APPLICATION_STATUS.APPROVED) return fail16("Primero aprueba la solicitud.");
       if (!await canComplete(context, animalRow, userId)) {
-        return fail14(
+        return fail16(
           animalRow.organization ? "La adopci\xF3n la completan admin y coordinaci\xF3n del espacio." : "La adopci\xF3n la completa quien public\xF3 al animal."
         );
       }
       const adopterId = application.applicant?.id;
-      if (!adopterId) return fail14("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
+      if (!adopterId) return fail16("La cuenta de quien pidi\xF3 adoptarlo ya no existe.");
       const report = await context.sudo().query.Animal.findOne({
         where: { id: animalRow.id },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!report) return fail14("No encontramos ese animal.");
+      if (!report) return fail16("No encontramos ese animal.");
       const name = animalLabel(report);
       const giverName = report.organization?.name ?? null;
       const reportNote = giverName ? `Adoptado con ${giverName} en KADESH.` : "Adoptado con KADESH.";
       let petId;
       if (report.pet) {
         const pet = await loadTransferablePet(context, report.pet.id);
-        if (!pet) return fail14("No encontramos su cartilla.");
+        if (!pet) return fail16("No encontramos su cartilla.");
         if (pet.organizationId) {
-          if (pet.organizationId !== report.organization?.id) return fail14("Su ficha es de otro espacio de rescate.");
+          if (pet.organizationId !== report.organization?.id) return fail16("Su ficha es de otro espacio de rescate.");
         } else if (!report.user?.id || await findPetOwnerRole(context, pet.id, report.user.id) !== PET_OWNER_ROLE.PRINCIPAL) {
-          return fail14("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
+          return fail16("Este animal tiene la cartilla de otra persona: p\xEDdele que te la pase con un c\xF3digo.");
         }
         await transferPetToOwner(context, pet, adopterId);
         await cancelPendingTransfers(context, pet.id);
@@ -34167,15 +37981,15 @@ var resolver33 = {
       };
     } catch (error) {
       console.error("[completeAdoptionApplication]", error);
-      return fail14(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail16(errorMessage(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var adoptionApplications_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs37 = `
+var typeDefs41 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -34189,10 +38003,10 @@ var typeDefs37 = `
     url: String!
   }
 `;
-var definition34 = `
+var definition38 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver34 = {
+var resolver38 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -34272,21 +38086,21 @@ var resolver34 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var markPetAsLost_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs38 = `
+var typeDefs42 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition35 = `
+var definition39 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver35 = {
+var resolver39 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -34343,22 +38157,22 @@ var resolver35 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var markPetAsFound_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs39 = `
+var typeDefs43 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition36 = `
+var definition40 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver36 = {
+var resolver40 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -34366,11 +38180,11 @@ var resolver36 = {
   addPetFamilyMember: async (_root, { petId, email }, context) => {
     try {
       await requirePetOwner(context, petId, { principal: true });
-      const clean5 = (email ?? "").trim().toLowerCase();
-      if (!clean5) throw new import_graphql9.GraphQLError("Escribe el correo de la persona.");
+      const clean6 = (email ?? "").trim().toLowerCase();
+      if (!clean6) throw new import_graphql9.GraphQLError("Escribe el correo de la persona.");
       const sudo = context.sudo();
       const [user] = await sudo.query.User.findMany({
-        where: { email: { equals: clean5, mode: "insensitive" } },
+        where: { email: { equals: clean6, mode: "insensitive" } },
         query: "id",
         take: 1
       });
@@ -34399,13 +38213,13 @@ var resolver36 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var addPetFamilyMember_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
-var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+var EMAIL_PATTERN4 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs40 = `
+var typeDefs44 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -34421,13 +38235,13 @@ var typeDefs40 = `
     createdAccount: Boolean!
   }
 `;
-var definition37 = `
+var definition41 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver37 = {
+var resolver41 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -34442,7 +38256,7 @@ var resolver37 = {
       const email = (input.email ?? "").trim().toLowerCase();
       const password2 = input.password ?? "";
       if (!name) throw new import_graphql10.GraphQLError("Escribe su nombre.");
-      if (!EMAIL_PATTERN3.test(email)) throw new import_graphql10.GraphQLError("Escribe un correo v\xE1lido.");
+      if (!EMAIL_PATTERN4.test(email)) throw new import_graphql10.GraphQLError("Escribe un correo v\xE1lido.");
       let phone = "";
       if (input.phone?.trim()) {
         const normalized = normalizeMxPhone(input.phone);
@@ -34508,7 +38322,7 @@ var resolver37 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -34668,7 +38482,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs41 = `
+var typeDefs45 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -34677,11 +38491,11 @@ var typeDefs41 = `
     failed: Int!
   }
 `;
-var definition38 = `
+var definition42 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
 var empty3 = { processed: 0, sent: 0, failed: 0 };
-var resolver38 = {
+var resolver42 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -34747,12 +38561,12 @@ var resolver38 = {
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var sendDuePetReminders_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
-var import_crypto6 = require("crypto");
+var import_crypto7 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs42 = `
+var typeDefs46 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -34780,7 +38594,7 @@ var typeDefs42 = `
     petId: ID
   }
 `;
-var definition39 = `
+var definition43 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
@@ -34798,7 +38612,7 @@ function normalizeTransferCode(raw) {
 function newCode() {
   let code = "";
   for (let i = 0; i < PET_TRANSFER_CODE_LENGTH; i += 1) {
-    code += PET_TRANSFER_ALPHABET[(0, import_crypto6.randomInt)(PET_TRANSFER_ALPHABET.length)];
+    code += PET_TRANSFER_ALPHABET[(0, import_crypto7.randomInt)(PET_TRANSFER_ALPHABET.length)];
   }
   return code;
 }
@@ -34860,19 +38674,19 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver39 = {
+var resolver43 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, transfer: null });
+    const fail16 = (text106) => ({ success: false, message: text106, transfer: null });
     try {
       const { userId, pet, organization } = await requireGiver(context, petId);
       if (pet.status !== PET_STATUS.ACTIVE) {
-        return fail14(
+        return fail16(
           pet.status === PET_STATUS.LOST ? "Primero cierra su reporte de perdida con \xABYa regres\xF3 a casa\xBB." : "Solo se traspasa una mascota activa."
         );
       }
       const note = (message ?? "").trim();
       if (note.length > PET_TRANSFER_MESSAGE_MAX) {
-        return fail14(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
+        return fail16(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
       }
       await cancelPendingTransfers(context, pet.id);
       const prisma = prismaOf9(context);
@@ -34882,7 +38696,7 @@ var resolver39 = {
         const taken = await prisma.petTransfer.findUnique({ where: { code: candidate }, select: { id: true } });
         if (!taken) code = candidate;
       }
-      if (!code) return fail14("No pudimos generar el c\xF3digo. Intenta de nuevo.");
+      if (!code) return fail16("No pudimos generar el c\xF3digo. Intenta de nuevo.");
       const created = await prisma.petTransfer.create({
         data: {
           petId: pet.id,
@@ -34910,18 +38724,18 @@ var resolver39 = {
       };
     } catch (error) {
       console.error("[createPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
+      return fail16(errorMessage2(error, "No pudimos generar el c\xF3digo. Intenta de nuevo."));
     }
   },
   cancelPetTransferCode: async (_root, { transferId }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, transfer: null });
+    const fail16 = (text106) => ({ success: false, message: text106, transfer: null });
     try {
       const prisma = prismaOf9(context);
       const transfer = await prisma.petTransfer.findUnique({ where: { id: transferId } });
-      if (!transfer?.petId) return fail14("No encontramos ese c\xF3digo.");
+      if (!transfer?.petId) return fail16("No encontramos ese c\xF3digo.");
       const userId = getSessionUserId(context.session);
       if (transfer.createdById !== userId) await requireGiver(context, transfer.petId);
-      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail14("Ese c\xF3digo ya no est\xE1 activo.");
+      if (transfer.status !== PET_TRANSFER_STATUS.PENDING) return fail16("Ese c\xF3digo ya no est\xE1 activo.");
       const updated = await prisma.petTransfer.update({
         where: { id: transfer.id },
         data: { status: PET_TRANSFER_STATUS.CANCELLED }
@@ -34941,7 +38755,7 @@ var resolver39 = {
       };
     } catch (error) {
       console.error("[cancelPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
+      return fail16(errorMessage2(error, "No pudimos cancelar el c\xF3digo. Intenta de nuevo."));
     }
   },
   previewPetTransferCode: async (_root, { code }, context) => {
@@ -34990,12 +38804,12 @@ var resolver39 = {
     }
   },
   redeemPetTransferCode: async (_root, { code }, context) => {
-    const fail14 = (text89) => ({ success: false, message: text89, petId: null });
+    const fail16 = (text106) => ({ success: false, message: text106, petId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para recibir a la mascota.");
+      if (!userId) return fail16("Inicia sesi\xF3n para recibir a la mascota.");
       const found = await loadRedeemable(context, code, userId);
-      if (!found.ok) return fail14(found.message);
+      if (!found.ok) return fail16(found.message);
       const { transfer } = found;
       const prisma = prismaOf9(context);
       const claimed = await prisma.petTransfer.updateMany({
@@ -35003,7 +38817,7 @@ var resolver39 = {
         data: { status: PET_TRANSFER_STATUS.REDEEMED, redeemedById: userId, redeemedAt: /* @__PURE__ */ new Date() }
       });
       if (claimed instanceof Error) throw claimed;
-      if (claimed.count !== 1) return fail14("Ese c\xF3digo ya se us\xF3.");
+      if (claimed.count !== 1) return fail16("Ese c\xF3digo ya se us\xF3.");
       const pet = await loadTransferablePet(context, transfer.petId);
       const organization = transfer.fromOrganizationId ? await context.sudo().query.RescueOrganization.findOne({
         where: { id: transfer.fromOrganizationId },
@@ -35059,11 +38873,11 @@ var resolver39 = {
       return { success: true, message: `${pet.name} ya est\xE1 en tu cartilla.`, petId: pet.id };
     } catch (error) {
       console.error("[redeemPetTransferCode]", error);
-      return fail14(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
+      return fail16(errorMessage2(error, "No pudimos recibir a la mascota. Intenta de nuevo."));
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var petTransfer_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -35435,11 +39249,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs43 = ``;
-var definition40 = `
+var typeDefs47 = ``;
+var definition44 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver40 = {
+var resolver44 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -35497,7 +39311,7 @@ var resolver40 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var submitPetEvent_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -35552,11 +39366,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs44 = ``;
-var definition41 = `
+var typeDefs48 = ``;
+var definition45 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver41 = {
+var resolver45 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -35665,14 +39479,14 @@ var resolver41 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var updateMyPetEvent_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs45 = ``;
-var definition42 = `
+var typeDefs49 = ``;
+var definition46 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver42 = {
+var resolver46 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -35720,10 +39534,10 @@ var resolver42 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var cancelPetEvent_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs46 = `
+var typeDefs50 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -35734,7 +39548,7 @@ var typeDefs46 = `
     isFull: Boolean!
   }
 `;
-var definition43 = `
+var definition47 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -35750,7 +39564,7 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver43 = {
+var resolver47 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
@@ -35814,7 +39628,7 @@ var resolver43 = {
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var setPetEventInterest_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // utils/security/knownCrawlers.ts
 var import_net = require("net");
@@ -35880,14 +39694,14 @@ function isKnownCrawlerRequest(req) {
 }
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs47 = `
+var typeDefs51 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition44 = `
+var definition48 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
 var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
@@ -35900,7 +39714,7 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver44 = {
+var resolver48 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
@@ -35931,14 +39745,14 @@ var resolver44 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var recordPetEventView_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs48 = ``;
-var definition45 = `
+var typeDefs52 = ``;
+var definition49 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver45 = {
+var resolver49 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -36036,14 +39850,14 @@ var resolver45 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var reviewPetEvent_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
 var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS2 = 60 * 60 * 1e3;
 var DAY_MS8 = 24 * HOUR_MS2;
-var typeDefs49 = `
+var typeDefs53 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -36055,7 +39869,7 @@ var typeDefs49 = `
     zoneRecipients: Int!
   }
 `;
-var definition46 = `
+var definition50 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
@@ -36143,7 +39957,7 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver46 = {
+var resolver50 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
@@ -36174,13 +39988,13 @@ var resolver46 = {
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs50 = `
+var typeDefs54 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -36189,11 +40003,11 @@ var typeDefs50 = `
     remaining: Int!
   }
 `;
-var definition47 = `
+var definition51 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver47 = {
+var resolver51 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
@@ -36242,7 +40056,7 @@ var resolver47 = {
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
+var backfillAlertRegions_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -36281,15 +40095,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs51 = ``;
-var definition48 = `
+var typeDefs55 = ``;
+var definition52 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver48 = {
+var resolver52 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -36367,7 +40181,7 @@ var resolver48 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var activateRescueOrganization_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -36427,8 +40241,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs52 = ``;
-var definition49 = `
+var typeDefs56 = ``;
+var definition53 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -36447,13 +40261,13 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver49 = {
+var resolver53 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
       if (!RESCUE_MEMBER_ROLE_VALUES.has(role)) return failure3("Elige un rol para esta persona.");
-      const clean5 = (email ?? "").trim().toLowerCase();
-      if (!clean5) return failure3("Escribe el correo de la persona.");
+      const clean6 = (email ?? "").trim().toLowerCase();
+      if (!clean6) return failure3("Escribe el correo de la persona.");
       const sudo = context.sudo();
       const total = await sudo.query.RescueOrganizationMember.count({
         where: { organization: { id: { equals: organizationId } } }
@@ -36462,7 +40276,7 @@ var resolver49 = {
         return failure3(`Un espacio puede tener hasta ${RESCUE_ORG_LIMITS.MAX_MEMBERS} personas en su equipo.`);
       }
       const [user] = await sudo.query.User.findMany({
-        where: { email: { equals: clean5, mode: "insensitive" } },
+        where: { email: { equals: clean6, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
@@ -36583,7 +40397,7 @@ var resolver49 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var rescueMembers_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -36593,7 +40407,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs53 = `
+var typeDefs57 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -36621,7 +40435,7 @@ var typeDefs53 = `
     adopterName: String
   }
 `;
-var definition50 = `
+var definition54 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -36643,35 +40457,35 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver50 = {
+var resolver54 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
-    const fail14 = (message) => ({ success: false, message, petId: null, organizationId: null });
+    const fail16 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
       const userId = getSessionUserId(context.session);
-      if (!userId) return fail14("Inicia sesi\xF3n para continuar.");
+      if (!userId) return fail16("Inicia sesi\xF3n para continuar.");
       const animal = await context.sudo().query.Animal.findOne({
         where: { id: animalId },
         query: REPORT_FOR_PET_QUERY
       });
-      if (!animal) return fail14("No encontramos ese reporte.");
-      if (animal.duplicateOf) return fail14("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
-      if (animal.pet) return fail14("Este animal ya tiene cartilla.");
+      if (!animal) return fail16("No encontramos ese reporte.");
+      if (animal.duplicateOf) return fail16("Este reporte est\xE1 unido a otro: hazlo desde el reporte principal.");
+      if (animal.pet) return fail16("Este animal ya tiene cartilla.");
       const canEdit = isPlatformAdmin(context.session) || await canEditAnimalAs(
         context,
         { userId: animal.user?.id ?? null, organizationId: animal.organization?.id ?? null },
         userId
       );
-      if (!canEdit) return fail14("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
+      if (!canEdit) return fail16("Solo quien public\xF3 el reporte (o el equipo de su espacio) puede hacer esto.");
       let organization = null;
       if (organizationId) {
         const { organization: org } = await requireRescueRole(context, organizationId, RESCUE_ANIMAL_EDITOR_ROLES);
-        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
+        if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail16("Este espacio de rescate no est\xE1 activo.");
         if (animal.organization && animal.organization.id !== org.id) {
-          return fail14("Este reporte es de otro espacio de rescate.");
+          return fail16("Este reporte es de otro espacio de rescate.");
         }
         organization = org;
       } else if (animal.organization) {
-        return fail14("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
+        return fail16("Este reporte es de un espacio de rescate: crea su ficha desde el panel del espacio.");
       }
       const last = await lastReportLog(context, animal.id);
       const petId = organization ? await createPetFromReport(context, animal, {
@@ -36707,11 +40521,11 @@ var resolver50 = {
       return { success: true, message: `${name} ya est\xE1 en tu cartilla.`, petId, organizationId: null };
     } catch (error) {
       console.error("[convertAnimalToPet]", error);
-      return fail14(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
+      return fail16(errorMessage4(error, "No pudimos crear la cartilla. Intenta de nuevo."));
     }
   },
   publishRescuePet: async (_root, args, context) => {
-    const fail14 = (message) => ({
+    const fail16 = (message) => ({
       success: false,
       message,
       reportId: null,
@@ -36721,14 +40535,14 @@ var resolver50 = {
     });
     try {
       if (!PUBLISHABLE_STATUSES.includes(args.status)) {
-        return fail14("Elige si lo publicas en adopci\xF3n o como rescatado.");
+        return fail16("Elige si lo publicas en adopci\xF3n o como rescatado.");
       }
       const status = args.status;
       const pet = await loadRescuePet(context, args.petId);
       const org = pet.organization;
       const { userId } = await requireRescueRole(context, org.id, RESCUE_ANIMAL_EDITOR_ROLES);
-      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail14("Este espacio de rescate no est\xE1 activo.");
-      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se publica una ficha activa.");
+      if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail16("Este espacio de rescate no est\xE1 activo.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail16("Solo se publica una ficha activa.");
       const notes = args.notes?.trim() ?? "";
       const prisma = prismaOf12(context);
       let reportId;
@@ -36738,11 +40552,11 @@ var resolver50 = {
         reportId = pet.publicReport.id;
         slug = pet.publicReport.slug || pet.publicReport.id;
         const last = await lastReportLog(context, reportId);
-        if (last?.status === status) return fail14(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
+        if (last?.status === status) return fail16(`Ya est\xE1 publicado como \xAB${STATUS_LABEL2[status]}\xBB.`);
         await addReportLog(context, reportId, status, notes, last, args.location);
       } else {
-        if (!args.location?.lat || !args.location?.lng) return fail14("Marca en el mapa d\xF3nde est\xE1 el animal.");
-        if (!pet.animal_type?.id) return fail14("Elige la especie en la ficha antes de publicarla.");
+        if (!args.location?.lat || !args.location?.lng) return fail16("Marca en el mapa d\xF3nde est\xE1 el animal.");
+        if (!pet.animal_type?.id) return fail16("Elige la especie en la ficha antes de publicarla.");
         let phone = org.whatsapp?.trim() || "";
         if (!phone) {
           const user = await context.sudo().query.User.findOne({
@@ -36751,7 +40565,7 @@ var resolver50 = {
           });
           phone = user?.phone?.trim() || "";
         }
-        if (!phone) return fail14("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
+        if (!phone) return fail16("Agrega el WhatsApp del espacio en su perfil p\xFAblico para publicar.");
         const report = await createAnimalReport_default.resolver.createAnimalReport(
           null,
           {
@@ -36812,11 +40626,11 @@ var resolver50 = {
       };
     } catch (error) {
       console.error("[publishRescuePet]", error);
-      return fail14(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
+      return fail16(errorMessage4(error, "No pudimos publicar la ficha. Intenta de nuevo."));
     }
   },
   completeRescueAdoption: async (_root, { petId, email }, context) => {
-    const fail14 = (message, code = null) => ({
+    const fail16 = (message, code = null) => ({
       success: false,
       message,
       code,
@@ -36827,22 +40641,22 @@ var resolver50 = {
       const pet = await loadRescuePet(context, petId);
       const org = pet.organization;
       await requireRescueRole(context, org.id, RESCUE_ANIMAL_MANAGER_ROLES);
-      if (pet.status !== PET_STATUS.ACTIVE) return fail14("Solo se adopta una ficha activa.");
-      const clean5 = (email ?? "").trim().toLowerCase();
-      if (!clean5) return fail14("Escribe el correo de quien adopta.");
+      if (pet.status !== PET_STATUS.ACTIVE) return fail16("Solo se adopta una ficha activa.");
+      const clean6 = (email ?? "").trim().toLowerCase();
+      if (!clean6) return fail16("Escribe el correo de quien adopta.");
       const [adopter] = await context.sudo().query.User.findMany({
-        where: { email: { equals: clean5, mode: "insensitive" } },
+        where: { email: { equals: clean6, mode: "insensitive" } },
         query: "id name lastName",
         take: 1
       });
       if (!adopter) {
-        return fail14(
+        return fail16(
           "No encontramos una cuenta de KADESH con ese correo. P\xEDdele que se registre (es gratis) y vuelve a intentarlo.",
           RESCUE_ADOPTER_NOT_FOUND
         );
       }
       const transferable = await loadTransferablePet(context, pet.id);
-      if (!transferable) return fail14("No encontramos esta ficha.");
+      if (!transferable) return fail16("No encontramos esta ficha.");
       await transferPetToOwner(context, transferable, adopter.id, {
         reportNote: `Adoptado con ${org.name} en KADESH.`
       });
@@ -36887,11 +40701,11 @@ var resolver50 = {
       };
     } catch (error) {
       console.error("[completeRescueAdoption]", error);
-      return fail14(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
+      return fail16(errorMessage4(error, "No pudimos completar la adopci\xF3n. Intenta de nuevo."));
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var rescuePets_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -36915,7 +40729,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs54 = `
+var typeDefs58 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -36925,10 +40739,10 @@ var typeDefs54 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition51 = `
+var definition55 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver51 = {
+var resolver55 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -36979,10 +40793,10 @@ var resolver51 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var unsubscribeBlog_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs55 = `
+var typeDefs59 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -36993,10 +40807,10 @@ var typeDefs55 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition52 = `
+var definition56 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver52 = {
+var resolver56 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -37045,10 +40859,10 @@ var resolver52 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var publishScheduledPosts_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs56 = `
+var typeDefs60 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -37059,7 +40873,7 @@ var typeDefs56 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition53 = `
+var definition57 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -37068,7 +40882,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver53 = {
+var resolver57 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -37136,7 +40950,7 @@ var resolver53 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -37231,7 +41045,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs57 = `
+var typeDefs61 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -37255,7 +41069,7 @@ var typeDefs57 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition54 = `
+var definition58 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -37271,7 +41085,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver54 = {
+var resolver58 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -37375,7 +41189,7 @@ var resolver54 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -37509,7 +41323,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs58 = `
+var typeDefs62 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -37523,10 +41337,10 @@ var typeDefs58 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition55 = `
+var definition59 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver55 = {
+var resolver59 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -37571,7 +41385,7 @@ var resolver55 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -37709,7 +41523,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs59 = `
+var typeDefs63 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -37720,10 +41534,10 @@ var typeDefs59 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition56 = `
+var definition60 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver56 = {
+var resolver60 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -37784,7 +41598,7 @@ var resolver56 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -37825,8 +41639,8 @@ function detectDateOrder(lines, now = Date.now()) {
   if (lines.some((l) => l.d2 > 12)) return "mdy";
   return orderPenalty(lines, "mdy", now) < orderPenalty(lines, "dmy", now) ? "mdy" : "dmy";
 }
-function parseWhatsAppChatExport(text89) {
-  const lines = text89.split(/\r?\n/);
+function parseWhatsAppChatExport(text106) {
+  const lines = text106.split(/\r?\n/);
   const raw = [];
   for (const rawLine of lines) {
     const line = rawLine.replace(/^‎/, "");
@@ -37873,7 +41687,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs60 = `
+var typeDefs64 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -37890,7 +41704,7 @@ var typeDefs60 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition57 = `
+var definition61 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -37901,7 +41715,7 @@ var definition57 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver57 = {
+var resolver61 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -37987,10 +41801,10 @@ var resolver57 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs61 = `
+var typeDefs65 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -38000,7 +41814,7 @@ var typeDefs61 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition58 = `
+var definition62 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -38012,7 +41826,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver58 = {
+var resolver62 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -38118,10 +41932,10 @@ var resolver58 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var import_crypto7 = __toESM(require("crypto"));
+var import_crypto8 = __toESM(require("crypto"));
 
 // utils/intregrations/s3Storage.ts
 var import_client_s3 = require("@aws-sdk/client-s3");
@@ -38167,7 +41981,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs62 = `
+var typeDefs66 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -38178,7 +41992,7 @@ var typeDefs62 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition59 = `
+var definition63 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -38191,7 +42005,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver59 = {
+var resolver63 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -38217,7 +42031,7 @@ var resolver59 = {
     const { filename, mimetype, createReadStream } = await media;
     const buffer = await streamToBuffer(createReadStream());
     const mediaType = mimetype.startsWith("image/") ? "image" : "document";
-    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto7.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${effectiveCompanyId}/${import_crypto8.default.randomUUID()}-${filename}`;
     try {
       const accessToken = decrypt(company.whatsappAccessTokenEncrypted);
       const uploaded = await uploadMediaToWhatsApp({
@@ -38275,10 +42089,10 @@ var resolver59 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs63 = `
+var typeDefs67 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -38288,13 +42102,13 @@ var typeDefs63 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition60 = `
+var definition64 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver60 = {
+var resolver64 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -38351,10 +42165,10 @@ var resolver60 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs64 = `
+var typeDefs68 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -38365,13 +42179,13 @@ var typeDefs64 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition61 = `
+var definition65 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver61 = {
+var resolver65 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -38408,7 +42222,7 @@ var resolver61 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -38421,7 +42235,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs65 = `
+var typeDefs69 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -38457,10 +42271,10 @@ var typeDefs65 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition62 = `
+var definition66 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
-function fail7(message, detail = null) {
+function fail9(message, detail = null) {
   return {
     success: false,
     message,
@@ -38474,7 +42288,7 @@ function fail7(message, detail = null) {
     templateError: null
   };
 }
-var resolver62 = {
+var resolver66 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -38484,53 +42298,53 @@ var resolver62 = {
   discoverWhatsappAccount: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
-      return fail7(denyCompanyWhatsappAccessMessage(session2));
+      return fail9(denyCompanyWhatsappAccessMessage(session2));
     }
     const appId = input.appId.trim();
     const appSecret = input.appSecret.trim();
     const accessToken = input.accessToken.trim();
     if (!appId || !appSecret || !accessToken) {
-      return fail7("Faltan datos: pega el App ID, el App Secret y el token.");
+      return fail9("Faltan datos: pega el App ID, el App Secret y el token.");
     }
     const existing = await context.sudo().query.SaasCompany.findOne({
       where: { id: input.companyId },
       query: "id whatsappBusinessAccountId whatsappPhoneNumberId"
     });
-    if (!existing) return fail7("No se encontr\xF3 la empresa");
+    if (!existing) return fail9("No se encontr\xF3 la empresa");
     let wabaIds;
     try {
       const info = await debugWhatsAppToken({ appId, appSecret, accessToken });
       if (!info.isValid) {
-        return fail7(
+        return fail9(
           "El token no es v\xE1lido (expir\xF3 o fue revocado). Genera uno permanente en Configuraci\xF3n de la empresa \u2192 Usuarios del sistema.",
           info.invalidReason
         );
       }
       if (info.appId && info.appId !== appId) {
-        return fail7(
+        return fail9(
           `Ese token es de otra App de Meta (ID ${info.appId}), no de la App con ID ${appId}. Genera el token desde la misma App.`
         );
       }
       if (info.expiresAt !== 0 && info.expiresAt * 1e3 - Date.now() < MIN_TOKEN_LIFETIME_MS) {
-        return fail7(
+        return fail9(
           "Ese token es temporal y va a dejar de funcionar pronto. Genera uno permanente (sin fecha de expiraci\xF3n) con un usuario del sistema."
         );
       }
       const missing = REQUIRED_SCOPES.filter((s) => !info.scopes.includes(s));
       if (missing.length > 0) {
-        return fail7(
+        return fail9(
           `Al token le falta el permiso: ${missing.join(" y ")}. Genera uno nuevo con los dos permisos (whatsapp_business_messaging y whatsapp_business_management).`
         );
       }
       if (info.wabaIds.length === 0) {
-        return fail7(
+        return fail9(
           "El token no da acceso a ninguna cuenta de WhatsApp Business. Al generarlo, asigna la cuenta de WhatsApp Business al usuario del sistema."
         );
       }
       wabaIds = info.wabaIds;
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail7(f.message, f.detail);
+      return fail9(f.message, f.detail);
     }
     const options = [];
     let firstListError = null;
@@ -38545,9 +42359,9 @@ var resolver62 = {
     if (options.length === 0) {
       if (firstListError) {
         const f = friendlyWhatsappError(firstListError);
-        return fail7(f.message, f.detail);
+        return fail9(f.message, f.detail);
       }
-      return fail7(
+      return fail9(
         "Encontramos tu cuenta de WhatsApp Business pero no tiene ning\xFAn n\xFAmero. Agrega uno en WhatsApp \u2192 Configuraci\xF3n de la API y vuelve a intentar."
       );
     }
@@ -38555,12 +42369,12 @@ var resolver62 = {
     let chosen;
     if (wantedId) {
       chosen = options.find((o) => o.id === wantedId);
-      if (!chosen) return fail7("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
+      if (!chosen) return fail9("Ese n\xFAmero no est\xE1 entre los que da acceso el token.");
     } else if (options.length === 1) {
       chosen = options[0];
     } else {
       return {
-        ...fail7("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
+        ...fail9("Este token da acceso a varios n\xFAmeros. Elige cu\xE1l conectar."),
         success: true,
         needsSelection: true,
         phoneOptions: options
@@ -38578,7 +42392,7 @@ var resolver62 = {
       take: 1
     });
     if (clash.length > 0) {
-      return fail7("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
+      return fail9("Ese n\xFAmero o esa cuenta de WhatsApp Business ya est\xE1 conectado a otra empresa.");
     }
     const changedAccount = existing.whatsappBusinessAccountId !== chosen.wabaId || existing.whatsappPhoneNumberId !== chosen.id;
     try {
@@ -38603,7 +42417,7 @@ var resolver62 = {
       });
     } catch (err) {
       const f = friendlyWhatsappError(err);
-      return fail7(f.message, f.detail);
+      return fail9(f.message, f.detail);
     }
     let webhookConfigured = false;
     let webhookError = null;
@@ -38648,11 +42462,11 @@ var resolver62 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
-var import_crypto8 = require("crypto");
+var import_crypto9 = require("crypto");
 var PURPOSE = "google-calendar-connect";
 var devFallbackSecret = null;
 function getSecret() {
@@ -38661,7 +42475,7 @@ function getSecret() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("SESSION_SECRET es requerido para firmar el state de Google Calendar");
   }
-  devFallbackSecret ??= (0, import_crypto8.randomBytes)(32).toString("hex");
+  devFallbackSecret ??= (0, import_crypto9.randomBytes)(32).toString("hex");
   return devFallbackSecret;
 }
 function signGoogleCalendarState(payload) {
@@ -38715,7 +42529,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs66 = `
+var typeDefs70 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -38726,27 +42540,27 @@ var typeDefs66 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition63 = `
+var definition67 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
-var fail8 = (message) => ({ success: false, message, url: null });
-var resolver63 = {
+var fail10 = (message) => ({ success: false, message, url: null });
+var resolver67 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail8(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail10(denyGoogleCalendarAccessMessage(session2));
     if (scopeType !== "personal" /* PERSONAL */ && scopeType !== "company" /* COMPANY */) {
-      return fail8("Tipo de cuenta inv\xE1lido (personal o company)");
+      return fail10("Tipo de cuenta inv\xE1lido (personal o company)");
     }
     const targetCompanyId = isPlatformAdmin(session2) && companyId || getSessionCompanyId(session2);
-    if (!targetCompanyId) return fail8("Tu usuario no tiene una empresa asignada");
+    if (!targetCompanyId) return fail10("Tu usuario no tiene una empresa asignada");
     if (!canConnectGoogleCalendar(session2, scopeType, targetCompanyId)) {
-      return fail8(
+      return fail10(
         scopeType === "company" /* COMPANY */ ? "Solo el administrador de la empresa puede conectar la cuenta compartida" : denyGoogleCalendarAccessMessage(session2)
       );
     }
     if (!await companyHasCalendarFeature(context, targetCompanyId)) {
-      return fail8(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const state = signGoogleCalendarState({
@@ -38756,11 +42570,11 @@ var resolver63 = {
       });
       return { success: true, message: null, url: buildGoogleAuthUrl(state) };
     } catch (err) {
-      return fail8(friendlyGoogleCalendarError(err));
+      return fail10(friendlyGoogleCalendarError(err));
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -38815,7 +42629,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs67 = `
+var typeDefs71 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -38828,37 +42642,37 @@ var typeDefs67 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition64 = `
+var definition68 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
-var fail9 = (message) => ({
+var fail11 = (message) => ({
   success: false,
   message,
   accountId: null,
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver64 = {
+var resolver68 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    if (!userId) return fail9(denyGoogleCalendarAccessMessage(session2));
+    if (!userId) return fail11(denyGoogleCalendarAccessMessage(session2));
     const payload = verifyGoogleCalendarState(state);
     if (!payload || payload.uid !== userId) {
-      return fail9("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
+      return fail11("La solicitud de conexi\xF3n no es v\xE1lida o expir\xF3. Int\xE9ntalo de nuevo.");
     }
     const { cid: companyId, st: scopeType } = payload;
     if (!canConnectGoogleCalendar(session2, scopeType, companyId)) {
-      return fail9(denyGoogleCalendarAccessMessage(session2));
+      return fail11(denyGoogleCalendarAccessMessage(session2));
     }
     if (!await companyHasCalendarFeature(context, companyId)) {
-      return fail9(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail11(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     try {
       const tokens = await exchangeCodeForTokens(code);
       const calendars = await listCalendarList(tokens.accessToken);
       const email = calendars.find((c) => c.primary)?.id;
-      if (!email) return fail9("No se pudo identificar la cuenta de Google conectada");
+      if (!email) return fail11("No se pudo identificar la cuenta de Google conectada");
       const sudo = context.sudo();
       const ownerWhere = scopeType === "personal" /* PERSONAL */ ? { user: { id: { equals: userId } } } : { company: { id: { equals: companyId } } };
       const [existing] = await sudo.query.GoogleCalendarAccount.findMany({
@@ -38872,7 +42686,7 @@ var resolver64 = {
       });
       const refreshToken = tokens.refreshToken ?? (existing?.refreshTokenEncrypted ? decrypt(existing.refreshTokenEncrypted) : null);
       if (!refreshToken) {
-        return fail9(
+        return fail11(
           "Google no entreg\xF3 acceso permanente. Revoca el acceso de Kadesh en tu cuenta de Google y vuelve a conectar."
         );
       }
@@ -38923,14 +42737,14 @@ var resolver64 = {
       };
     } catch (err) {
       console.error("connectGoogleCalendarAccount:", err);
-      return fail9(friendlyGoogleCalendarError(err));
+      return fail11(friendlyGoogleCalendarError(err));
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs68 = `
+var typeDefs72 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -38940,10 +42754,10 @@ var typeDefs68 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition65 = `
+var definition69 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver65 = {
+var resolver69 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -38979,10 +42793,10 @@ var resolver65 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs69 = `
+var typeDefs73 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -38993,10 +42807,10 @@ var typeDefs69 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition66 = `
+var definition70 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver66 = {
+var resolver70 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -39042,10 +42856,10 @@ var resolver66 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs70 = `
+var typeDefs74 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -39057,10 +42871,10 @@ var typeDefs70 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition67 = `
+var definition71 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver67 = {
+var resolver71 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -39094,10 +42908,10 @@ var resolver67 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs71 = `
+var typeDefs75 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -39119,11 +42933,11 @@ var typeDefs71 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition68 = `
+var definition72 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
-var fail10 = (message) => ({
+var fail12 = (message) => ({
   success: false,
   message,
   selectionId: null,
@@ -39132,19 +42946,19 @@ var fail10 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver68 = {
+var resolver72 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
       query: `id account { ${ACCOUNT_SCOPE_QUERY} }`
     });
-    if (!selection?.account) return fail10("Calendario no encontrado");
+    if (!selection?.account) return fail12("Calendario no encontrado");
     if (!canManageGoogleCalendarAccount(context.session, selection.account)) {
-      return fail10(denyGoogleCalendarAccessMessage(context.session));
+      return fail12(denyGoogleCalendarAccessMessage(context.session));
     }
     const companyId = accountCompanyId(selection.account);
     if (companyId && !await companyHasCalendarFeature(context, companyId)) {
-      return fail10(CALENDAR_FEATURE_DENIED_MESSAGE);
+      return fail12(CALENDAR_FEATURE_DENIED_MESSAGE);
     }
     const data = {};
     for (const flag of FLAGS) {
@@ -39167,10 +42981,10 @@ var resolver68 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs72 = `
+var typeDefs76 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -39193,7 +43007,7 @@ var typeDefs72 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition69 = `
+var definition73 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -39212,7 +43026,7 @@ var MX_DAY2 = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit"
 });
-function text87(value, max = MAX_TEXT2) {
+function text104(value, max = MAX_TEXT2) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
@@ -39236,9 +43050,9 @@ function clientTime(value) {
   return at;
 }
 function summaryFor(type, meta, label) {
-  const section = text87(meta.section) ?? text87(meta.tab) ?? "una secci\xF3n";
-  const feature = text87(meta.feature) ?? text87(meta.featureKey) ?? "un m\xF3dulo";
-  const tour = text87(meta.tour) ?? text87(meta.tourId) ?? "";
+  const section = text104(meta.section) ?? text104(meta.tab) ?? "una secci\xF3n";
+  const feature = text104(meta.feature) ?? text104(meta.featureKey) ?? "un m\xF3dulo";
+  const tour = text104(meta.tour) ?? text104(meta.tourId) ?? "";
   switch (type) {
     case ACTIVITY_EVENT.UI_SECTION_VIEWED:
       return `Abri\xF3 ${section}`;
@@ -39283,9 +43097,9 @@ function clientErrorSummary(kind, operation, page) {
 async function logClientError(context, input, userId) {
   if (isKnownCrawlerRequest(context.req)) return;
   const metadata = flatMetadata(input.metadata);
-  const message = text87(metadata.message) ?? "Error desconocido";
-  const kind = text87(metadata.kind, 20) ?? "network";
-  const operation = text87(metadata.operation, 80);
+  const message = text104(metadata.message) ?? "Error desconocido";
+  const kind = text104(metadata.kind, 20) ?? "network";
+  const operation = text104(metadata.operation, 80);
   const page = cleanPage(metadata.page) ?? requestPage(context.req);
   const who = userId ?? `ip:${requestIp(context.req) ?? "?"}`;
   if (!clientErrorIsNew(`${who}|${kind}|${operation ?? ""}|${message}`)) return;
@@ -39302,11 +43116,11 @@ async function logClientError(context, input, userId) {
     occurredAt: clientTime(input.occurredAt)
   });
 }
-async function trackAnonymous(context, list103) {
+async function trackAnonymous(context, list119) {
   const ip = requestIp(context.req) ?? "?";
   let accepted = 0;
-  for (const input of list103.slice(0, ANONYMOUS_MAX_EVENTS)) {
-    const type = text87(input?.type, 60);
+  for (const input of list119.slice(0, ANONYMOUS_MAX_EVENTS)) {
+    const type = text104(input?.type, 60);
     if (!type || !ANONYMOUS_CLIENT_EVENT_TYPES.has(type)) continue;
     if (!anonymousErrorsPerIp.hit(ip).ok) break;
     try {
@@ -39319,7 +43133,7 @@ async function trackAnonymous(context, list103) {
       );
     }
   }
-  return { accepted, rejected: list103.length - accepted };
+  return { accepted, rejected: list119.length - accepted };
 }
 async function recordHeartbeat(context, userId, companyId) {
   const prisma = context.sudo().prisma;
@@ -39401,20 +43215,20 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver69 = {
+var resolver73 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
-    const list103 = Array.isArray(events) ? events : [];
-    if (getImpersonation(context.session)) return { accepted: 0, rejected: list103.length };
-    if (!userId) return trackAnonymous(context, list103);
+    const list119 = Array.isArray(events) ? events : [];
+    if (getImpersonation(context.session)) return { accepted: 0, rejected: list119.length };
+    if (!userId) return trackAnonymous(context, list119);
     const companyId = getSessionCompanyId(session2);
     const admin = isPlatformAdmin(session2);
-    const batch = list103.slice(0, MAX_EVENTS);
+    const batch = list119.slice(0, MAX_EVENTS);
     let accepted = 0;
     let heartbeatDone = false;
     for (const input of batch) {
-      const type = text87(input?.type, 60);
+      const type = text104(input?.type, 60);
       if (!type) continue;
       try {
         if (type === HEARTBEAT_EVENT) {
@@ -39435,8 +43249,8 @@ var resolver69 = {
           await logActivity(context, {
             type,
             summary: summaryFor(type, metadata, null),
-            entityType: text87(input.entityType, 60),
-            entityId: text87(input.entityId, 60),
+            entityType: text104(input.entityType, 60),
+            entityId: text104(input.entityId, 60),
             metadata,
             source: ACTIVITY_SOURCE.WEB,
             occurredAt
@@ -39445,7 +43259,7 @@ var resolver69 = {
           continue;
         }
         if (CLIENT_ADMIN_EVENT_TYPES.has(type) && admin) {
-          const entityId = text87(input.entityId, 60);
+          const entityId = text104(input.entityId, 60);
           const target = await adminViewLabel(context, type, input);
           if (await recentlyViewed(context, userId, type, target.companyId, entityId)) {
             accepted += 1;
@@ -39455,7 +43269,7 @@ var resolver69 = {
             type,
             summary: summaryFor(type, metadata, target.label),
             companyId: target.companyId,
-            entityType: text87(input.entityType, 60),
+            entityType: text104(input.entityType, 60),
             entityId,
             metadata,
             source: ACTIVITY_SOURCE.ADMIN,
@@ -39470,13 +43284,13 @@ var resolver69 = {
         );
       }
     }
-    return { accepted, rejected: list103.length - accepted };
+    return { accepted, rejected: list119.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var trackEvents_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs73 = `
+var typeDefs77 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -39487,7 +43301,7 @@ var typeDefs73 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition70 = `
+var definition74 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -39521,7 +43335,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver70 = {
+var resolver74 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -39631,7 +43445,7 @@ var resolver70 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var companyOps_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -39677,8 +43491,8 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 function toYmd2(value) {
-  const iso3 = toIso(value);
-  return iso3 ? iso3.slice(0, 10) : null;
+  const iso4 = toIso(value);
+  return iso4 ? iso4.slice(0, 10) : null;
 }
 var MX_DAY4 = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Mexico_City",
@@ -39872,7 +43686,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs74 = `
+var typeDefs78 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -39899,7 +43713,7 @@ var typeDefs74 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition71 = `
+var definition75 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -39932,8 +43746,8 @@ function fullName2(person) {
   return [person.name, person.lastName].filter(Boolean).join(" ").trim() || person.email || "una persona";
 }
 function cleanReason(reason) {
-  const text89 = reason?.trim() ?? "";
-  return text89.length >= MIN_REASON ? text89.slice(0, MAX_REASON) : null;
+  const text106 = reason?.trim() ?? "";
+  return text106.length >= MIN_REASON ? text106.slice(0, MAX_REASON) : null;
 }
 function maskTail(value) {
   if (!value) return null;
@@ -39946,7 +43760,7 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver71 = {
+var resolver75 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
@@ -40407,7 +44221,7 @@ var resolver71 = {
     }
     const short = userId.slice(-8);
     const name = [user.name, user.lastName, user.secondLastName].filter(Boolean).join(" ").trim();
-    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text89) => Boolean(text89 && text89.length >= 4));
+    const mentions = [name, [user.name, user.lastName].filter(Boolean).join(" ").trim(), user.email].filter((text106) => Boolean(text106 && text106.length >= 4));
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
@@ -40488,23 +44302,23 @@ var resolver71 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var accountControl_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs75 = `
+var typeDefs79 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition72 = `
+var definition76 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver72 = {
+var resolver76 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -40548,16 +44362,16 @@ var resolver72 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var animals_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/mutations/admin/paws.ts
 var REASON_MIN = 5;
 var REASON_MAX = 300;
-var typeDefs76 = ``;
-var definition73 = `
+var typeDefs80 = ``;
+var definition77 = `
   adminAdjustPaws(userId: ID!, amount: Int!, reason: String!): AdminOpsActionResult!
 `;
-var resolver73 = {
+var resolver77 = {
   adminAdjustPaws: async (_root, { userId, amount, reason }, context) => {
     const adminId = getSessionUserId(context.session);
     if (!adminId || !isPlatformAdmin(context.session)) {
@@ -40591,10 +44405,193 @@ var resolver73 = {
     }
   }
 };
-var paws_default2 = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var paws_default2 = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+
+// graphql/customs/mutations/admin/storeOrders.ts
+var typeDefs81 = `
+  type AdminStoreActionResult {
+    success: Boolean!
+    message: String!
+  }
+
+  input AdminStoreShipmentInput {
+    "pending | pending_approval | requested | label_created | in_transit | delivered | exception | returned | cancelled"
+    status: String!
+    carrier: String
+    trackingCode: String
+    "https://\u2026"
+    trackingUrl: String
+    "What Kadesh paid for this shipment, in MXN cents."
+    shippingCostCents: Int
+  }
+`;
+var definition78 = `
+  adminReviewStoreTransfer(orderId: ID!, approve: Boolean!, note: String): AdminStoreActionResult!
+  adminUpdateStoreShipment(shipmentId: ID!, input: AdminStoreShipmentInput!): AdminStoreActionResult!
+  adminCancelStoreOrder(orderId: ID!, reason: String!): AdminStoreActionResult!
+  adminRefundStoreOrder(orderId: ID!, reason: String!, restock: Boolean!): AdminStoreActionResult!
+  adminSetStoreOrderNote(orderId: ID!, note: String!): AdminStoreActionResult!
+`;
+async function findOrder(context, orderId) {
+  const order = await adminPrisma(context).storeOrder.findUnique({
+    where: { id: orderId },
+    select: { id: true, number: true, userId: true, status: true, paymentStatus: true, paymentMethod: true }
+  });
+  if (order instanceof Error) throw order;
+  return order;
+}
+var resolver78 = {
+  /** Confirms the money of a transfer arrived, or sends the buyer back to upload another proof. */
+  adminReviewStoreTransfer: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const adminId = getSessionUserId(context.session);
+    const order = await findOrder(context, args.orderId);
+    if (!order) return { success: false, message: "No encontramos el pedido." };
+    if (order.paymentMethod !== STORE_PAYMENT_METHOD.TRANSFER) {
+      return { success: false, message: "Este pedido no se paga por transferencia." };
+    }
+    const awaiting = order.paymentStatus === STORE_PAYMENT_STATUS.IN_REVIEW || order.paymentStatus === STORE_PAYMENT_STATUS.PENDING;
+    if (order.status !== STORE_ORDER_STATUS.OPEN || !awaiting) {
+      return { success: false, message: "Este pedido ya no espera la confirmaci\xF3n de una transferencia." };
+    }
+    if (args.approve) {
+      const result5 = await markStoreOrderPaid(context, order.id, {
+        provider: STORE_PAYMENT_METHOD.TRANSFER,
+        reviewedById: adminId
+      });
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_STORE_TRANSFER_REVIEWED,
+        summary: `Confirm\xF3 la transferencia del pedido ${order.number}`,
+        entityType: "StoreOrder",
+        entityId: order.id,
+        metadata: { approved: true }
+      });
+      return result5 === "paid" ? { success: true, message: "Transferencia confirmada. El pedido ya est\xE1 pagado." } : { success: false, message: "El pedido ya estaba pagado." };
+    }
+    const note = (args.note ?? "").trim().slice(0, 300);
+    if (!note) return { success: false, message: "Escribe por qu\xE9 no se pudo confirmar: la persona lo va a leer." };
+    const prisma = adminPrisma(context);
+    const expiresAt = new Date(Date.now() + STORE_TRANSFER_RETRY_HOURS * 36e5);
+    const moved = await prisma.storeOrder.updateMany({
+      where: { id: order.id, status: STORE_ORDER_STATUS.OPEN, paymentStatus: STORE_PAYMENT_STATUS.IN_REVIEW },
+      data: { paymentStatus: STORE_PAYMENT_STATUS.PENDING, expiresAt }
+    });
+    if (moved instanceof Error) throw moved;
+    if (moved.count !== 1) return { success: false, message: "Este pedido no tiene un comprobante en revisi\xF3n." };
+    const payment = await prisma.storePayment.updateMany({
+      where: { orderId: order.id, status: STORE_PAYMENT_ATTEMPT_STATUS.IN_REVIEW },
+      data: { status: STORE_PAYMENT_ATTEMPT_STATUS.PENDING, errorMessage: note, reviewedById: adminId, reviewedAt: /* @__PURE__ */ new Date() }
+    });
+    if (payment instanceof Error) throw payment;
+    await addStoreOrderEvent(context, {
+      orderId: order.id,
+      type: STORE_ORDER_EVENT.TRANSFER_REJECTED,
+      actorId: adminId,
+      message: `No pudimos confirmar tu transferencia: ${note}`,
+      isPublic: true,
+      fromStatus: STORE_PAYMENT_STATUS.IN_REVIEW,
+      toStatus: STORE_PAYMENT_STATUS.PENDING
+    });
+    if (order.userId) {
+      void notify(context, {
+        audience: [order.userId],
+        product: "pet",
+        type: NOTIFICATION_TYPE.STORE_TRANSFER_REJECTED,
+        title: "No pudimos confirmar tu transferencia",
+        body: `${order.number}: ${note}`,
+        entityType: "StoreOrder",
+        entityId: order.id,
+        url: storeOrderUrl(order.number)
+      });
+    }
+    void sendStoreOrderEmail(context, order.id, "transfer_rejected", { note });
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_STORE_TRANSFER_REVIEWED,
+      summary: `Rechaz\xF3 el comprobante del pedido ${order.number}`,
+      entityType: "StoreOrder",
+      entityId: order.id,
+      metadata: { approved: false }
+    });
+    return { success: true, message: "Comprobante rechazado. Le avisamos a la persona para que suba otro." };
+  },
+  /** Moves a package: guide, carrier, on its way, delivered. */
+  adminUpdateStoreShipment: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const result5 = await updateStoreShipment(context, args.shipmentId, {
+      ...args.input,
+      actorId: getSessionUserId(context.session)
+    });
+    if (result5.success) {
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_STORE_SHIPMENT_UPDATED,
+        summary: `Actualiz\xF3 un env\xEDo de la tienda a "${args.input.status}"`,
+        entityType: "StoreShipment",
+        entityId: args.shipmentId,
+        metadata: { status: args.input.status }
+      });
+    }
+    return result5;
+  },
+  /** Cancels an order nobody paid. A paid one is refunded instead. */
+  adminCancelStoreOrder: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const reason = (args.reason ?? "").trim();
+    if (!reason) return { success: false, message: "Escribe el motivo: la persona lo va a leer." };
+    const order = await findOrder(context, args.orderId);
+    if (!order) return { success: false, message: "No encontramos el pedido." };
+    if (order.paymentStatus === STORE_PAYMENT_STATUS.PAID) {
+      return { success: false, message: "Este pedido est\xE1 pagado: usa \xABReembolsar\xBB." };
+    }
+    const cancelled = await cancelUnpaidStoreOrder(context, order.id, {
+      reason,
+      actorId: getSessionUserId(context.session),
+      notifyBuyer: true
+    });
+    if (!cancelled) return { success: false, message: "El pedido ya estaba cancelado." };
+    void logActivity(context, {
+      type: ACTIVITY_EVENT.ADMIN_STORE_ORDER_CANCELLED,
+      summary: `Cancel\xF3 el pedido ${order.number}`,
+      entityType: "StoreOrder",
+      entityId: order.id
+    });
+    return { success: true, message: "Pedido cancelado. El stock regres\xF3 a la tienda." };
+  },
+  /** Full refund of a paid order (card: through Stripe; transfer: the money is returned by hand). */
+  adminRefundStoreOrder: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const reason = (args.reason ?? "").trim();
+    if (!reason) return { success: false, message: "Escribe el motivo: la persona lo va a leer." };
+    const result5 = await refundStoreOrder(context, args.orderId, {
+      reason,
+      restock: Boolean(args.restock),
+      actorId: getSessionUserId(context.session)
+    });
+    if (result5.success) {
+      void logActivity(context, {
+        type: ACTIVITY_EVENT.ADMIN_STORE_ORDER_REFUNDED,
+        summary: "Reembols\xF3 un pedido de la tienda",
+        entityType: "StoreOrder",
+        entityId: args.orderId,
+        metadata: { restock: Boolean(args.restock) }
+      });
+    }
+    return result5;
+  },
+  /** Internal note of the order. The buyer never sees it. */
+  adminSetStoreOrderNote: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const updated = await adminPrisma(context).storeOrder.updateMany({
+      where: { id: args.orderId },
+      data: { adminNote: (args.note ?? "").trim().slice(0, 2e3) }
+    });
+    if (updated instanceof Error) throw updated;
+    return updated.count === 1 ? { success: true, message: "Nota guardada." } : { success: false, message: "No encontramos el pedido." };
+  }
+};
+var storeOrders_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs77 = `
+var typeDefs82 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -40606,7 +44603,7 @@ var typeDefs77 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition74 = `
+var definition79 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -40619,7 +44616,7 @@ var definition74 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver74 = {
+var resolver79 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -40689,17 +44686,17 @@ var resolver74 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var adminZoneAlerts = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs78 = `
+var typeDefs83 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition75 = `
+var definition80 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -40711,7 +44708,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver75 = {
+var resolver80 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -40755,10 +44752,10 @@ var resolver75 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var errorIssues_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs79 = `
+var typeDefs84 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -40772,7 +44769,7 @@ var typeDefs79 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition76 = `
+var definition81 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -40803,7 +44800,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver76 = {
+var resolver81 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -40865,10 +44862,10 @@ var resolver76 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var security_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs80 = `
+var typeDefs85 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -40884,11 +44881,11 @@ var typeDefs80 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition77 = `
+var definition82 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver77 = {
+var resolver82 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -40922,18 +44919,18 @@ var resolver77 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var rollupDailyUsage_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs81 = `
+var typeDefs86 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition78 = `
+var definition83 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver78 = {
+var resolver83 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -40955,16 +44952,16 @@ var resolver78 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs82 = `
+var typeDefs87 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition79 = `
+var definition84 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
@@ -40973,11 +44970,11 @@ var PLATFORMS = new Set(Object.values(PUSH_PLATFORM));
 function prismaOf14(context) {
   return context.sudo().prisma;
 }
-function unwrap2(value) {
+function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver79 = {
+var resolver84 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -40991,7 +44988,7 @@ var resolver79 = {
     if (!PLATFORMS.has(platform)) throw new Error("Plataforma no v\xE1lida.");
     const cleanDevice = deviceId?.trim().slice(0, 200) || null;
     const prisma = prismaOf14(context);
-    const existing = unwrap2(
+    const existing = unwrap4(
       await prisma.tokenNotification.findMany({ where: { token: cleanToken }, select: { id: true } })
     );
     const data = {
@@ -41003,15 +45000,15 @@ var resolver79 = {
     };
     const [keep, ...duplicates] = existing;
     if (keep) {
-      unwrap2(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
+      unwrap4(await prisma.tokenNotification.update({ where: { id: keep.id }, data }));
       if (duplicates.length) {
-        unwrap2(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
+        unwrap4(await prisma.tokenNotification.deleteMany({ where: { id: { in: duplicates.map((row) => row.id) } } }));
       }
     } else {
-      unwrap2(await prisma.tokenNotification.create({ data }));
+      unwrap4(await prisma.tokenNotification.create({ data }));
     }
     if (cleanDevice) {
-      unwrap2(
+      unwrap4(
         await prisma.tokenNotification.deleteMany({
           where: { userId, deviceId: cleanDevice, token: { not: cleanToken } }
         })
@@ -41023,13 +45020,13 @@ var resolver79 = {
   unregisterPushToken: async (_root, { token }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
-    const result5 = unwrap2(
+    const result5 = unwrap4(
       await prismaOf14(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var pushTokens_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -41062,6 +45059,7 @@ var customMutation = {
     ${closeAnimalReport_default.typeDefs}
     ${animalSightings_default.typeDefs}
     ${paws_default.typeDefs}
+    ${store_default.typeDefs}
     ${sendAnimalFollowUps_default.typeDefs}
     ${adoptionApplications_default.typeDefs}
     ${card_default.typeDefs}
@@ -41090,6 +45088,7 @@ var customMutation = {
     ${accountControl_default.typeDefs}
     ${animals_default.typeDefs}
     ${paws_default2.typeDefs}
+    ${storeOrders_default.typeDefs}
     ${zoneAlerts_default.typeDefs}
     ${errorIssues_default.typeDefs}
     ${security_default.typeDefs}
@@ -41126,6 +45125,7 @@ var customMutation = {
     ${closeAnimalReport_default.definition}
     ${animalSightings_default.definition}
     ${paws_default.definition}
+    ${store_default.definition}
     ${sendAnimalFollowUps_default.definition}
     ${adoptionApplications_default.definition}
     ${card_default.definition}
@@ -41154,6 +45154,7 @@ var customMutation = {
     ${accountControl_default.definition}
     ${animals_default.definition}
     ${paws_default2.definition}
+    ${storeOrders_default.definition}
     ${zoneAlerts_default.definition}
     ${errorIssues_default.definition}
     ${security_default.definition}
@@ -41190,6 +45191,7 @@ var customMutation = {
     ...closeAnimalReport_default.resolver,
     ...animalSightings_default.resolver,
     ...paws_default.resolver,
+    ...store_default.resolver,
     ...sendAnimalFollowUps_default.resolver,
     ...adoptionApplications_default.resolver,
     ...card_default.resolver,
@@ -41218,6 +45220,7 @@ var customMutation = {
     ...accountControl_default.resolver,
     ...animals_default.resolver,
     ...paws_default2.resolver,
+    ...storeOrders_default.resolver,
     ...zoneAlerts_default.resolver,
     ...errorIssues_default.resolver,
     ...security_default.resolver,
@@ -41241,8 +45244,8 @@ var COORD_PATTERN = "^-?[0-9]+([.][0-9]+)?$";
 function hasPoint(filters) {
   return typeof filters.lat === "number" && typeof filters.lng === "number" && Number.isFinite(filters.lat) && Number.isFinite(filters.lng);
 }
-function escapeLike(text89) {
-  return text89.replace(/[\\%_]/g, (char) => `\\${char}`);
+function escapeLike(text106) {
+  return text106.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 async function queryNearbyAnimals(prisma, filters, page) {
   const point = hasPoint(filters) ? filters : null;
@@ -41312,13 +45315,13 @@ async function queryNearbyAnimals(prisma, filters, page) {
     LIMIT ${page.limit}::int OFFSET ${page.skip}::int
   `;
   if (rows2 instanceof Error) throw rows2;
-  const list103 = rows2;
-  let total = list103[0]?.total ?? 0;
-  if (list103.length === 0 && page.skip > 0) {
+  const list119 = rows2;
+  let total = list119[0]?.total ?? 0;
+  if (list119.length === 0 && page.skip > 0) {
     total = (await queryNearbyAnimals(prisma, filters, { limit: 1, skip: 0 })).total;
   }
   return {
-    rows: list103.map(({ total: _total, ...row }) => ({
+    rows: list119.map(({ total: _total, ...row }) => ({
       ...row,
       distance: row.distance == null ? null : Math.round(Number(row.distance) * 100) / 100
     })),
@@ -41356,7 +45359,7 @@ async function getAnimalCoverUrls(ids, context) {
 // graphql/customs/queries/nearbyAnimals.ts
 var MAX_LIST_LIMIT = 500;
 var MAX_PINS = 1e3;
-var typeDefs83 = `
+var typeDefs88 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -41456,7 +45459,7 @@ var typeDefs83 = `
     getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
   }
 `;
-var definition80 = `
+var definition85 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
 `;
@@ -41505,9 +45508,9 @@ async function getRecentSightings(rows2, context) {
     return byAnimal;
   }
   for (const row of sightings) {
-    const list103 = byAnimal.get(row.animalId) ?? [];
-    if (list103.length >= MAP_SIGHTINGS_PER_ANIMAL) continue;
-    list103.push({
+    const list119 = byAnimal.get(row.animalId) ?? [];
+    if (list119.length >= MAP_SIGHTINGS_PER_ANIMAL) continue;
+    list119.push({
       id: row.id,
       lat: row.lat,
       lng: row.lng,
@@ -41515,7 +45518,7 @@ async function getRecentSightings(rows2, context) {
       placeLabel: row.placeLabel || null,
       city: row.city || null
     });
-    byAnimal.set(row.animalId, list103);
+    byAnimal.set(row.animalId, list119);
   }
   return byAnimal;
 }
@@ -41530,11 +45533,11 @@ async function getMultimedia(ids, context) {
   for (const item of media) {
     const animalId = item.animal?.id;
     if (!animalId) continue;
-    const list103 = byAnimal.get(animalId) ?? [];
-    list103.push({ id: item.id, url: item.image?.url ?? null, order: item.order ?? 1e4 });
-    byAnimal.set(animalId, list103);
+    const list119 = byAnimal.get(animalId) ?? [];
+    list119.push({ id: item.id, url: item.image?.url ?? null, order: item.order ?? 1e4 });
+    byAnimal.set(animalId, list119);
   }
-  for (const list103 of byAnimal.values()) list103.sort((a, b) => a.order - b.order);
+  for (const list119 of byAnimal.values()) list119.sort((a, b) => a.order - b.order);
   return byAnimal;
 }
 async function getAuthors(ids, context) {
@@ -41554,11 +45557,11 @@ async function getAuthors(ids, context) {
   return byAnimal;
 }
 function clampInt2(value, fallback, max) {
-  const num = Math.floor(Number(value ?? fallback));
-  if (!Number.isFinite(num) || num < 0) return fallback;
-  return Math.min(num, max);
+  const num2 = Math.floor(Number(value ?? fallback));
+  if (!Number.isFinite(num2) || num2 < 0) return fallback;
+  return Math.min(num2, max);
 }
-var resolver80 = {
+var resolver85 = {
   getNearbyAnimals: async (_root, { input }, context) => {
     const limit = clampInt2(input.limit, 10, MAX_LIST_LIMIT);
     const skip = clampInt2(input.skip, 0, Number.MAX_SAFE_INTEGER);
@@ -41629,10 +45632,10 @@ var resolver80 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var nearbyAnimals_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs84 = `
+var typeDefs89 = `
   type AnimalReportDuplicate {
     id: ID!
     """Nombre real; vac\xEDo si no se sabe."""
@@ -41656,7 +45659,7 @@ var typeDefs84 = `
     isMine: Boolean!
   }
 `;
-var definition81 = `
+var definition86 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -41680,7 +45683,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver81 = {
+var resolver86 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -41708,7 +45711,7 @@ var resolver81 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -42090,7 +46093,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs85 = `
+var typeDefs90 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -42150,10 +46153,10 @@ var typeDefs85 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition82 = `
+var definition87 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver82 = {
+var resolver87 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -42233,10 +46236,10 @@ var resolver82 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs86 = `
+var typeDefs91 = `
   type StripeCard {
     brand: String
     country: String
@@ -42270,10 +46273,10 @@ var typeDefs86 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition83 = `
+var definition88 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver83 = {
+var resolver88 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -42309,10 +46312,10 @@ var resolver83 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var stripePaymentMethods_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs87 = `
+var typeDefs92 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -42350,7 +46353,7 @@ var typeDefs87 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition84 = `
+var definition89 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -42359,7 +46362,7 @@ var INTERVAL_BY_FREQUENCY = {
   [PLAN_FREQUENCY.ANNUAL]: "year",
   [PLAN_FREQUENCY.ONCE]: null
 };
-function fail11(message) {
+function fail13(message) {
   return { success: false, message, allMatch: false, fields: [] };
 }
 function toMinorUnits(amount) {
@@ -42370,19 +46373,19 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver84 = {
+var resolver89 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
-      return fail11("Solo operaciones puede verificar planes con Stripe.");
+      return fail13("Solo operaciones puede verificar planes con Stripe.");
     }
     const plan = await context.sudo().query.SaasPlan.findOne({
       where: { id: input.planId },
       query: "id name cost currency frequency stripePriceId stripeProductId active"
     });
-    if (!plan) return fail11("No encontramos ese plan.");
+    if (!plan) return fail13("No encontramos ese plan.");
     const priceId = (input.stripePriceId ?? plan.stripePriceId ?? "").trim();
     if (!priceId) {
-      return fail11(
+      return fail13(
         "Este plan no tiene un precio de Stripe ligado. Pega el ID del precio para poder verificarlo."
       );
     }
@@ -42395,7 +46398,7 @@ var resolver84 = {
       price = await stripe_default.prices.retrieve(priceId, { expand: ["product"] });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return fail11(`Stripe no reconoci\xF3 ese precio: ${message}`);
+      return fail13(`Stripe no reconoci\xF3 ese precio: ${message}`);
     }
     const product = price.product && typeof price.product === "object" ? price.product : null;
     const stripeProductId = product?.id ?? (typeof price.product === "string" ? price.product : null);
@@ -42471,7 +46474,7 @@ var resolver84 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var stripePlanCheck_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -42609,7 +46612,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs88 = `
+var typeDefs93 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -42637,10 +46640,10 @@ var typeDefs88 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition85 = `
+var definition90 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver85 = {
+var resolver90 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -42758,11 +46761,11 @@ var resolver85 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var subscriptionStatus_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs89 = `
+var typeDefs94 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -42774,10 +46777,10 @@ var typeDefs89 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition86 = `
+var definition91 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver86 = {
+var resolver91 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -42810,10 +46813,10 @@ var resolver86 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs90 = `
+var typeDefs95 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -42825,10 +46828,10 @@ var typeDefs90 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition87 = `
+var definition92 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver87 = {
+var resolver92 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -42850,11 +46853,11 @@ var resolver87 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs91 = `
+var typeDefs96 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -42883,14 +46886,14 @@ var typeDefs91 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition88 = `
+var definition93 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver88 = {
+var resolver93 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -42946,11 +46949,11 @@ var resolver88 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var whatsappConversations_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs92 = `
+var typeDefs97 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -42962,10 +46965,10 @@ var typeDefs92 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition89 = `
+var definition94 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver89 = {
+var resolver94 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -43006,10 +47009,10 @@ var resolver89 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs93 = `
+var typeDefs98 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -43027,10 +47030,10 @@ var typeDefs93 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition90 = `
+var definition95 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver90 = {
+var resolver95 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -43056,10 +47059,10 @@ var resolver90 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs94 = `
+var typeDefs99 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -43085,13 +47088,13 @@ var typeDefs94 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition91 = `
+var definition96 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
-function fail12(message) {
+function fail14(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver91 = {
+var resolver96 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -43106,23 +47109,23 @@ var resolver91 = {
         context
       );
       if (!target && !resolvedCompanyId) {
-        return fail12(error ?? "No se pudo resolver la conversaci\xF3n");
+        return fail14(error ?? "No se pudo resolver la conversaci\xF3n");
       }
       if (target) {
         resolvedCompanyId = resolvedCompanyId ?? target.companyId;
         recipientName = target.displayName;
       }
     }
-    if (!resolvedCompanyId) return fail12("Falta indicar la empresa o la conversaci\xF3n");
+    if (!resolvedCompanyId) return fail14("Falta indicar la empresa o la conversaci\xF3n");
     if (!canUseCompanyWhatsapp(context.session, resolvedCompanyId)) {
-      return fail12("No tienes acceso al WhatsApp de esta empresa");
+      return fail14("No tienes acceso al WhatsApp de esta empresa");
     }
     const company = await context.sudo().query.SaasCompany.findOne({
       where: { id: resolvedCompanyId },
       query: "id name whatsappBusinessAccountId whatsappAccessTokenEncrypted"
     });
     if (!company?.whatsappBusinessAccountId || !company?.whatsappAccessTokenEncrypted) {
-      return fail12("WhatsApp no est\xE1 conectado para esta empresa");
+      return fail14("WhatsApp no est\xE1 conectado para esta empresa");
     }
     try {
       const templates = await listWhatsAppTemplates({
@@ -43142,17 +47145,17 @@ var resolver91 = {
         `[whatsapp] No se pudieron listar las plantillas de la empresa ${resolvedCompanyId}:`,
         err
       );
-      return fail12(
+      return fail14(
         err instanceof Error ? err.message.replace(/^\[whatsapp\] Graph API error[^:]*:\s*/, "") : "No se pudieron leer las plantillas de Meta"
       );
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs95 = `
+var typeDefs100 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -43180,25 +47183,25 @@ var typeDefs95 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition92 = `
+var definition97 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver92 = {
+var resolver97 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
     timeMax
   }, context) => {
-    const fail14 = (message) => ({ success: false, message, events: [] });
-    if (!context.session?.data?.id) return fail14(denyGoogleCalendarAccessMessage(context.session));
+    const fail16 = (message) => ({ success: false, message, events: [] });
+    if (!context.session?.data?.id) return fail16(denyGoogleCalendarAccessMessage(context.session));
     if (selectionIds.length === 0) return { success: true, message: null, events: [] };
     if (selectionIds.length > MAX_SELECTIONS) {
-      return fail14(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
+      return fail16(`M\xE1ximo ${MAX_SELECTIONS} calendarios por consulta`);
     }
     const min = new Date(timeMin);
     const max = new Date(timeMax);
     if (Number.isNaN(min.getTime()) || Number.isNaN(max.getTime()) || max <= min) {
-      return fail14("Rango de fechas inv\xE1lido");
+      return fail16("Rango de fechas inv\xE1lido");
     }
     const selections = await context.sudo().query.GoogleCalendarSelection.findMany({
       where: { id: { in: selectionIds } },
@@ -43215,7 +47218,7 @@ var resolver92 = {
         if (!featureByCompany.has(companyId)) {
           featureByCompany.set(companyId, await companyHasCalendarFeature(context, companyId));
         }
-        if (!featureByCompany.get(companyId)) return fail14(CALENDAR_FEATURE_DENIED_MESSAGE);
+        if (!featureByCompany.get(companyId)) return fail16(CALENDAR_FEATURE_DENIED_MESSAGE);
       }
       try {
         events.push(
@@ -43235,7 +47238,7 @@ var resolver92 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -43535,7 +47538,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs96 = `
+var typeDefs101 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -43617,7 +47620,7 @@ var typeDefs96 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition93 = `
+var definition98 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -43636,7 +47639,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver93 = {
+var resolver98 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43737,12 +47740,12 @@ var resolver93 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var adminHealth_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs97 = `
+var typeDefs102 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -43797,7 +47800,7 @@ var typeDefs97 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition94 = `
+var definition99 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -43806,7 +47809,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver94 = {
+var resolver99 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -43943,14 +47946,14 @@ var resolver94 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var adminCompanies_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs98 = `
+var typeDefs103 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -43993,7 +47996,7 @@ var typeDefs98 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition95 = `
+var definition100 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -44004,7 +48007,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver95 = {
+var resolver100 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44311,14 +48314,14 @@ var resolver95 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var adminOpsSummary_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs99 = `
+var typeDefs104 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -44425,7 +48428,7 @@ var typeDefs99 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition96 = `
+var definition101 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -44563,7 +48566,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver96 = {
+var resolver101 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -44894,10 +48897,10 @@ var resolver96 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var adminCompanyInsights_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs100 = `
+var typeDefs105 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -44938,7 +48941,7 @@ var typeDefs100 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition97 = `
+var definition102 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -44969,12 +48972,12 @@ function median(values2) {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
-var EMPTY2 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver97 = {
+var EMPTY4 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
+var resolver102 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
-    if (!prisma.saasCompanyDailyUsage) return EMPTY2;
+    if (!prisma.saasCompanyDailyUsage) return EMPTY4;
     const weekCount = clampInt(weeks, 4, 26, 12);
     const lastDay = shiftDay(mxToday(), -1);
     const firstDay = shiftDay(lastDay, -(weekCount * 7 - 1));
@@ -45047,10 +49050,10 @@ var resolver97 = {
           median: median(others.map((total) => total[key]))
         }))
       };
-    }, EMPTY2);
+    }, EMPTY4);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var adminCompanyTrends_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -45070,7 +49073,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs101 = `
+var typeDefs106 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -45122,7 +49125,7 @@ var typeDefs101 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition98 = `
+var definition103 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -45191,8 +49194,8 @@ function money2(amount, currency) {
   }
 }
 function joinDetail(parts) {
-  const text89 = parts.filter(Boolean).join(" \xB7 ");
-  return text89 || null;
+  const text106 = parts.filter(Boolean).join(" \xB7 ");
+  return text106 || null;
 }
 function personSearch(q) {
   return {
@@ -45986,7 +49989,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver98 = {
+var resolver103 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -46030,10 +50033,10 @@ var resolver98 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminActivityFeed_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs102 = `
+var typeDefs107 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -46093,13 +50096,13 @@ var typeDefs102 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition99 = `
+var definition104 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
 var MAX_GROUPS = 300;
 var TOP_USER_AGENTS = 5;
-function text88(value) {
+function text105(value) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 function effectiveStatus(issue, lastSeen) {
@@ -46156,7 +50159,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver99 = {
+var resolver104 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46205,26 +50208,26 @@ var resolver99 = {
     const userAgents = /* @__PURE__ */ new Map();
     for (const row of uaGroups) {
       if (!row.userAgent) continue;
-      const list103 = userAgents.get(row.fingerprint) ?? [];
-      list103.push({ key: row.userAgent, count: row._count._all });
-      userAgents.set(row.fingerprint, list103);
+      const list119 = userAgents.get(row.fingerprint) ?? [];
+      list119.push({ key: row.userAgent, count: row._count._all });
+      userAgents.set(row.fingerprint, list119);
     }
     const all = groups.map((group) => {
       const sample = sampleBy.get(group.fingerprint) ?? {};
       const metadata = sample.metadata && typeof sample.metadata === "object" ? sample.metadata : {};
       const issue = issues.get(group.fingerprint);
       const { status, reopened } = effectiveStatus(issue, group.lastSeen);
-      const legacyKind = text88(metadata.kind);
-      const opType = text88(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
+      const legacyKind = text105(metadata.kind);
+      const opType = text105(metadata.opType) ?? (legacyKind === "query" || legacyKind === "mutation" ? legacyKind : null);
       return {
         fingerprint: group.fingerprint,
         type: sample.type ?? "app.error",
         title: sample.summary || "Error",
         message: sample.errorMessage ?? null,
-        operation: text88(metadata.operation),
+        operation: text105(metadata.operation),
         kind: legacyKind && legacyKind !== opType ? legacyKind : null,
         opType,
-        code: text88(metadata.code),
+        code: text105(metadata.code),
         app: sample.app ?? null,
         apps: apps.get(group.fingerprint) ?? [],
         page: sample.page ?? null,
@@ -46255,10 +50258,10 @@ var resolver99 = {
     return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminErrorIssues_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs103 = `
+var typeDefs108 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -46297,7 +50300,7 @@ var typeDefs103 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition100 = `
+var definition105 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -46327,7 +50330,7 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver100 = {
+var resolver105 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46418,10 +50421,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminPersonDevices_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs104 = `
+var typeDefs109 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -46463,7 +50466,7 @@ var typeDefs104 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition101 = `
+var definition106 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -46474,7 +50477,7 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver101 = {
+var resolver106 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46569,7 +50572,7 @@ var resolver101 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminSecurity_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -46675,7 +50678,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs105 = `
+var typeDefs110 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -46714,7 +50717,7 @@ var typeDefs105 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition102 = `
+var definition107 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -46732,7 +50735,7 @@ function median2(values2) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver102 = {
+var resolver107 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46804,10 +50807,10 @@ var resolver102 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminActivationFunnel_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs106 = `
+var typeDefs111 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -46829,7 +50832,7 @@ var typeDefs106 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition103 = `
+var definition108 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -46842,7 +50845,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver103 = {
+var resolver108 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -46912,7 +50915,7 @@ var resolver103 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminCohorts_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -46925,7 +50928,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs107 = `
+var typeDefs112 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -46979,11 +50982,11 @@ var typeDefs107 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition104 = `
+var definition109 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver104 = {
+var resolver109 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47114,12 +51117,12 @@ var resolver104 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminEngagement_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs108 = `
+var typeDefs113 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -47174,7 +51177,7 @@ var typeDefs108 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition105 = `
+var definition110 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -47191,7 +51194,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver105 = {
+var resolver110 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47275,12 +51278,12 @@ var resolver105 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var adminDemandGaps_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs109 = `
+var typeDefs114 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -47311,7 +51314,7 @@ var typeDefs109 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition106 = `
+var definition111 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -47325,7 +51328,7 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver106 = {
+var resolver111 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47372,7 +51375,7 @@ var resolver106 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var adminAcquisition_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // utils/analytics/salesVelocity.ts
 var DAY_MS10 = 24 * 60 * 60 * 1e3;
@@ -47509,16 +51512,16 @@ async function computeSalesVelocity(prisma, options) {
   const messages = ownLeadIds ? allMessages.filter((m) => ownLeadIds.has(m.businessLeadId)) : allMessages;
   const byStatus = /* @__PURE__ */ new Map();
   for (const change of changes) {
-    const list103 = byStatus.get(change.statusId) ?? [];
-    list103.push(change);
-    byStatus.set(change.statusId, list103);
+    const list119 = byStatus.get(change.statusId) ?? [];
+    list119.push(change);
+    byStatus.set(change.statusId, list119);
   }
   const contactKey = (company, lead) => `${company}|${lead}`;
   const contactTimes = /* @__PURE__ */ new Map();
   const addContact = (key, at) => {
-    const list103 = contactTimes.get(key) ?? [];
-    list103.push(new Date(at).getTime());
-    contactTimes.set(key, list103);
+    const list119 = contactTimes.get(key) ?? [];
+    list119.push(new Date(at).getTime());
+    contactTimes.set(key, list119);
   };
   for (const activity of activities) {
     const company = activity.workspace?.companyId ?? activity.createdBy?.companyId ?? null;
@@ -47537,19 +51540,19 @@ async function computeSalesVelocity(prisma, options) {
   const companies = /* @__PURE__ */ new Map();
   const sellers = /* @__PURE__ */ new Map();
   const groupsFor = (companyId, statusId) => {
-    const list103 = [total];
+    const list119 = [total];
     if (companyId) {
       const group = companies.get(companyId) ?? emptyGroup();
       companies.set(companyId, group);
-      list103.push(group);
+      list119.push(group);
     }
     if (needStatuses) {
       const seller = sellerOf.get(statusId) ?? "";
       const group = sellers.get(seller) ?? emptyGroup();
       sellers.set(seller, group);
-      list103.push(group);
+      list119.push(group);
     }
-    return list103;
+    return list119;
   };
   const wonStatusIds = [];
   const stalledDeals = [];
@@ -47621,9 +51624,9 @@ async function computeSalesVelocity(prisma, options) {
   const conversations = /* @__PURE__ */ new Map();
   for (const message of messages) {
     const key = contactKey(message.companyId, message.businessLeadId);
-    const list103 = conversations.get(key) ?? [];
-    list103.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
-    conversations.set(key, list103);
+    const list119 = conversations.get(key) ?? [];
+    list119.push({ direction: message.direction === "inbound" ? "in" : "out", at: new Date(message.createdAt).getTime() });
+    conversations.set(key, list119);
   }
   let whatsappInbound = 0;
   let whatsappAnswered = 0;
@@ -47631,22 +51634,22 @@ async function computeSalesVelocity(prisma, options) {
   let whatsappConversations = 0;
   let whatsappReplied = 0;
   const responseMinutes = [];
-  for (const list103 of conversations.values()) {
-    list103.forEach((message, index) => {
-      if (message.direction !== "in" || list103[index - 1]?.direction === "in") return;
+  for (const list119 of conversations.values()) {
+    list119.forEach((message, index) => {
+      if (message.direction !== "in" || list119[index - 1]?.direction === "in") return;
       whatsappInbound += 1;
-      const reply = list103.slice(index + 1).find((m) => m.direction === "out");
+      const reply = list119.slice(index + 1).find((m) => m.direction === "out");
       if (!reply) return;
       whatsappAnswered += 1;
       const minutes = (reply.at - message.at) / 6e4;
       responseMinutes.push(minutes);
       if (minutes <= 60) whatsappAnsweredWithin1h += 1;
     });
-    const firstOut = list103.findIndex((m) => m.direction === "out");
-    if (firstOut >= 0 && (firstOut === 0 || list103[firstOut - 1].direction === "out")) {
+    const firstOut = list119.findIndex((m) => m.direction === "out");
+    if (firstOut >= 0 && (firstOut === 0 || list119[firstOut - 1].direction === "out")) {
       whatsappConversations += 1;
-      const start = list103[firstOut].at;
-      if (list103.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
+      const start = list119[firstOut].at;
+      if (list119.slice(firstOut + 1).some((m) => m.direction === "in" && m.at - start <= WHATSAPP_REPLY_WINDOW_MS)) {
         whatsappReplied += 1;
       }
     }
@@ -47700,7 +51703,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs110 = `
+var typeDefs115 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -47772,10 +51775,10 @@ var typeDefs110 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition107 = `
+var definition112 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver107 = {
+var resolver112 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47799,10 +51802,10 @@ var resolver107 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var adminSalesVelocity_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs111 = `
+var typeDefs116 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -47885,7 +51888,7 @@ var typeDefs111 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition108 = `
+var definition113 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -47992,7 +51995,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver108 = {
+var resolver113 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -48094,10 +52097,10 @@ var resolver108 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var adminAnimals_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
 
 // graphql/customs/queries/admin/adminAnimalChannelPost.ts
-var typeDefs112 = `
+var typeDefs117 = `
   type AdminAnimalChannelPost {
     text: String!
     shortUrl: String!
@@ -48105,8 +52108,8 @@ var typeDefs112 = `
     channelUrl: String!
   }
 `;
-var definition109 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
-var resolver109 = {
+var definition114 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
+var resolver114 = {
   adminAnimalChannelPost: async (_root, { id }, context) => {
     assertPlatformAdmin(context);
     const animal = await context.sudo().query.Animal.findOne({
@@ -48124,10 +52127,10 @@ var resolver109 = {
     };
   }
 };
-var adminAnimalChannelPost_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var adminAnimalChannelPost_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs113 = `
+var typeDefs118 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -48225,7 +52228,7 @@ var typeDefs113 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition110 = `
+var definition115 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -48286,12 +52289,12 @@ function mxDayStartUtc(ymd) {
   return (/* @__PURE__ */ new Date(`${ymd}T00:00:00.000-06:00`)).toISOString().slice(0, 23).replace("T", " ");
 }
 function oneOf(value, allowed, fallback, label) {
-  const clean5 = value?.trim();
-  if (!clean5) return fallback;
-  if (!allowed.includes(clean5)) {
-    throw new Error(`Valor no v\xE1lido para ${label}: ${clean5}.`);
+  const clean6 = value?.trim();
+  if (!clean6) return fallback;
+  if (!allowed.includes(clean6)) {
+    throw new Error(`Valor no v\xE1lido para ${label}: ${clean6}.`);
   }
-  return clean5;
+  return clean6;
 }
 async function adminUserIds(prisma) {
   const rows2 = await prisma.user.findMany({
@@ -48534,7 +52537,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver110 = {
+var resolver115 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -48705,10 +52708,10 @@ var resolver110 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var adminPet_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs114 = `
+var typeDefs119 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -48801,7 +52804,7 @@ var typeDefs114 = `
     maxPerDay: Int!
   }
 `;
-var definition111 = `
+var definition116 = `
   adminNotificationLog(
     product: String
     type: String
@@ -48884,7 +52887,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver111 = {
+var resolver116 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -49065,13 +53068,13 @@ var resolver111 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var adminNotifications = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs115 = `
+var typeDefs120 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -49147,24 +53150,24 @@ var typeDefs115 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition112 = `
+var definition117 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
-var fail13 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
+var fail15 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver112 = {
+var resolver117 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
     const companyId = getSessionCompanyId(session2);
-    if (!userId) throw fail13("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
-    if (!companyId) throw fail13("Tu cuenta no tiene empresa.", "NO_COMPANY");
+    if (!userId) throw fail15("Inicia sesi\xF3n para ver la anal\xEDtica.", "UNAUTHENTICATED");
+    if (!companyId) throw fail15("Tu cuenta no tiene empresa.", "NO_COMPANY");
     if (!hasPermission(session2, PERMISSION_KEYS.ANALITICA_VER, () => true)) {
-      throw fail13("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
+      throw fail15("No tienes permiso para ver la anal\xEDtica. P\xEDdeselo al administrador de tu empresa.", "FORBIDDEN");
     }
     if (!isPlatformAdmin(session2) && !await companyHasPlanFeature(context, companyId, PLAN_FEATURE.ANALYTICS)) {
-      throw fail13("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
+      throw fail15("Tu plan no incluye Anal\xEDtica. Mejora tu plan para verla.", "FEATURE_LOCKED");
     }
     const seesTeam = hasPermission(
       session2,
@@ -49236,12 +53239,12 @@ var resolver112 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
+var companyAnalytics_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
-var cache2 = null;
-var typeDefs116 = `
+var cache3 = null;
+var typeDefs121 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -49251,8 +53254,8 @@ var typeDefs116 = `
     updatedAt: String!
   }
 `;
-var definition113 = `landingStats: LandingStats!`;
-function unwrap3(value) {
+var definition118 = `landingStats: LandingStats!`;
+function unwrap5(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49268,30 +53271,30 @@ async function computeLandingStats(context) {
     analyticsExcludedCompanyIds(prisma)
   ]);
   return {
-    leadsTotal: unwrap3(leadsTotal),
-    leadsWithPhone: unwrap3(leadsWithPhone),
-    categories: unwrap3(categoryGroups).length,
-    cities: unwrap3(cityGroups).length,
+    leadsTotal: unwrap5(leadsTotal),
+    leadsWithPhone: unwrap5(leadsWithPhone),
+    categories: unwrap5(categoryGroups).length,
+    cities: unwrap5(cityGroups).length,
     // Sin cuentas de prueba ni empresas del equipo de Kadesh (misma regla que la Analítica).
-    companies: Math.max(0, unwrap3(companiesTotal) - excluded.size),
+    companies: Math.max(0, unwrap5(companiesTotal) - excluded.size),
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver113 = {
+var resolver118 = {
   landingStats: async (_root, _args, context) => {
-    if (cache2 && Date.now() - cache2.at < CACHE_MS) return cache2.value;
+    if (cache3 && Date.now() - cache3.at < CACHE_MS) return cache3.value;
     const value = await computeLandingStats(context);
-    cache2 = { value, at: Date.now() };
+    cache3 = { value, at: Date.now() };
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
+var landingStats_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
-var cache3 = null;
-var typeDefs117 = `
+var cache4 = null;
+var typeDefs122 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -49307,8 +53310,8 @@ var typeDefs117 = `
     updatedAt: String!
   }
 `;
-var definition114 = `petLandingStats: PetLandingStats!`;
-function unwrap4(value) {
+var definition119 = `petLandingStats: PetLandingStats!`;
+function unwrap6(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49349,47 +53352,47 @@ async function computePetLandingStats(context) {
       GROUP BY outcome, "helpedByKadesh"
     `
   ]);
-  const outcomes = unwrap4(outcomeRows);
+  const outcomes = unwrap6(outcomeRows);
   const countOutcome = (outcome) => outcomes.filter((row) => row.outcome === outcome).reduce((total, row) => total + row.n, 0);
   const helpedByKadesh = outcomes.filter((row) => row.helped === "yes" && HOME_OUTCOMES.includes(row.outcome)).reduce((total, row) => total + row.n, 0);
   const byStatus = new Map(
-    unwrap4(statusRows).map((row) => [
+    unwrap6(statusRows).map((row) => [
       row.status ?? "",
       row.n
     ])
   );
   const count2 = (statuses) => statuses.reduce((total, status) => total + (byStatus.get(status) ?? 0), 0);
   return {
-    animals: unwrap4(animals),
+    animals: unwrap6(animals),
     animalsLost: count2(["lost"]),
     animalsHome: count2(HOME_STATUSES2),
     animalsInAdoption: count2(["in_adoption"]),
     reunions: countOutcome(ANIMAL_OUTCOME.REUNITED),
     adoptions: countOutcome(ANIMAL_OUTCOME.ADOPTED),
     helpedByKadesh,
-    veterinaries: unwrap4(veterinaries),
-    veterinariesVerified: unwrap4(veterinariesVerified),
-    rescueOrganizations: unwrap4(rescueOrganizations),
-    cities: unwrap4(cityRows)[0]?.n ?? 0,
+    veterinaries: unwrap6(veterinaries),
+    veterinariesVerified: unwrap6(veterinariesVerified),
+    rescueOrganizations: unwrap6(rescueOrganizations),
+    cities: unwrap6(cityRows)[0]?.n ?? 0,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver114 = {
+var resolver119 = {
   petLandingStats: async (_root, _args, context) => {
-    if (cache3 && Date.now() - cache3.at < CACHE_MS2) return cache3.value;
+    if (cache4 && Date.now() - cache4.at < CACHE_MS2) return cache4.value;
     const value = await computePetLandingStats(context);
-    cache3 = { value, at: Date.now() };
+    cache4 = { value, at: Date.now() };
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
+var petLandingStats_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
 
 // graphql/customs/queries/petReunionStories.ts
 var CACHE_MS3 = 10 * 60 * 1e3;
 var DEFAULT_TAKE = 6;
 var MAX_TAKE = 12;
 var STORY_MAX = 280;
-var typeDefs118 = `
+var typeDefs123 = `
   type PetReunionStory {
     id: ID!
     slug: String
@@ -49405,12 +53408,12 @@ var typeDefs118 = `
     coverUrl: String
   }
 `;
-var definition115 = `petReunionStories(take: Int): [PetReunionStory!]!`;
-var cache4 = null;
+var definition120 = `petReunionStories(take: Int): [PetReunionStory!]!`;
+var cache5 = null;
 function publicStoryText(raw) {
-  const clean5 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
-  if (clean5.length <= STORY_MAX) return clean5;
-  const cut = clean5.slice(0, STORY_MAX - 1);
+  const clean6 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
+  if (clean6.length <= STORY_MAX) return clean6;
+  const cut = clean6.slice(0, STORY_MAX - 1);
   const lastSpace = cut.lastIndexOf(" ");
   return `${(lastSpace > STORY_MAX * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[.,;:\s]+$/, "")}\u2026`;
 }
@@ -49435,9 +53438,9 @@ async function loadStories(context, take) {
     LIMIT ${take}::int
   `;
   if (rows2 instanceof Error) throw rows2;
-  const list103 = rows2.map((row) => ({ row, story: publicStoryText(row.story ?? "") })).filter(({ story }) => story.length >= 10);
-  const covers = await getAnimalCoverUrls(list103.map(({ row }) => row.id), context);
-  return list103.map(({ row, story }) => ({
+  const list119 = rows2.map((row) => ({ row, story: publicStoryText(row.story ?? "") })).filter(({ story }) => story.length >= 10);
+  const covers = await getAnimalCoverUrls(list119.map(({ row }) => row.id), context);
+  return list119.map(({ row, story }) => ({
     id: row.id,
     slug: row.slug,
     displayName: animalDisplayName({ name: row.name, typeName: row.typeName, sex: row.sex, color: row.color }),
@@ -49449,28 +53452,28 @@ async function loadStories(context, take) {
     coverUrl: covers.get(row.id) ?? null
   }));
 }
-var resolver115 = {
+var resolver120 = {
   petReunionStories: async (_root, args, context) => {
     const take = Math.min(Math.max(1, Math.floor(args.take ?? DEFAULT_TAKE)), MAX_TAKE);
     const now = Date.now();
-    if (cache4 && cache4.take === take && now - cache4.at < CACHE_MS3) return cache4.value;
+    if (cache5 && cache5.take === take && now - cache5.at < CACHE_MS3) return cache5.value;
     try {
       const value = await loadStories(context, take);
-      cache4 = { take, value, at: now };
+      cache5 = { take, value, at: now };
       return value;
     } catch (error) {
       console.error("[petReunionStories]", error);
-      return cache4?.value ?? [];
+      return cache5?.value ?? [];
     }
   }
 };
-var petReunionStories_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
+var petReunionStories_default = { typeDefs: typeDefs123, definition: definition120, resolver: resolver120 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE2 = 48;
 var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs119 = `
+var typeDefs124 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -49531,7 +53534,7 @@ var typeDefs119 = `
     sendAt: String
   }
 `;
-var definition116 = `
+var definition121 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
@@ -49544,7 +53547,7 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver116 = {
+var resolver121 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
@@ -49611,17 +53614,17 @@ var resolver116 = {
           LIMIT ${take}::int OFFSET ${skip}::int
         `;
     if (rows2 instanceof Error) throw rows2;
-    const list103 = rows2;
-    if (list103.length === 0) return { total: 0, items: [] };
-    const events = await context.db.PetEvent.findMany({ where: { id: { in: list103.map((row) => row.id) } } });
+    const list119 = rows2;
+    if (list119.length === 0) return { total: 0, items: [] };
+    const events = await context.db.PetEvent.findMany({ where: { id: { in: list119.map((row) => row.id) } } });
     const byId = new Map(events.map((event) => [event.id, event]));
-    const items = list103.filter((row) => byId.has(row.id)).map((row) => ({
+    const items = list119.filter((row) => byId.has(row.id)).map((row) => ({
       event: byId.get(row.id),
       nextStartsAt: row.nextStartsAt ? new Date(row.nextStartsAt).toISOString() : null,
       nextEndsAt: row.nextEndsAt ? new Date(row.nextEndsAt).toISOString() : null,
       distanceKm: row.km === null || row.km === void 0 ? null : Math.round(Number(row.km) * 10) / 10
     }));
-    return { total: Number(list103[0].total) || items.length, items };
+    return { total: Number(list119[0].total) || items.length, items };
   },
   /** Estados y municipios con eventos próximos publicados (para los filtros de /eventos). */
   petEventFacets: async (_root, _args, context) => {
@@ -49669,11 +53672,11 @@ var resolver116 = {
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
+var petEvents_default = { typeDefs: typeDefs124, definition: definition121, resolver: resolver121 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE3 = 300;
-var typeDefs120 = `
+var typeDefs125 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -49692,8 +53695,8 @@ var typeDefs120 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition117 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver117 = {
+var definition122 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver122 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE3, 1), MAX_TAKE3);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -49731,14 +53734,14 @@ var resolver117 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
+var rescueAllies_default = { typeDefs: typeDefs125, definition: definition122, resolver: resolver122 };
 
 // graphql/customs/queries/myPaws.ts
 var HISTORY_MAX_TAKE = 50;
-var typeDefs121 = `
+var typeDefs126 = `
   type PawHistoryEntry {
     id: ID!
-    "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | streak_bonus | admin_adjust"
+    "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | purchase | product_review | streak_bonus | admin_adjust"
     action: String!
     "earn | reversal | adjust | spend"
     kind: String!
@@ -49769,7 +53772,7 @@ var typeDefs121 = `
     history: [PawHistoryEntry!]!
   }
 `;
-var definition118 = `
+var definition123 = `
   myPaws: MyPaws
   myPawHistory(take: Int, skip: Int): [PawHistoryEntry!]!
 `;
@@ -49806,7 +53809,7 @@ function emptyPaws(enabled) {
     history: []
   };
 }
-var resolver118 = {
+var resolver123 = {
   myPaws: async (_root, _args, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return null;
@@ -49857,13 +53860,13 @@ var resolver118 = {
     }
   }
 };
-var myPaws_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
+var myPaws_default = { typeDefs: typeDefs126, definition: definition123, resolver: resolver123 };
 
 // graphql/customs/queries/publicProfile.ts
 var PROFILE_REPORTS_TAKE = 12;
 var PROFILE_EVENTS_TAKE = 6;
 var REPORTS_MAX_TAKE = 24;
-var typeDefs122 = `
+var typeDefs127 = `
   type PublicUserCard {
     "For the /u/<username> link; null when the person turned their public profile off."
     username: String
@@ -49938,7 +53941,7 @@ var typeDefs122 = `
     clinics: [PublicUserClinic!]!
   }
 `;
-var definition119 = `
+var definition124 = `
   animalAuthor(animalId: ID!): PublicUserCard
   publicUserProfile(username: String!): PublicUserProfile
   publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
@@ -49946,7 +53949,7 @@ var definition119 = `
 function prismaOf18(context) {
   return context.sudo().prisma;
 }
-function unwrap5(value) {
+function unwrap7(value) {
   if (value instanceof Error) throw value;
   return value;
 }
@@ -49956,10 +53959,10 @@ function iso2(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 async function loadProfileUser(context, username) {
-  const clean5 = username.trim().toLowerCase();
-  if (!clean5 || clean5.length > 120) return null;
+  const clean6 = username.trim().toLowerCase();
+  if (!clean6 || clean6.length > 120) return null;
   const [row] = await context.sudo().query.User.findMany({
-    where: { username: { equals: clean5 } },
+    where: { username: { equals: clean6 } },
     query: `${PUBLIC_USER_QUERY} bio phone email showPhoneOnProfile showEmailOnProfile createdAt`,
     take: 1
   });
@@ -49968,7 +53971,7 @@ async function loadProfileUser(context, username) {
   return row;
 }
 async function loadReports(context, userId, take, skip) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap7(
     await prismaOf18(context).$queryRaw`
       SELECT a.id, a.slug, a.name, a.sex, a.color, t.name AS "typeName", a.outcome, a."createdAt",
              last.status, last.city
@@ -49998,7 +54001,7 @@ async function loadReports(context, userId, take, skip) {
   }));
 }
 async function countReports(context, userId) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap7(
     await prismaOf18(context).$queryRaw`
       SELECT count(*)::int AS n FROM "Animal" a
       WHERE a."user" = ${userId} AND a."duplicateOf" IS NULL
@@ -50019,9 +54022,9 @@ async function loadEvents(context, userId) {
     }),
     prisma.petEvent.count({ where })
   ]);
-  const events = unwrap5(rows2);
+  const events = unwrap7(rows2);
   return {
-    count: unwrap5(count2),
+    count: unwrap7(count2),
     events: events.map((event) => ({
       ...event,
       city: event.city || null,
@@ -50051,7 +54054,7 @@ async function loadRescueOrgs(context, userId) {
   }));
 }
 async function loadClinics(context, userId) {
-  const rows2 = unwrap5(
+  const rows2 = unwrap7(
     await prismaOf18(context).petPlace.findMany({
       where: { userId, verified: true },
       orderBy: [{ name: "asc" }],
@@ -50061,10 +54064,10 @@ async function loadClinics(context, userId) {
   );
   return rows2.map((row) => ({ ...row, municipality: row.municipality || null, state: row.state || null }));
 }
-var resolver119 = {
+var resolver124 = {
   animalAuthor: async (_root, { animalId }, context) => {
     try {
-      const animal = unwrap5(
+      const animal = unwrap7(
         await prismaOf18(context).animal.findUnique({ where: { id: animalId }, select: { userId: true } })
       );
       const userId = animal?.userId;
@@ -50092,7 +54095,7 @@ var resolver119 = {
       loadRescueOrgs(context, user.id),
       loadClinics(context, user.id)
     ]);
-    const paws = unwrap5(account);
+    const paws = unwrap7(account);
     return {
       username: user.username,
       displayName: publicDisplayName(user.name, user.lastName),
@@ -50121,7 +54124,1746 @@ var resolver119 = {
     return loadReports(context, user.id, take, skip);
   }
 };
-var publicProfile_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
+var publicProfile_default = { typeDefs: typeDefs127, definition: definition124, resolver: resolver124 };
+
+// utils/helpers/escapeLike.ts
+function escapeLike2(value) {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+// graphql/customs/queries/store/storeCatalog.ts
+var typeDefs128 = `
+  input StoreCatalogInput {
+    search: String
+    categorySlug: String
+    brandSlug: String
+    "AnimalType.name: dog, cat\u2026"
+    animalType: String
+    "kadesh | mercado_libre"
+    seller: String
+    minPriceCents: Int
+    maxPriceCents: Int
+    onSale: Boolean
+    featured: Boolean
+    inStock: Boolean
+    "Only products sold at least once (the \xABLos m\xE1s vendidos\xBB box). Kadesh sales only."
+    soldOnly: Boolean
+    "featured (default) | newest | price_asc | price_desc | rating | best_selling"
+    sort: String
+    take: Int = 24
+    skip: Int = 0
+  }
+
+  type StoreCatalogRef {
+    slug: String!
+    name: String!
+  }
+
+  type StoreCatalogItem {
+    id: ID!
+    slug: String!
+    name: String!
+    shortDescription: String
+    "kadesh | mercado_libre. Own and dropshipped products are both sold by Kadesh."
+    seller: String!
+    "MXN cents. From the cheapest variant."
+    priceCents: Int!
+    "Previous price, only when it is higher than priceCents."
+    compareAtPriceCents: Int
+    currency: String!
+    inStock: Boolean!
+    "Signed for 1 h: cache pages that show it for less than that."
+    coverUrl: String
+    coverAlt: String
+    ratingAverage: Float!
+    ratingCount: Int!
+    isFeatured: Boolean!
+    "Variants on sale. 0 for Mercado Libre products."
+    variantsCount: Int!
+    "Set when the product can go straight to the cart: sold by Kadesh, in stock and with a single variant."
+    singleVariantId: ID
+    "With singleVariantId: the most of it one cart may carry (its stock, up to 20)."
+    singleVariantMaxQuantity: Int
+    category: StoreCatalogRef
+    brand: StoreCatalogRef
+    "Only for seller mercado_libre: the outbound affiliate link."
+    affiliateUrl: String
+    "Only for seller mercado_libre: when the price was last checked (ISO 8601)."
+    priceCheckedAt: String
+  }
+
+  type StoreCatalogResult {
+    total: Int!
+    items: [StoreCatalogItem!]!
+  }
+
+  type StoreCatalogImage {
+    url: String!
+    alt: String
+  }
+
+  type StoreCatalogVariant {
+    id: ID!
+    title: String
+    sku: String
+    "Flat object: { Talla: M, Color: Rojo }"
+    options: JSON
+    priceCents: Int!
+    compareAtPriceCents: Int
+    inStock: Boolean!
+    "Units left, only when stock is counted and running low."
+    stockLeft: Int
+  }
+
+  type StoreCatalogProduct {
+    item: StoreCatalogItem!
+    description: String
+    metaTitle: String
+    metaDescription: String
+    images: [StoreCatalogImage!]!
+    variants: [StoreCatalogVariant!]!
+    "AnimalType.name of each one"
+    animalTypes: [String!]!
+    "Published reviews with 1, 2, 3, 4 and 5 stars, in that order."
+    ratingBreakdown: [Int!]!
+    related: [StoreCatalogItem!]!
+    "Flat shipping of an order (StoreSettings)."
+    shippingFlatCents: Int!
+    "Orders from this subtotal ship free; 0 = never."
+    freeShippingMinCents: Int!
+    "Days after delivery to report a defective product."
+    returnDays: Int!
+  }
+
+  type StoreCatalogFacetCategory {
+    id: ID!
+    slug: String!
+    name: String!
+    parentSlug: String
+    imageUrl: String
+    "Active products directly in this category."
+    count: Int!
+  }
+
+  type StoreCatalogFacetBrand {
+    id: ID!
+    slug: String!
+    name: String!
+    logoUrl: String
+    count: Int!
+  }
+
+  type StoreCatalogFacets {
+    enabled: Boolean!
+    total: Int!
+    categories: [StoreCatalogFacetCategory!]!
+    brands: [StoreCatalogFacetBrand!]!
+    minPriceCents: Int!
+    maxPriceCents: Int!
+  }
+
+  type StoreCatalogReviewAuthor {
+    "For the apps: lets a person hide the reviews of someone they blocked, and report or block the author."
+    id: ID!
+    "First name and initial of the last name."
+    name: String!
+    username: String
+    avatarUrl: String
+    level: PawLevelInfo
+  }
+
+  type StoreCatalogReview {
+    id: ID!
+    rating: Int!
+    title: String
+    body: String
+    verifiedPurchase: Boolean!
+    adminReply: String
+    "published | hidden (hidden only ever reaches its author, in mine)"
+    status: String!
+    createdAt: String
+    author: StoreCatalogReviewAuthor
+  }
+
+  type StoreCatalogReviewsResult {
+    total: Int!
+    items: [StoreCatalogReview!]!
+    "The signed-in person's own review of this product, if any."
+    mine: StoreCatalogReview
+    "Current stars of the product (the product page may be cached for a minute)."
+    ratingAverage: Float!
+    ratingCount: Int!
+  }
+`;
+var definition125 = `
+  storeCatalog(input: StoreCatalogInput): StoreCatalogResult!
+  storeCatalogProduct(slug: String!): StoreCatalogProduct
+  storeCatalogFacets: StoreCatalogFacets!
+  storeCatalogReviews(productId: ID!, take: Int, skip: Int): StoreCatalogReviewsResult!
+`;
+function unwrap8(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+function clamp(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+function canBrowse(context) {
+  return storeEnabled() || isPlatformAdmin(context.session);
+}
+var VISIBLE = { status: STORE_PRODUCT_STATUS.ACTIVE, priceCents: { gt: 0 } };
+var IN_STOCK = {
+  OR: [
+    { source: STORE_PRODUCT_SOURCE.MERCADO_LIBRE },
+    { inventoryPolicy: STORE_INVENTORY_POLICY.UNTRACKED },
+    { stockTotal: { gt: 0 } }
+  ]
+};
+var ORDER_BY = {
+  featured: [{ isFeatured: "desc" }, { publishedAt: "desc" }, { id: "asc" }],
+  newest: [{ publishedAt: "desc" }, { id: "asc" }],
+  price_asc: [{ priceCents: "asc" }, { id: "asc" }],
+  price_desc: [{ priceCents: "desc" }, { id: "asc" }],
+  rating: [{ ratingAverage: "desc" }, { ratingCount: "desc" }, { id: "asc" }],
+  best_selling: [{ salesCount: "desc" }, { id: "asc" }]
+};
+async function buildWhere(prisma, input) {
+  const and = [VISIBLE];
+  const search = normalizeSearchText(input.search).slice(0, STORE_SEARCH_MAX_LENGTH);
+  if (search.length >= STORE_SEARCH_MIN_LENGTH) {
+    const term = escapeLike2(search);
+    const slugTerm = escapeLike2(search.replace(/ /g, "-"));
+    and.push({
+      OR: [
+        { nameSearch: { contains: term } },
+        { category: { slug: { contains: slugTerm } } },
+        { category: { parent: { slug: { contains: slugTerm } } } },
+        { brand: { slug: { contains: slugTerm } } }
+      ]
+    });
+  }
+  const categorySlug = (input.categorySlug ?? "").trim();
+  if (categorySlug) {
+    const categories = unwrap8(
+      await prisma.storeCategory.findMany({
+        where: { isActive: true, OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }] },
+        select: { id: true }
+      })
+    );
+    if (categories.length === 0) return null;
+    and.push({ categoryId: { in: categories.map((category) => category.id) } });
+  }
+  const brandSlug = (input.brandSlug ?? "").trim();
+  if (brandSlug) and.push({ brand: { slug: brandSlug } });
+  const animalType = (input.animalType ?? "").trim();
+  if (animalType) and.push({ animalTypes: { some: { name: animalType } } });
+  const sources = storeSourcesForSeller(input.seller);
+  if (sources) and.push({ source: { in: sources } });
+  const min = Number(input.minPriceCents);
+  const max = Number(input.maxPriceCents);
+  if (Number.isFinite(min) && min > 0) and.push({ priceCents: { gte: Math.floor(min) } });
+  if (Number.isFinite(max) && max > 0) and.push({ priceCents: { lte: Math.floor(max) } });
+  if (input.onSale) and.push({ compareAtPriceCents: { not: null } });
+  if (input.soldOnly) and.push({ salesCount: { gt: 0 } });
+  if (input.featured) and.push({ isFeatured: true });
+  if (input.inStock) and.push(IN_STOCK);
+  return { AND: and };
+}
+var facetsCache = null;
+var EMPTY_FACETS = {
+  enabled: false,
+  total: 0,
+  categories: [],
+  brands: [],
+  minPriceCents: 0,
+  maxPriceCents: 0
+};
+async function computeFacets(context) {
+  const prisma = storePrisma(context);
+  const [categories, brands] = await Promise.all([
+    prisma.storeCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+      take: 200,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        image_id: true,
+        image_extension: true,
+        parent: { select: { slug: true } }
+      }
+    }),
+    prisma.storeBrand.findMany({
+      where: { isActive: true },
+      orderBy: [{ name: "asc" }],
+      take: 200,
+      select: { id: true, slug: true, name: true, logo_id: true, logo_extension: true }
+    })
+  ]);
+  const [byCategory, byBrand, prices] = await Promise.all([
+    prisma.storeProduct.groupBy({ by: ["categoryId"], where: VISIBLE, _count: { _all: true } }),
+    prisma.storeProduct.groupBy({ by: ["brandId"], where: VISIBLE, _count: { _all: true } }),
+    prisma.storeProduct.aggregate({
+      where: VISIBLE,
+      _min: { priceCents: true },
+      _max: { priceCents: true },
+      _count: { _all: true }
+    })
+  ]);
+  const categoryCounts = /* @__PURE__ */ new Map();
+  for (const row of unwrap8(byCategory)) {
+    if (row.categoryId) categoryCounts.set(row.categoryId, Number(row._count._all));
+  }
+  const brandCounts = /* @__PURE__ */ new Map();
+  for (const row of unwrap8(byBrand)) {
+    if (row.brandId) brandCounts.set(row.brandId, Number(row._count._all));
+  }
+  const totals = unwrap8(prices);
+  const categoryList = await Promise.all(
+    unwrap8(categories).filter((row) => row.slug).map(async (row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      parentSlug: row.parent?.slug ?? null,
+      imageUrl: await storeImageUrl(context, {
+        image_id: row.image_id,
+        image_extension: row.image_extension,
+        externalUrl: null
+      }),
+      count: categoryCounts.get(row.id) ?? 0
+    }))
+  );
+  const brandList = await Promise.all(
+    unwrap8(brands).filter((row) => row.slug && brandCounts.has(row.id)).map(async (row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      logoUrl: await storeImageUrl(context, {
+        image_id: row.logo_id,
+        image_extension: row.logo_extension,
+        externalUrl: null
+      }),
+      count: brandCounts.get(row.id) ?? 0
+    }))
+  );
+  return {
+    enabled: true,
+    total: Number(totals._count._all) || 0,
+    categories: categoryList,
+    brands: brandList,
+    minPriceCents: Number(totals._min.priceCents) || 0,
+    maxPriceCents: Number(totals._max.priceCents) || 0
+  };
+}
+var REVIEW_SELECT = {
+  id: true,
+  rating: true,
+  title: true,
+  body: true,
+  verifiedPurchase: true,
+  adminReply: true,
+  status: true,
+  createdAt: true,
+  userId: true
+};
+var resolver125 = {
+  /** Product list for /tienda and the app. Three queries however many products come back. */
+  storeCatalog: async (_root, { input }, context) => {
+    if (!canBrowse(context)) return { total: 0, items: [] };
+    const filters = input ?? {};
+    const prisma = storePrisma(context);
+    const take = clamp(filters.take, 1, STORE_CATALOG_MAX_TAKE, STORE_CATALOG_DEFAULT_TAKE);
+    const skip = clamp(filters.skip, 0, 1e5, 0);
+    const where = await buildWhere(prisma, filters);
+    if (!where) return { total: 0, items: [] };
+    const orderBy = ORDER_BY[filters.sort ?? ""] ?? ORDER_BY.featured;
+    const [rows2, total] = await Promise.all([
+      prisma.storeProduct.findMany({ where, orderBy, take, skip, select: CATALOG_ITEM_SELECT }),
+      prisma.storeProduct.count({ where })
+    ]);
+    const products = unwrap8(rows2);
+    const ids = products.map((product) => product.id);
+    const [covers, saleVariants] = await Promise.all([loadStoreCovers(context, ids), loadStoreSaleVariants(context, ids)]);
+    return {
+      total: Number(unwrap8(total)) || 0,
+      items: products.map((product) => toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id)))
+    };
+  },
+  /** One product by slug, with its photos, variants, star breakdown and related products. */
+  storeCatalogProduct: async (_root, { slug }, context) => {
+    if (!canBrowse(context)) return null;
+    const cleanSlug = (slug ?? "").trim();
+    if (!cleanSlug) return null;
+    const prisma = storePrisma(context);
+    const visibility = isPlatformAdmin(context.session) ? {} : VISIBLE;
+    const product = unwrap8(
+      await prisma.storeProduct.findFirst({
+        where: { slug: cleanSlug, ...visibility },
+        select: {
+          ...CATALOG_ITEM_SELECT,
+          description: true,
+          metaTitle: true,
+          metaDescription: true,
+          categoryId: true,
+          animalTypes: { select: { name: true } }
+        }
+      })
+    );
+    if (!product) return null;
+    const [variants, images, breakdown, related] = await Promise.all([
+      prisma.storeProductVariant.findMany({
+        where: { productId: product.id, isActive: true },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        take: 100,
+        select: {
+          id: true,
+          title: true,
+          sku: true,
+          options: true,
+          priceCents: true,
+          compareAtPriceCents: true,
+          stock: true
+        }
+      }),
+      prisma.storeProductImage.findMany({
+        where: { productId: product.id },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        take: 24,
+        select: { image_id: true, image_extension: true, externalUrl: true, alt: true }
+      }),
+      prisma.storeProductReview.groupBy({
+        by: ["rating"],
+        where: { productId: product.id, status: STORE_REVIEW_STATUS.PUBLISHED },
+        _count: { _all: true }
+      }),
+      product.categoryId ? prisma.storeProduct.findMany({
+        where: { ...VISIBLE, categoryId: product.categoryId, id: { not: product.id } },
+        orderBy: [{ salesCount: "desc" }, { ratingCount: "desc" }, { id: "asc" }],
+        take: STORE_RELATED_TAKE,
+        select: CATALOG_ITEM_SELECT
+      }) : Promise.resolve([])
+    ]);
+    const relatedRows = unwrap8(related);
+    const [covers, saleVariants, settings] = await Promise.all([
+      loadStoreCovers(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      loadStoreSaleVariants(context, [product.id, ...relatedRows.map((row) => row.id)]),
+      getStoreSettings(context)
+    ]);
+    const imageList = (await Promise.all(
+      unwrap8(images).map(async (image15) => ({ url: await storeImageUrl(context, image15), alt: image15.alt || null }))
+    )).filter((image15) => Boolean(image15.url));
+    const ratingBreakdown = [0, 0, 0, 0, 0];
+    for (const row of unwrap8(breakdown)) {
+      const stars = Number(row.rating);
+      if (stars >= 1 && stars <= 5) ratingBreakdown[stars - 1] = Number(row._count._all);
+    }
+    const tracked = product.inventoryPolicy === STORE_INVENTORY_POLICY.TRACKED;
+    const affiliate = product.source === STORE_PRODUCT_SOURCE.MERCADO_LIBRE;
+    return {
+      item: toCatalogItem(product, covers.get(product.id), saleVariants.get(product.id)),
+      description: product.description || null,
+      metaTitle: product.metaTitle || null,
+      metaDescription: product.metaDescription || null,
+      images: imageList,
+      variants: unwrap8(variants).map((variant) => {
+        const price = Number(variant.priceCents) || 0;
+        const compare = Number(variant.compareAtPriceCents) || 0;
+        return {
+          id: variant.id,
+          title: variant.title || null,
+          sku: variant.sku || null,
+          options: variant.options ?? null,
+          priceCents: price,
+          compareAtPriceCents: compare > price ? compare : null,
+          inStock: affiliate || !tracked || (Number(variant.stock) || 0) > 0,
+          stockLeft: affiliate ? null : storeStockLeft(product.inventoryPolicy, variant.stock)
+        };
+      }),
+      animalTypes: product.animalTypes.map((type) => type.name),
+      ratingBreakdown,
+      related: relatedRows.map((row) => toCatalogItem(row, covers.get(row.id), saleVariants.get(row.id))),
+      shippingFlatCents: settings.shippingFlatCents,
+      freeShippingMinCents: settings.freeShippingMinCents,
+      returnDays: STORE_RETURN_DAYS
+    };
+  },
+  /** Categories, brands and price range for the filters. Cached in memory for 10 minutes. */
+  storeCatalogFacets: async (_root, _args, context) => {
+    if (!canBrowse(context)) return EMPTY_FACETS;
+    const version = storeCatalogVersion();
+    if (facetsCache && facetsCache.version === version && Date.now() - facetsCache.at < STORE_FACETS_CACHE_MS) {
+      return facetsCache.value;
+    }
+    const value = await computeFacets(context);
+    facetsCache = { value, at: Date.now(), version };
+    return value;
+  },
+  /** Published reviews of a product, newest first, plus the caller's own review. */
+  storeCatalogReviews: async (_root, args, context) => {
+    const empty4 = { total: 0, items: [], mine: null, ratingAverage: 0, ratingCount: 0 };
+    if (!canBrowse(context) || !args.productId) return empty4;
+    const prisma = storePrisma(context);
+    const take = clamp(args.take, 1, STORE_REVIEWS_MAX_TAKE, STORE_REVIEWS_DEFAULT_TAKE);
+    const skip = clamp(args.skip, 0, 1e5, 0);
+    const where = { productId: args.productId, status: STORE_REVIEW_STATUS.PUBLISHED };
+    const userId = getSessionUserId(context.session);
+    const [rows2, total, own, stars] = await Promise.all([
+      prisma.storeProductReview.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: REVIEW_SELECT
+      }),
+      prisma.storeProductReview.count({ where }),
+      userId ? prisma.storeProductReview.findUnique({
+        where: { key: `${userId}:${args.productId}` },
+        select: REVIEW_SELECT
+      }) : Promise.resolve(null),
+      prisma.storeProduct.findUnique({ where: { id: args.productId }, select: { ratingAverage: true, ratingCount: true } })
+    ]);
+    const product = unwrap8(stars);
+    const reviews = unwrap8(rows2);
+    const mine = unwrap8(own);
+    const cards = await getPublicUserCards(context, [...reviews.map((review) => review.userId), mine?.userId]);
+    const toReview = (review) => {
+      const card = review.userId ? cards.get(review.userId) : void 0;
+      return {
+        id: review.id,
+        rating: Number(review.rating),
+        title: review.title || null,
+        body: review.body || null,
+        verifiedPurchase: Boolean(review.verifiedPurchase),
+        adminReply: review.adminReply || null,
+        status: review.status,
+        createdAt: review.createdAt ? new Date(review.createdAt).toISOString() : null,
+        author: card ? { id: review.userId, name: card.displayName, username: card.username, avatarUrl: card.avatarUrl, level: card.level } : null
+      };
+    };
+    return {
+      total: Number(unwrap8(total)) || 0,
+      items: reviews.map(toReview),
+      mine: mine ? toReview(mine) : null,
+      ratingAverage: Number(product?.ratingAverage) || 0,
+      ratingCount: Number(product?.ratingCount) || 0
+    };
+  }
+};
+var storeCatalog_default = { typeDefs: typeDefs128, definition: definition125, resolver: resolver125 };
+
+// graphql/customs/queries/store/myStoreWishlist.ts
+var definition126 = `
+  myStoreWishlist(take: Int, skip: Int): StoreCatalogResult!
+  myStoreWishlistIds: [ID!]!
+`;
+function clamp2(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+function canBrowse2(context) {
+  return storeEnabled() || isPlatformAdmin(context.session);
+}
+var resolver126 = {
+  /** Saved products, newest first. Products no longer for sale are left out. */
+  myStoreWishlist: async (_root, args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId || !canBrowse2(context)) return { total: 0, items: [] };
+    const prisma = storePrisma(context);
+    const take = clamp2(args.take, 1, STORE_CATALOG_MAX_TAKE, STORE_CATALOG_DEFAULT_TAKE);
+    const skip = clamp2(args.skip, 0, STORE_WISHLIST_MAX, 0);
+    const where = { userId, product: { status: STORE_PRODUCT_STATUS.ACTIVE } };
+    const [rows2, total] = await Promise.all([
+      prisma.storeWishlistItem.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: { productId: true }
+      }),
+      prisma.storeWishlistItem.count({ where })
+    ]);
+    if (rows2 instanceof Error) throw rows2;
+    if (total instanceof Error) throw total;
+    const ids = rows2.map((row) => row.productId).filter((id) => Boolean(id));
+    const items = await loadCatalogItems(context, { status: STORE_PRODUCT_STATUS.ACTIVE }, ids);
+    return { total: Number(total) || 0, items };
+  },
+  /** Ids of every saved product (one query). */
+  myStoreWishlistIds: async (_root, _args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId || !canBrowse2(context)) return [];
+    const rows2 = await storePrisma(context).storeWishlistItem.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "desc" }],
+      take: STORE_WISHLIST_MAX,
+      select: { productId: true }
+    });
+    if (rows2 instanceof Error) throw rows2;
+    return rows2.map((row) => row.productId).filter((id) => Boolean(id));
+  }
+};
+var myStoreWishlist_default = { typeDefs: "", definition: definition126, resolver: resolver126 };
+
+// graphql/customs/queries/store/storeOrders.ts
+var typeDefs129 = `
+  type StoreOrderSummary {
+    number: String!
+    createdAt: String
+    "open | completed | cancelled"
+    status: String!
+    "pending | in_review | paid | failed | refunded"
+    paymentStatus: String!
+    "unfulfilled | partial | shipped | delivered | returned"
+    fulfillmentStatus: String!
+    "stripe_card | bank_transfer"
+    paymentMethod: String!
+    totalCents: Int!
+    itemsCount: Int!
+    firstItemName: String
+    coverUrl: String
+    "ISO 8601. While unpaid: when it cancels itself."
+    expiresAt: String
+  }
+
+  type StoreOrdersResult {
+    total: Int!
+    items: [StoreOrderSummary!]!
+  }
+
+  type StoreOrderLine {
+    id: ID!
+    productId: ID
+    "null when the product is no longer for sale"
+    productSlug: String
+    name: String!
+    variantTitle: String
+    coverUrl: String
+    quantity: Int!
+    unitPriceCents: Int!
+    totalCents: Int!
+  }
+
+  type StoreOrderShipment {
+    id: ID!
+    "preparing | ready | in_transit | delivered | exception | returned | cancelled"
+    status: String!
+    statusLabel: String!
+    carrier: String
+    trackingCode: String
+    trackingUrl: String
+    shippedAt: String
+    deliveredAt: String
+    "Names of the products in this package"
+    items: [String!]!
+  }
+
+  type StoreOrderTimelineEntry {
+    type: String!
+    message: String!
+    createdAt: String
+  }
+
+  type StoreOrderDetail {
+    summary: StoreOrderSummary!
+    subtotalCents: Int!
+    shippingCents: Int!
+    couponCode: String
+    couponDiscountCents: Int!
+    customerNote: String
+    cancelReason: String
+    address: StoreShippingAddress!
+    items: [StoreOrderLine!]!
+    shipments: [StoreOrderShipment!]!
+    timeline: [StoreOrderTimelineEntry!]!
+    "Bank data while a transfer is awaited."
+    transfer: StoreTransferInstructions
+    "A transfer proof is uploaded and waiting for review."
+    proofUploaded: Boolean!
+    "Why the last proof was not accepted, if it was rejected."
+    proofRejectedReason: String
+    "The buyer may still cancel it (not paid yet)."
+    canCancel: Boolean!
+    "Card order still unpaid: the payment can be resumed."
+    canPay: Boolean!
+    returnPolicy: String
+    supportWhatsapp: String
+  }
+`;
+var couponAttempts = createRateLimiter(STORE_COUPON_ATTEMPTS);
+var stripeCheck = createDeduper(5e3);
+var definition127 = `
+  storeCartQuote(items: [StoreCartItemInput!]!, couponCode: String): StoreCartQuote!
+  myStoreOrders(take: Int, skip: Int): StoreOrdersResult!
+  myStoreOrder(number: String!): StoreOrderDetail
+  myStoreAddresses: [StoreShippingAddress!]!
+`;
+function unwrap9(value) {
+  if (value instanceof Error) throw value;
+  return value;
+}
+function clamp3(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+function iso3(value) {
+  return value ? new Date(value).toISOString() : null;
+}
+var PUBLIC_SHIPMENT_STATUS = {
+  [STORE_SHIPMENT_STATUS.PENDING]: "preparing",
+  [STORE_SHIPMENT_STATUS.PENDING_APPROVAL]: "preparing",
+  [STORE_SHIPMENT_STATUS.REQUESTED]: "preparing",
+  [STORE_SHIPMENT_STATUS.LABEL_CREATED]: "ready",
+  [STORE_SHIPMENT_STATUS.IN_TRANSIT]: "in_transit",
+  [STORE_SHIPMENT_STATUS.DELIVERED]: "delivered",
+  [STORE_SHIPMENT_STATUS.EXCEPTION]: "exception",
+  [STORE_SHIPMENT_STATUS.RETURNED]: "returned",
+  [STORE_SHIPMENT_STATUS.CANCELLED]: "cancelled"
+};
+var SUMMARY_SELECT = {
+  id: true,
+  number: true,
+  createdAt: true,
+  status: true,
+  paymentStatus: true,
+  fulfillmentStatus: true,
+  paymentMethod: true,
+  totalCents: true,
+  unitsCount: true,
+  expiresAt: true
+};
+function toSummary(row, first) {
+  return {
+    number: row.number,
+    createdAt: iso3(row.createdAt),
+    status: row.status,
+    paymentStatus: row.paymentStatus,
+    fulfillmentStatus: row.fulfillmentStatus,
+    paymentMethod: row.paymentMethod,
+    totalCents: row.totalCents,
+    itemsCount: Number(row.unitsCount) || 0,
+    firstItemName: first?.name ?? null,
+    coverUrl: first?.coverUrl ?? null,
+    expiresAt: row.paymentStatus === STORE_PAYMENT_STATUS.PENDING && row.status === STORE_ORDER_STATUS.OPEN ? iso3(row.expiresAt) : null
+  };
+}
+var resolver127 = {
+  /** What the cart costs right now. Called when the cart opens or changes, never on a timer. */
+  storeCartQuote: async (_root, { items, couponCode }, context) => {
+    if (!storeEnabled() && !isPlatformAdmin(context.session)) {
+      return publicQuote(await quoteCart(context, []));
+    }
+    const userId = getSessionUserId(context.session);
+    const code = (couponCode ?? "").trim();
+    if (!code) return publicQuote(await quoteCart(context, items, { userId }));
+    const ip = requestIp(context.req) ?? "unknown";
+    if (!couponAttempts.peek(ip).ok) {
+      const quote2 = publicQuote(await quoteCart(context, items, { userId }));
+      return { ...quote2, couponCode: code, couponMessage: "Probaste demasiados cupones. Intenta de nuevo en unos minutos." };
+    }
+    const quote = await quoteCart(context, items, { couponCode: code, userId });
+    if (!quote.couponApplied) couponAttempts.hit(ip);
+    return publicQuote(quote);
+  },
+  /** The buyer's orders, newest first. Four queries whatever the page size. */
+  myStoreOrders: async (_root, args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return { total: 0, items: [] };
+    const prisma = storePrisma(context);
+    const take = clamp3(args.take, 1, STORE_ORDERS_MAX_TAKE, STORE_ORDERS_DEFAULT_TAKE);
+    const skip = clamp3(args.skip, 0, 1e5, 0);
+    const where = { userId };
+    const [rows2, total] = await Promise.all([
+      prisma.storeOrder.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take, skip, select: SUMMARY_SELECT }),
+      prisma.storeOrder.count({ where })
+    ]);
+    const orders = unwrap9(rows2);
+    if (orders.length === 0) return { total: Number(unwrap9(total)) || 0, items: [] };
+    const firsts = await prisma.$queryRaw`
+      SELECT DISTINCT ON (i."order") i."order" AS "orderId", i."name", i."product" AS "productId"
+      FROM "StoreOrderItem" i
+      WHERE i."order" = ANY(${orders.map((order) => order.id)}::text[])
+      ORDER BY i."order", i."createdAt" ASC, i."id" ASC
+    `;
+    const firstRows = unwrap9(firsts);
+    const covers = await loadStoreCovers(
+      context,
+      [...new Set(firstRows.map((row) => row.productId).filter((id) => Boolean(id)))]
+    );
+    const firstByOrder = new Map(
+      firstRows.map((row) => [row.orderId, { name: row.name, coverUrl: row.productId ? covers.get(row.productId)?.url ?? null : null }])
+    );
+    return {
+      total: Number(unwrap9(total)) || 0,
+      items: orders.map((order) => toSummary(order, firstByOrder.get(order.id)))
+    };
+  },
+  /** One order of the buyer, with its packages and what has happened to it. */
+  // Typed `unknown`: it calls itself once after settling a payment.
+  myStoreOrder: async (_root, { number }, context) => {
+    const userId = getSessionUserId(context.session);
+    const orderNumber = (number ?? "").trim().toUpperCase();
+    if (!userId || !orderNumber) return null;
+    const prisma = storePrisma(context);
+    const order = unwrap9(
+      await prisma.storeOrder.findFirst({
+        where: { number: orderNumber, userId },
+        select: {
+          ...SUMMARY_SELECT,
+          subtotalCents: true,
+          shippingCents: true,
+          couponCode: true,
+          couponDiscountCents: true,
+          customerNote: true,
+          cancelReason: true,
+          shipRecipientName: true,
+          shipPhone: true,
+          shipStreet: true,
+          shipExteriorNumber: true,
+          shipInteriorNumber: true,
+          shipNeighborhood: true,
+          shipCity: true,
+          shipStateCode: true,
+          shipPostalCode: true,
+          shipReferences: true,
+          stripePaymentIntentId: true
+        }
+      })
+    );
+    if (!order) return null;
+    if (order.status === STORE_ORDER_STATUS.OPEN && order.paymentMethod === STORE_PAYMENT_METHOD.CARD && (order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED) && order.stripePaymentIntentId && stripeCheck(order.id)) {
+      try {
+        if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
+          return resolver127.myStoreOrder(_root, { number }, context);
+        }
+      } catch (error) {
+        console.error("[myStoreOrder] could not check the payment with Stripe:", order.number, error);
+      }
+    }
+    const [items, shipments, events, payments] = await Promise.all([
+      prisma.storeOrderItem.findMany({
+        where: { orderId: order.id },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          variantTitle: true,
+          quantity: true,
+          unitPriceCents: true,
+          totalCents: true,
+          shipmentId: true,
+          productId: true,
+          product: { select: { slug: true, status: true } }
+        }
+      }),
+      prisma.storeShipment.findMany({
+        where: { orderId: order.id },
+        orderBy: [{ createdAt: "asc" }],
+        select: { id: true, status: true, carrier: true, trackingCode: true, trackingUrl: true, shippedAt: true, deliveredAt: true }
+      }),
+      prisma.storeOrderEvent.findMany({
+        where: { orderId: order.id, isPublic: true },
+        orderBy: [{ createdAt: "asc" }],
+        take: 60,
+        select: { type: true, message: true, createdAt: true }
+      }),
+      prisma.storePayment.findMany({
+        where: { orderId: order.id },
+        orderBy: [{ createdAt: "desc" }],
+        take: 3,
+        select: { status: true, errorMessage: true, transferProof_id: true }
+      })
+    ]);
+    const lines = unwrap9(items);
+    const covers = await loadStoreCovers(
+      context,
+      [...new Set(lines.map((line) => line.productId).filter((id) => Boolean(id)))]
+    );
+    const settings = await getStoreSettings(context);
+    const payment = unwrap9(payments)[0];
+    const open = order.status === STORE_ORDER_STATUS.OPEN;
+    const unpaid = order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED;
+    const transfer = order.paymentMethod === STORE_PAYMENT_METHOD.TRANSFER;
+    const inReview = order.paymentStatus === STORE_PAYMENT_STATUS.IN_REVIEW;
+    return {
+      summary: toSummary(order, lines[0] ? { name: lines[0].name, coverUrl: lines[0].productId ? covers.get(lines[0].productId)?.url ?? null : null } : void 0),
+      subtotalCents: order.subtotalCents,
+      shippingCents: order.shippingCents,
+      couponCode: order.couponCode || null,
+      couponDiscountCents: Number(order.couponDiscountCents) || 0,
+      customerNote: order.customerNote || null,
+      cancelReason: order.cancelReason || null,
+      address: toStoreAddress(order, "ship"),
+      items: lines.map((line) => ({
+        id: line.id,
+        productId: line.productId,
+        productSlug: line.product?.status === "active" ? line.product.slug : null,
+        name: line.name,
+        variantTitle: line.variantTitle || null,
+        coverUrl: line.productId ? covers.get(line.productId)?.url ?? null : null,
+        quantity: line.quantity,
+        unitPriceCents: line.unitPriceCents,
+        totalCents: line.totalCents
+      })),
+      shipments: unwrap9(shipments).map((shipment) => ({
+        id: shipment.id,
+        status: PUBLIC_SHIPMENT_STATUS[shipment.status] ?? "preparing",
+        statusLabel: SHIPMENT_PUBLIC_LABEL[shipment.status] ?? "Preparando tu paquete",
+        carrier: shipment.carrier || null,
+        trackingCode: shipment.trackingCode || null,
+        trackingUrl: shipment.trackingUrl || null,
+        shippedAt: iso3(shipment.shippedAt),
+        deliveredAt: iso3(shipment.deliveredAt),
+        items: lines.filter((line) => line.shipmentId === shipment.id).map((line) => line.name)
+      })),
+      timeline: unwrap9(events).map((event) => ({
+        type: event.type,
+        message: event.message ?? "",
+        createdAt: iso3(event.createdAt)
+      })),
+      transfer: open && transfer && (unpaid || inReview) ? transferInstructions(settings, { number: order.number, totalCents: order.totalCents, expiresAt: order.expiresAt }) : null,
+      proofUploaded: inReview,
+      proofRejectedReason: open && transfer && unpaid && payment?.status === STORE_PAYMENT_ATTEMPT_STATUS.PENDING && payment.errorMessage ? payment.errorMessage : null,
+      canCancel: open && (unpaid || inReview),
+      canPay: open && unpaid && order.paymentMethod === STORE_PAYMENT_METHOD.CARD,
+      returnPolicy: settings.returnPolicy || null,
+      supportWhatsapp: settings.supportWhatsapp || null
+    };
+  },
+  myStoreAddresses: async (_root, _args, context) => {
+    const userId = getSessionUserId(context.session);
+    if (!userId) return [];
+    const rows2 = await storePrisma(context).storeAddress.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      take: 20
+    });
+    return unwrap9(rows2).map((row) => toStoreAddress(row));
+  }
+};
+var storeOrders_default2 = { typeDefs: typeDefs129, definition: definition127, resolver: resolver127 };
+
+// graphql/customs/queries/store/index.ts
+var storeQueries = {
+  typeDefs: `
+    ${storeCatalog_default.typeDefs}
+    ${myStoreWishlist_default.typeDefs}
+    ${storeOrders_default2.typeDefs}
+  `,
+  definition: `
+    ${storeCatalog_default.definition}
+    ${myStoreWishlist_default.definition}
+    ${storeOrders_default2.definition}
+  `,
+  resolver: {
+    ...storeCatalog_default.resolver,
+    ...myStoreWishlist_default.resolver,
+    ...storeOrders_default2.resolver
+  }
+};
+var store_default2 = storeQueries;
+
+// graphql/customs/queries/admin/adminStore.ts
+var typeDefs130 = `
+  type AdminStoreProductRow {
+    id: ID!
+    name: String!
+    slug: String
+    "own | dropi | mercado_libre"
+    source: String!
+    "draft | active | paused | archived"
+    status: String!
+    priceCents: Int!
+    compareAtPriceCents: Int
+    "tracked | untracked"
+    inventoryPolicy: String!
+    stockTotal: Int!
+    variantsCount: Int!
+    ratingAverage: Float!
+    ratingCount: Int!
+    salesCount: Int!
+    isFeatured: Boolean!
+    externalId: String
+    category: String
+    brand: String
+    coverUrl: String
+    createdAt: String
+    updatedAt: String
+  }
+
+  type AdminStoreProductsResult {
+    total: Int!
+    items: [AdminStoreProductRow!]!
+    "Products per status, ignoring the status filter (for the filter chips)."
+    statusCounts: [AdminCount!]!
+  }
+`;
+var definition128 = `
+  adminStoreProducts(
+    search: String
+    source: String
+    status: String
+    categoryId: ID
+    brandId: ID
+    "true = tracked products with no stock left"
+    outOfStock: Boolean
+    take: Int
+    skip: Int
+  ): AdminStoreProductsResult!
+`;
+var resolver128 = {
+  adminStoreProducts: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(args.take, 1, STORE_ADMIN_MAX_TAKE, 25);
+    const skip = clampInt(args.skip, 0, 1e6, 0);
+    const base = [];
+    const search = normalizeSearchText(args.search);
+    if (search) {
+      base.push({
+        OR: [
+          { nameSearch: { contains: escapeLike2(search) } },
+          { externalId: { equals: (args.search ?? "").trim() } },
+          { variants: { some: { sku: { equals: (args.search ?? "").trim() } } } }
+        ]
+      });
+    }
+    if (args.source) base.push({ source: args.source });
+    if (args.categoryId) base.push({ categoryId: args.categoryId });
+    if (args.brandId) base.push({ brandId: args.brandId });
+    if (args.outOfStock) base.push({ inventoryPolicy: STORE_INVENTORY_POLICY.TRACKED, stockTotal: { lte: 0 } });
+    const where = { AND: args.status ? [...base, { status: args.status }] : base };
+    const [rows2, total, byStatus] = await Promise.all([
+      prisma.storeProduct.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+        take,
+        skip,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          source: true,
+          status: true,
+          priceCents: true,
+          compareAtPriceCents: true,
+          inventoryPolicy: true,
+          stockTotal: true,
+          ratingAverage: true,
+          ratingCount: true,
+          salesCount: true,
+          isFeatured: true,
+          externalId: true,
+          createdAt: true,
+          updatedAt: true,
+          category: { select: { name: true } },
+          brand: { select: { name: true } }
+        }
+      }),
+      prisma.storeProduct.count({ where }),
+      prisma.storeProduct.groupBy({ by: ["status"], where: { AND: base }, _count: { _all: true } })
+    ]);
+    const products = unwrapPrisma(rows2);
+    const ids = products.map((product) => product.id);
+    const [covers, variantGroups] = await Promise.all([
+      loadStoreCovers(context, ids),
+      ids.length > 0 ? prisma.storeProductVariant.groupBy({
+        by: ["productId"],
+        where: { productId: { in: ids } },
+        _count: { _all: true }
+      }) : Promise.resolve([])
+    ]);
+    const variantCounts = /* @__PURE__ */ new Map();
+    for (const group of unwrapPrisma(variantGroups)) {
+      if (group.productId) variantCounts.set(group.productId, Number(group._count._all));
+    }
+    return {
+      total: Number(unwrapPrisma(total)) || 0,
+      items: products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        source: product.source,
+        status: product.status,
+        priceCents: Number(product.priceCents) || 0,
+        compareAtPriceCents: product.compareAtPriceCents ? Number(product.compareAtPriceCents) : null,
+        inventoryPolicy: product.inventoryPolicy,
+        stockTotal: Number(product.stockTotal) || 0,
+        variantsCount: variantCounts.get(product.id) ?? 0,
+        ratingAverage: Number(product.ratingAverage) || 0,
+        ratingCount: Number(product.ratingCount) || 0,
+        salesCount: Number(product.salesCount) || 0,
+        isFeatured: Boolean(product.isFeatured),
+        externalId: product.externalId,
+        category: product.category?.name ?? null,
+        brand: product.brand?.name ?? null,
+        coverUrl: covers.get(product.id)?.url ?? null,
+        createdAt: toIso(product.createdAt),
+        updatedAt: toIso(product.updatedAt)
+      })),
+      statusCounts: countsToList(
+        unwrapPrisma(byStatus).map((group) => ({
+          key: group.status,
+          count: Number(group._count._all)
+        }))
+      )
+    };
+  }
+};
+var adminStore_default = { typeDefs: typeDefs130, definition: definition128, resolver: resolver128 };
+
+// graphql/customs/queries/admin/adminStoreOrders.ts
+var typeDefs131 = `
+  type AdminStoreOrderRow {
+    id: ID!
+    number: String!
+    createdAt: String
+    customerName: String
+    email: String
+    status: String!
+    paymentStatus: String!
+    fulfillmentStatus: String!
+    paymentMethod: String!
+    totalCents: Int!
+    itemsCount: Int!
+    shipCity: String
+    shipStateName: String
+    guestCheckout: Boolean!
+    expiresAt: String
+  }
+
+  type AdminStoreOrdersResult {
+    total: Int!
+    items: [AdminStoreOrderRow!]!
+    "Orders that need someone: toReview (transfer proofs), toFulfill (paid, not fully shipped), awaitingPayment."
+    queues: [AdminCount!]!
+  }
+
+  type AdminStoreOrderLine {
+    id: ID!
+    productId: ID
+    name: String!
+    variantTitle: String
+    sku: String
+    "own | dropi"
+    source: String
+    externalId: String
+    dropiVariationId: Int
+    coverUrl: String
+    quantity: Int!
+    unitPriceCents: Int!
+    unitCostCents: Int
+    totalCents: Int!
+    shipmentId: ID
+  }
+
+  type AdminStorePayment {
+    id: ID!
+    provider: String!
+    amountCents: Int!
+    status: String!
+    stripePaymentIntentId: String
+    stripeChargeId: String
+    refundedCents: Int
+    "Signed for 1 h."
+    transferProofUrl: String
+    transferReference: String
+    reviewedBy: AdminPersonRef
+    reviewedAt: String
+    errorMessage: String
+    createdAt: String
+  }
+
+  type AdminStoreShipment {
+    id: ID!
+    "own | dropi"
+    provider: String!
+    status: String!
+    "Statuses an admin may set next (the current one first): never a Dropi step on own shipments."
+    nextStatuses: [String!]!
+    carrier: String
+    trackingCode: String
+    trackingUrl: String
+    shippingCostCents: Int
+    dropiOrderId: String
+    dropiStatus: String
+    dropiSupplierId: Int
+    approvedBy: AdminPersonRef
+    approvedAt: String
+    shippedAt: String
+    deliveredAt: String
+    lastError: String
+  }
+
+  type AdminStoreOrderEvent {
+    id: ID!
+    type: String!
+    message: String
+    fromStatus: String
+    toStatus: String
+    isPublic: Boolean!
+    "null = the system (Stripe, cron)"
+    actor: AdminPersonRef
+    createdAt: String
+  }
+
+  type AdminStoreOrderDetail {
+    order: AdminStoreOrderRow!
+    user: AdminPersonRef
+    phone: String
+    subtotalCents: Int!
+    shippingCents: Int!
+    couponCode: String
+    couponDiscountCents: Int!
+    costCents: Int!
+    "What Kadesh paid to ship it, added up from its shipments."
+    shippingCostCents: Int!
+    stripePaymentIntentId: String
+    paidAt: String
+    cancelledAt: String
+    cancelReason: String
+    customerNote: String
+    adminNote: String
+    address: StoreShippingAddress!
+    items: [AdminStoreOrderLine!]!
+    payments: [AdminStorePayment!]!
+    shipments: [AdminStoreShipment!]!
+    events: [AdminStoreOrderEvent!]!
+  }
+`;
+var definition129 = `
+  adminStoreOrders(
+    search: String
+    "toReview | toFulfill | awaitingPayment | shipped | completed | cancelled"
+    queue: String
+    paymentMethod: String
+    take: Int
+    skip: Int
+  ): AdminStoreOrdersResult!
+  adminStoreOrder(id: ID!): AdminStoreOrderDetail
+`;
+var STORE_ORDER_QUEUES = {
+  toReview: { status: STORE_ORDER_STATUS.OPEN, paymentStatus: STORE_PAYMENT_STATUS.IN_REVIEW },
+  toFulfill: {
+    status: STORE_ORDER_STATUS.OPEN,
+    paymentStatus: STORE_PAYMENT_STATUS.PAID,
+    fulfillmentStatus: { in: [STORE_FULFILLMENT_STATUS.UNFULFILLED, STORE_FULFILLMENT_STATUS.PARTIAL] }
+  },
+  awaitingPayment: { status: STORE_ORDER_STATUS.OPEN, paymentStatus: STORE_PAYMENT_STATUS.PENDING },
+  shipped: { status: STORE_ORDER_STATUS.OPEN, fulfillmentStatus: STORE_FULFILLMENT_STATUS.SHIPPED },
+  completed: { status: STORE_ORDER_STATUS.COMPLETED },
+  cancelled: { status: STORE_ORDER_STATUS.CANCELLED }
+};
+var COUNTED_QUEUES = ["toReview", "toFulfill", "awaitingPayment"];
+var ROW_SELECT = {
+  id: true,
+  number: true,
+  createdAt: true,
+  customerName: true,
+  email: true,
+  status: true,
+  paymentStatus: true,
+  fulfillmentStatus: true,
+  paymentMethod: true,
+  totalCents: true,
+  unitsCount: true,
+  shipCity: true,
+  shipStateCode: true,
+  guestCheckout: true,
+  expiresAt: true
+};
+function toRow2(order) {
+  return {
+    id: order.id,
+    number: order.number,
+    createdAt: toIso(order.createdAt),
+    customerName: order.customerName || null,
+    email: order.email || null,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    fulfillmentStatus: order.fulfillmentStatus,
+    paymentMethod: order.paymentMethod,
+    totalCents: Number(order.totalCents) || 0,
+    itemsCount: Number(order.unitsCount) || 0,
+    shipCity: order.shipCity || null,
+    shipStateName: storeStateName(order.shipStateCode) || null,
+    guestCheckout: Boolean(order.guestCheckout),
+    expiresAt: toIso(order.expiresAt)
+  };
+}
+var resolver129 = {
+  adminStoreOrders: async (_root, args, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const take = clampInt(args.take, 1, STORE_ADMIN_MAX_TAKE, 25);
+    const skip = clampInt(args.skip, 0, 1e6, 0);
+    const and = [];
+    const search = normalizeSearchText(args.search);
+    if (search) and.push({ searchText: { contains: escapeLike2(search) } });
+    if (args.queue && STORE_ORDER_QUEUES[args.queue]) and.push(STORE_ORDER_QUEUES[args.queue]);
+    if (args.paymentMethod) and.push({ paymentMethod: args.paymentMethod });
+    const where = { AND: and };
+    const [rows2, total] = await Promise.all([
+      prisma.storeOrder.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take, skip, select: ROW_SELECT }),
+      prisma.storeOrder.count({ where })
+    ]);
+    const queueCounts = await Promise.all(
+      COUNTED_QUEUES.map((queue) => prisma.storeOrder.count({ where: STORE_ORDER_QUEUES[queue] }))
+    );
+    return {
+      total: Number(unwrapPrisma(total)) || 0,
+      items: unwrapPrisma(rows2).map(toRow2),
+      queues: COUNTED_QUEUES.map((queue, index) => ({ key: queue, count: Number(unwrapPrisma(queueCounts[index])) || 0 }))
+    };
+  },
+  adminStoreOrder: async (_root, { id }, context) => {
+    assertPlatformAdmin(context);
+    const prisma = adminPrisma(context);
+    const order = unwrapPrisma(
+      await prisma.storeOrder.findUnique({
+        where: { id },
+        select: {
+          ...ROW_SELECT,
+          phone: true,
+          subtotalCents: true,
+          shippingCents: true,
+          couponCode: true,
+          couponDiscountCents: true,
+          costCents: true,
+          stripePaymentIntentId: true,
+          paidAt: true,
+          cancelledAt: true,
+          cancelReason: true,
+          customerNote: true,
+          adminNote: true,
+          shipRecipientName: true,
+          shipPhone: true,
+          shipStreet: true,
+          shipExteriorNumber: true,
+          shipInteriorNumber: true,
+          shipNeighborhood: true,
+          shipPostalCode: true,
+          shipReferences: true,
+          user: { select: PERSON_SELECT }
+        }
+      })
+    );
+    if (!order) return null;
+    const [items, payments, shipments, events] = await Promise.all([
+      prisma.storeOrderItem.findMany({
+        where: { orderId: id },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          productId: true,
+          name: true,
+          variantTitle: true,
+          sku: true,
+          source: true,
+          externalId: true,
+          dropiVariationId: true,
+          quantity: true,
+          unitPriceCents: true,
+          unitCostCents: true,
+          totalCents: true,
+          shipmentId: true
+        }
+      }),
+      prisma.storePayment.findMany({
+        where: { orderId: id },
+        orderBy: [{ createdAt: "desc" }],
+        take: 20,
+        select: {
+          id: true,
+          provider: true,
+          amountCents: true,
+          status: true,
+          stripePaymentIntentId: true,
+          stripeChargeId: true,
+          refundedCents: true,
+          transferProof_id: true,
+          transferProof_extension: true,
+          transferReference: true,
+          reviewedAt: true,
+          errorMessage: true,
+          createdAt: true,
+          reviewedBy: { select: PERSON_SELECT }
+        }
+      }),
+      prisma.storeShipment.findMany({
+        where: { orderId: id },
+        orderBy: [{ createdAt: "asc" }],
+        select: {
+          id: true,
+          provider: true,
+          status: true,
+          carrier: true,
+          trackingCode: true,
+          trackingUrl: true,
+          shippingCostCents: true,
+          dropiOrderId: true,
+          dropiStatus: true,
+          dropiSupplierId: true,
+          approvedAt: true,
+          shippedAt: true,
+          deliveredAt: true,
+          lastError: true,
+          approvedBy: { select: PERSON_SELECT }
+        }
+      }),
+      prisma.storeOrderEvent.findMany({
+        where: { orderId: id },
+        orderBy: [{ createdAt: "desc" }],
+        take: 100,
+        select: {
+          id: true,
+          type: true,
+          message: true,
+          fromStatus: true,
+          toStatus: true,
+          isPublic: true,
+          createdAt: true,
+          actor: { select: PERSON_SELECT }
+        }
+      })
+    ]);
+    const lines = unwrapPrisma(items);
+    const covers = await loadStoreCovers(
+      context,
+      [...new Set(lines.map((line) => line.productId).filter((productId) => Boolean(productId)))]
+    );
+    const shipmentRows = unwrapPrisma(shipments);
+    const paymentRows = await Promise.all(
+      unwrapPrisma(payments).map(async (payment) => ({
+        id: payment.id,
+        provider: payment.provider,
+        amountCents: payment.amountCents,
+        status: payment.status,
+        stripePaymentIntentId: payment.stripePaymentIntentId,
+        stripeChargeId: payment.stripeChargeId,
+        refundedCents: payment.refundedCents,
+        transferProofUrl: payment.transferProof_id ? await storeImageUrl(context, {
+          image_id: payment.transferProof_id,
+          image_extension: payment.transferProof_extension,
+          externalUrl: null
+        }) : null,
+        transferReference: payment.transferReference || null,
+        reviewedBy: personRef(payment.reviewedBy),
+        reviewedAt: toIso(payment.reviewedAt),
+        errorMessage: payment.errorMessage || null,
+        createdAt: toIso(payment.createdAt)
+      }))
+    );
+    return {
+      order: toRow2(order),
+      user: personRef(order.user),
+      phone: order.phone || null,
+      subtotalCents: order.subtotalCents,
+      shippingCents: order.shippingCents,
+      couponCode: order.couponCode || null,
+      couponDiscountCents: Number(order.couponDiscountCents) || 0,
+      costCents: Number(order.costCents) || 0,
+      shippingCostCents: shipmentRows.reduce((sum, shipment) => sum + (Number(shipment.shippingCostCents) || 0), 0),
+      stripePaymentIntentId: order.stripePaymentIntentId,
+      paidAt: toIso(order.paidAt),
+      cancelledAt: toIso(order.cancelledAt),
+      cancelReason: order.cancelReason || null,
+      customerNote: order.customerNote || null,
+      adminNote: order.adminNote || null,
+      address: {
+        id: null,
+        label: null,
+        recipientName: order.shipRecipientName ?? "",
+        phone: order.shipPhone ?? "",
+        street: order.shipStreet ?? "",
+        exteriorNumber: order.shipExteriorNumber ?? "",
+        interiorNumber: order.shipInteriorNumber || null,
+        neighborhood: order.shipNeighborhood ?? "",
+        city: order.shipCity ?? "",
+        stateCode: order.shipStateCode ?? "",
+        stateName: storeStateName(order.shipStateCode),
+        postalCode: order.shipPostalCode ?? "",
+        references: order.shipReferences || null,
+        isDefault: false
+      },
+      items: lines.map((line) => ({
+        ...line,
+        variantTitle: line.variantTitle || null,
+        sku: line.sku || null,
+        coverUrl: line.productId ? covers.get(line.productId)?.url ?? null : null
+      })),
+      payments: paymentRows,
+      shipments: shipmentRows.map((shipment) => ({
+        ...shipment,
+        nextStatuses: storeShipmentNextStatuses(shipment.provider, shipment.status),
+        carrier: shipment.carrier || null,
+        trackingCode: shipment.trackingCode || null,
+        trackingUrl: shipment.trackingUrl || null,
+        dropiStatus: shipment.dropiStatus || null,
+        lastError: shipment.lastError || null,
+        approvedBy: personRef(shipment.approvedBy),
+        approvedAt: toIso(shipment.approvedAt),
+        shippedAt: toIso(shipment.shippedAt),
+        deliveredAt: toIso(shipment.deliveredAt)
+      })),
+      events: unwrapPrisma(events).map((event) => ({
+        id: event.id,
+        type: event.type,
+        message: event.message || null,
+        fromStatus: event.fromStatus || null,
+        toStatus: event.toStatus || null,
+        isPublic: Boolean(event.isPublic),
+        actor: personRef(event.actor),
+        createdAt: toIso(event.createdAt)
+      }))
+    };
+  }
+};
+var adminStoreOrders_default = { typeDefs: typeDefs131, definition: definition129, resolver: resolver129 };
+
+// graphql/customs/queries/admin/adminStoreSummary.ts
+var import_client5 = require("@prisma/client");
+var typeDefs132 = `
+  type AdminStoreSummaryPoint {
+    "YYYY-MM-DD (seriesUnit day) or YYYY-MM (month)."
+    key: String!
+    revenueCents: Float!
+    orders: Int!
+  }
+
+  type AdminStoreSummarySource {
+    "own | dropi"
+    key: String!
+    units: Int!
+    "What the lines sold for, after coupons."
+    revenueCents: Float!
+    costCents: Float!
+  }
+
+  type AdminStoreSummaryProduct {
+    productId: ID
+    name: String!
+    units: Int!
+    revenueCents: Float!
+  }
+
+  type AdminStoreSummaryCoupon {
+    code: String!
+    uses: Int!
+    discountCents: Float!
+  }
+
+  type AdminStoreSummaryStock {
+    productId: ID!
+    name: String!
+    stockTotal: Int!
+  }
+
+  type AdminStoreSummary {
+    days: Int!
+    "First and last day of the period (YYYY-MM-DD, Mexico City)."
+    from: String!
+    to: String!
+    generatedAt: String!
+    orders: Int!
+    "Same number of days right before the period."
+    previousOrders: Int!
+    "What buyers paid: products \u2212 coupons + shipping."
+    revenueCents: Float!
+    previousRevenueCents: Float!
+    units: Int!
+    "People who bought."
+    buyers: Int!
+    averageOrderCents: Float!
+    discountCents: Float!
+    "Shipping paid by buyers."
+    shippingChargedCents: Float!
+    productCostCents: Float!
+    "What the packages cost to send (captured on each shipment)."
+    shippingCostCents: Float!
+    "revenueCents \u2212 productCostCents \u2212 shippingCostCents, before payment fees."
+    marginCents: Float!
+    "Orders refunded in the period, by the day they were cancelled."
+    refundedOrders: Int!
+    refundedCents: Float!
+    "day | month"
+    seriesUnit: String!
+    series: [AdminStoreSummaryPoint!]!
+    "key: stripe_card | bank_transfer"
+    byPaymentMethod: [AdminAmountCount!]!
+    bySource: [AdminStoreSummarySource!]!
+    topProducts: [AdminStoreSummaryProduct!]!
+    topCoupons: [AdminStoreSummaryCoupon!]!
+    "Active products with counted stock at zero, right now."
+    outOfStock: Int!
+    "Active products about to run out, right now."
+    lowStock: [AdminStoreSummaryStock!]!
+  }
+`;
+var definition130 = `
+  adminStoreSummary(days: Int): AdminStoreSummary!
+`;
+var cache6 = /* @__PURE__ */ new Map();
+var num = (value) => Number(value) || 0;
+async function computeSummary(context, days) {
+  const prisma = adminPrisma(context);
+  const today = mxToday();
+  const from = shiftDay(today, -(days - 1));
+  const start = mxDayWindow(from).start;
+  const end = mxDayWindow(today).end;
+  const previousStart = mxDayWindow(shiftDay(from, -days)).start;
+  const byMonth = days > 92;
+  const paid = import_client5.Prisma.sql`o."paymentStatus" = ${STORE_PAYMENT_STATUS.PAID}
+    AND NOT EXISTS (SELECT 1 FROM "User" u WHERE u.id = o."user" AND u."userTest" = true)`;
+  const inPeriod = import_client5.Prisma.sql`${paid} AND o."paidAt" >= ${start}::timestamp AND o."paidAt" < ${end}::timestamp`;
+  const bucket = byMonth ? import_client5.Prisma.sql`to_char(o."paidAt" - interval '6 hours', 'YYYY-MM')` : import_client5.Prisma.sql`to_char(o."paidAt" - interval '6 hours', 'YYYY-MM-DD')`;
+  const [totals, extras, series, methods] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT
+        (count(*) FILTER (WHERE o."paidAt" >= ${start}::timestamp))::int AS orders,
+        COALESCE(sum(o."totalCents") FILTER (WHERE o."paidAt" >= ${start}::timestamp), 0)::float8 AS revenue,
+        COALESCE(sum(o."unitsCount") FILTER (WHERE o."paidAt" >= ${start}::timestamp), 0)::int AS units,
+        (count(DISTINCT o."user") FILTER (WHERE o."paidAt" >= ${start}::timestamp))::int AS buyers,
+        COALESCE(sum(o."couponDiscountCents") FILTER (WHERE o."paidAt" >= ${start}::timestamp), 0)::float8 AS discount,
+        COALESCE(sum(o."shippingCents") FILTER (WHERE o."paidAt" >= ${start}::timestamp), 0)::float8 AS "shippingCharged",
+        COALESCE(sum(o."costCents") FILTER (WHERE o."paidAt" >= ${start}::timestamp), 0)::float8 AS "productCost",
+        (count(*) FILTER (WHERE o."paidAt" < ${start}::timestamp))::int AS "previousOrders",
+        COALESCE(sum(o."totalCents") FILTER (WHERE o."paidAt" < ${start}::timestamp), 0)::float8 AS "previousRevenue"
+      FROM "StoreOrder" o
+      WHERE ${paid} AND o."paidAt" >= ${previousStart}::timestamp AND o."paidAt" < ${end}::timestamp
+    `,
+    prisma.$queryRaw`
+      SELECT
+        (SELECT COALESCE(sum(s."shippingCostCents"), 0)::float8
+           FROM "StoreShipment" s JOIN "StoreOrder" o ON o.id = s."order" WHERE ${inPeriod}) AS "shippingCost",
+        (SELECT count(*)::int FROM "StoreOrder" o
+           WHERE o."paymentStatus" = ${STORE_PAYMENT_STATUS.REFUNDED}
+             AND o."cancelledAt" >= ${start}::timestamp AND o."cancelledAt" < ${end}::timestamp) AS "refundedOrders",
+        (SELECT COALESCE(sum(o."totalCents"), 0)::float8 FROM "StoreOrder" o
+           WHERE o."paymentStatus" = ${STORE_PAYMENT_STATUS.REFUNDED}
+             AND o."cancelledAt" >= ${start}::timestamp AND o."cancelledAt" < ${end}::timestamp) AS "refundedCents",
+        (SELECT count(*)::int FROM "StoreProduct" p
+           WHERE p.status = ${STORE_PRODUCT_STATUS.ACTIVE} AND p."inventoryPolicy" = ${STORE_INVENTORY_POLICY.TRACKED}
+             AND p.source <> ${STORE_PRODUCT_SOURCE.MERCADO_LIBRE}
+             AND COALESCE(p."stockTotal", 0) <= 0) AS "outOfStock"
+    `,
+    prisma.$queryRaw`
+      SELECT ${bucket} AS key, count(*)::int AS orders, COALESCE(sum(o."totalCents"), 0)::float8 AS revenue
+      FROM "StoreOrder" o WHERE ${inPeriod} GROUP BY 1 ORDER BY 1
+    `,
+    prisma.$queryRaw`
+      SELECT o."paymentMethod" AS key, count(*)::int AS count, COALESCE(sum(o."totalCents"), 0)::float8 AS amount
+      FROM "StoreOrder" o WHERE ${inPeriod} GROUP BY 1 ORDER BY 3 DESC
+    `
+  ]);
+  const [sources, products, coupons, lowStock] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT i."source" AS key, COALESCE(sum(i."quantity"), 0)::int AS units,
+        COALESCE(sum(i."totalCents" - i."discountCents"), 0)::float8 AS revenue,
+        COALESCE(sum(COALESCE(i."unitCostCents", 0) * i."quantity"), 0)::float8 AS cost
+      FROM "StoreOrderItem" i JOIN "StoreOrder" o ON o.id = i."order"
+      WHERE ${inPeriod} GROUP BY 1 ORDER BY 3 DESC
+    `,
+    prisma.$queryRaw`
+      SELECT i."product" AS "productId", max(i."name") AS name, COALESCE(sum(i."quantity"), 0)::int AS units,
+        COALESCE(sum(i."totalCents" - i."discountCents"), 0)::float8 AS revenue
+      FROM "StoreOrderItem" i JOIN "StoreOrder" o ON o.id = i."order"
+      WHERE ${inPeriod} GROUP BY i."product" ORDER BY 4 DESC, 3 DESC LIMIT ${STORE_SUMMARY_TOP}
+    `,
+    prisma.$queryRaw`
+      SELECT o."couponCode" AS code, count(*)::int AS uses, COALESCE(sum(o."couponDiscountCents"), 0)::float8 AS discount
+      FROM "StoreOrder" o WHERE ${inPeriod} AND COALESCE(o."couponCode", '') <> ''
+      GROUP BY 1 ORDER BY 2 DESC, 3 DESC LIMIT ${STORE_SUMMARY_TOP}
+    `,
+    prisma.storeProduct.findMany({
+      where: {
+        status: STORE_PRODUCT_STATUS.ACTIVE,
+        inventoryPolicy: STORE_INVENTORY_POLICY.TRACKED,
+        // Affiliate products are sold on Mercado Libre: Kadesh keeps no stock of them.
+        source: { not: STORE_PRODUCT_SOURCE.MERCADO_LIBRE },
+        stockTotal: { gt: 0, lte: STORE_SUMMARY_LOW_STOCK }
+      },
+      orderBy: [{ stockTotal: "asc" }, { name: "asc" }],
+      take: STORE_SUMMARY_TOP,
+      select: { id: true, name: true, stockTotal: true }
+    })
+  ]);
+  const total = unwrapPrisma(totals)[0] ?? {};
+  const extra = unwrapPrisma(extras)[0] ?? {};
+  const orders = num(total.orders);
+  const revenue = num(total.revenue);
+  const productCost = num(total.productCost);
+  const shippingCost = num(extra.shippingCost);
+  const sold = new Map(
+    unwrapPrisma(series).map((row) => [row.key, row])
+  );
+  const keys = [];
+  for (let day = from; day <= today; day = shiftDay(day, 1)) {
+    const key = byMonth ? day.slice(0, 7) : day;
+    if (keys[keys.length - 1] !== key) keys.push(key);
+  }
+  return {
+    days,
+    from,
+    to: today,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    orders,
+    previousOrders: num(total.previousOrders),
+    revenueCents: revenue,
+    previousRevenueCents: num(total.previousRevenue),
+    units: num(total.units),
+    buyers: num(total.buyers),
+    averageOrderCents: orders > 0 ? Math.round(revenue / orders) : 0,
+    discountCents: num(total.discount),
+    shippingChargedCents: num(total.shippingCharged),
+    productCostCents: productCost,
+    shippingCostCents: shippingCost,
+    marginCents: revenue - productCost - shippingCost,
+    refundedOrders: num(extra.refundedOrders),
+    refundedCents: num(extra.refundedCents),
+    seriesUnit: byMonth ? "month" : "day",
+    series: keys.map((key) => ({ key, revenueCents: num(sold.get(key)?.revenue), orders: num(sold.get(key)?.orders) })),
+    byPaymentMethod: unwrapPrisma(methods).map((row) => ({
+      key: row.key || "",
+      count: num(row.count),
+      amount: num(row.amount)
+    })),
+    bySource: unwrapPrisma(sources).map((row) => ({
+      key: row.key || "",
+      units: num(row.units),
+      revenueCents: num(row.revenue),
+      costCents: num(row.cost)
+    })),
+    topProducts: unwrapPrisma(products).map((row) => ({ productId: row.productId, name: row.name || "Producto", units: num(row.units), revenueCents: num(row.revenue) })),
+    topCoupons: unwrapPrisma(coupons).map((row) => ({
+      code: row.code,
+      uses: num(row.uses),
+      discountCents: num(row.discount)
+    })),
+    outOfStock: num(extra.outOfStock),
+    lowStock: unwrapPrisma(lowStock).map((row) => ({
+      productId: row.id,
+      name: row.name,
+      stockTotal: num(row.stockTotal)
+    }))
+  };
+}
+var resolver130 = {
+  adminStoreSummary: async (_root, { days }, context) => {
+    assertPlatformAdmin(context);
+    const period = STORE_SUMMARY_DAYS.includes(Number(days)) ? Number(days) : STORE_SUMMARY_DEFAULT_DAYS;
+    const hit = cache6.get(period);
+    if (hit && Date.now() - hit.at < STORE_SUMMARY_CACHE_MS) return hit.value;
+    const value = await computeSummary(context, period);
+    cache6.set(period, { value, at: Date.now() });
+    return value;
+  }
+};
+var adminStoreSummary_default = { typeDefs: typeDefs132, definition: definition130, resolver: resolver130 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {
@@ -50168,6 +55910,10 @@ var customQuery = {
     ${pawLeaderboard_default.typeDefs}
     ${myPaws_default.typeDefs}
     ${publicProfile_default.typeDefs}
+    ${store_default2.typeDefs}
+    ${adminStore_default.typeDefs}
+    ${adminStoreOrders_default.typeDefs}
+    ${adminStoreSummary_default.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals_default.definition}
@@ -50214,6 +55960,10 @@ var customQuery = {
     ${pawLeaderboard_default.definition}
     ${myPaws_default.definition}
     ${publicProfile_default.definition}
+    ${store_default2.definition}
+    ${adminStore_default.definition}
+    ${adminStoreOrders_default.definition}
+    ${adminStoreSummary_default.definition}
   `,
   resolvers: {
     ...nearbyAnimals_default.resolver,
@@ -50259,7 +56009,11 @@ var customQuery = {
     ...rescueAllies_default.resolver,
     ...pawLeaderboard_default.resolver,
     ...myPaws_default.resolver,
-    ...publicProfile_default.resolver
+    ...publicProfile_default.resolver,
+    ...store_default2.resolver,
+    ...adminStore_default.resolver,
+    ...adminStoreOrders_default.resolver,
+    ...adminStoreSummary_default.resolver
   }
 };
 var queries_default = customQuery;
@@ -50457,12 +56211,12 @@ function extendGraphqlSchema(baseSchema) {
 
 // webhooks/whatsapp.ts
 var import_express = __toESM(require("express"));
-var import_crypto9 = __toESM(require("crypto"));
+var import_crypto10 = __toESM(require("crypto"));
 var WEBHOOK_PATH = "/webhooks/whatsapp";
 function extToFilename(filename, mimeType) {
   if (filename) return filename;
   const ext = mimeType.split("/")[1] || "bin";
-  return `archivo-${import_crypto9.default.randomUUID()}.${ext}`;
+  return `archivo-${import_crypto10.default.randomUUID()}.${ext}`;
 }
 function logFailedStatuses(statuses) {
   for (const status of statuses ?? []) {
@@ -50486,7 +56240,7 @@ async function persistIncomingMedia({
     const { url, mimeType } = await fetchWhatsAppMediaUrl({ mediaId: media.id, accessToken });
     const buffer = await downloadWhatsAppMedia({ url, accessToken });
     const filename = extToFilename(media.filename, mimeType);
-    const mediaKey = `whatsapp-media/${companyId}/${import_crypto9.default.randomUUID()}-${filename}`;
+    const mediaKey = `whatsapp-media/${companyId}/${import_crypto10.default.randomUUID()}-${filename}`;
     await uploadBufferToStorage({ buffer, contentType: mimeType, key: mediaKey });
     return { mediaKey, mediaFileName: filename, body: media.caption || "" };
   } catch (err) {
@@ -50713,7 +56467,7 @@ function registerWhatsAppWebhook(app, context) {
 }
 
 // webhooks/clickup.ts
-var import_crypto10 = __toESM(require("crypto"));
+var import_crypto11 = __toESM(require("crypto"));
 var import_express2 = __toESM(require("express"));
 
 // utils/intregrations/clickup.ts
@@ -50722,8 +56476,8 @@ function apiToken() {
   const value = process.env.CLICKUP_API_TOKEN?.trim();
   return value || void 0;
 }
-function clip(text89, max = 300) {
-  const trimmed = text89.replace(/\s+/g, " ").trim();
+function clip(text106, max = 300) {
+  const trimmed = text106.replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -50786,10 +56540,10 @@ async function getTaskComments(taskId) {
   if (!Array.isArray(comments)) return [];
   return comments.filter(isComment);
 }
-async function commentTask(taskId, text89) {
+async function commentTask(taskId, text106) {
   await clickUpRequest(`/task/${encodeURIComponent(taskId)}/comment`, {
     method: "POST",
-    body: { comment_text: text89, notify_all: false }
+    body: { comment_text: text106, notify_all: false }
   });
 }
 async function downloadClickUpFile(url, maxBytes) {
@@ -50829,8 +56583,8 @@ async function downloadClickUpFile(url, maxBytes) {
 }
 
 // utils/clickup/postImage.ts
-var import_stream3 = require("stream");
-var import_image_size2 = require("image-size");
+var import_stream4 = require("stream");
+var import_image_size3 = require("image-size");
 
 // utils/intregrations/pixabay.ts
 var PIXABAY_API = "https://pixabay.com/api/";
@@ -50841,11 +56595,11 @@ function apiKey() {
   const value = process.env.PIXABAY_API_KEY?.trim();
   return value || void 0;
 }
-function redact(text89) {
-  return text89.replace(/key=[^&\s]+/gi, "key=***");
+function redact(text106) {
+  return text106.replace(/key=[^&\s]+/gi, "key=***");
 }
-function clip2(text89, max = 200) {
-  const trimmed = redact(text89).replace(/\s+/g, " ").trim();
+function clip2(text106, max = 200) {
+  const trimmed = redact(text106).replace(/\s+/g, " ").trim();
   if (trimmed.length <= max) return trimmed;
   return `${trimmed.slice(0, max)}\u2026`;
 }
@@ -50979,7 +56733,7 @@ function firstImageAttachment(task) {
 function assertBufferMatches(buffer, extension) {
   let probed;
   try {
-    probed = (0, import_image_size2.imageSize)(buffer);
+    probed = (0, import_image_size3.imageSize)(buffer);
   } catch {
     throw new Error("La imagen debe ser jpg, png o webp.");
   }
@@ -50991,7 +56745,7 @@ async function uploadToPostStorage(context, buffer, extension) {
   const images = context.images("s3_posts");
   let stored;
   try {
-    stored = await images.getDataFromStream(import_stream3.Readable.from(buffer), `portada.${extension}`);
+    stored = await images.getDataFromStream(import_stream4.Readable.from(buffer), `portada.${extension}`);
   } catch (err) {
     const detail = err instanceof Error ? err.message : "error desconocido";
     throw new Error(`No se pudo guardar la imagen del post: ${detail}`);
@@ -51013,7 +56767,7 @@ async function uploadToPostStorage(context, buffer, extension) {
 function extensionFromBuffer(buffer) {
   let probed;
   try {
-    probed = (0, import_image_size2.imageSize)(buffer);
+    probed = (0, import_image_size3.imageSize)(buffer);
   } catch {
     throw new Error("La imagen debe ser jpg, png o webp.");
   }
@@ -51091,20 +56845,20 @@ async function resolvePostImage(task, context) {
     pixabayCredit: photo.credit
   };
 }
-async function attachImageToPost(context, postId, image11) {
+async function attachImageToPost(context, postId, image15) {
   await context.sudo().prisma.post.update({
     where: { id: postId },
     data: {
-      image_id: image11.id,
-      image_extension: image11.extension,
-      image_filesize: image11.filesize,
-      image_width: image11.width,
-      image_height: image11.height
+      image_id: image15.id,
+      image_extension: image15.extension,
+      image_filesize: image15.filesize,
+      image_width: image15.width,
+      image_height: image15.height
     }
   });
 }
-async function deleteStoredPostImage(context, image11) {
-  await context.images("s3_posts").deleteAtSource(image11.id, image11.extension);
+async function deleteStoredPostImage(context, image15) {
+  await context.images("s3_posts").deleteAtSource(image15.id, image15.extension);
 }
 
 // utils/helpers/markdownToDocument.ts
@@ -51134,8 +56888,8 @@ function readLink(input, start, bold) {
   const label = input.slice(start + 1, labelEnd);
   const href = input.slice(labelEnd + 2, hrefEnd).trim();
   if (!label || !href || label.includes("[") || label.includes("]")) return null;
-  const text89 = bold ? { text: label, bold: true } : { text: label };
-  return { node: { type: "link", href, children: [text89] }, next: hrefEnd + 1 };
+  const text106 = bold ? { text: label, bold: true } : { text: label };
+  return { node: { type: "link", href, children: [text106] }, next: hrefEnd + 1 };
 }
 function parseInlines(input, bold = false) {
   const nodes = [];
@@ -51180,33 +56934,33 @@ function boldOnlyInner(line) {
   if (!inner.trim() || inner.includes("**")) return null;
   return inner.trim();
 }
-function listItem(text89) {
+function listItem(text106) {
   return {
     type: "list-item",
-    children: [{ type: "list-item-content", children: padInlines(parseInlines(text89.trim())) }]
+    children: [{ type: "list-item-content", children: padInlines(parseInlines(text106.trim())) }]
   };
 }
 function markdownToDocument(markdown) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let paragraphLines = [];
-  let list103 = null;
+  let list119 = null;
   const flushParagraph = () => {
-    const text89 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
+    const text106 = paragraphLines.join(" ").replace(/\s+/g, " ").trim();
     paragraphLines = [];
-    if (!text89) return;
-    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text89)) });
+    if (!text106) return;
+    blocks.push({ type: "paragraph", children: padInlines(parseInlines(text106)) });
   };
   const flushList = () => {
-    if (!list103 || list103.items.length === 0) {
-      list103 = null;
+    if (!list119 || list119.items.length === 0) {
+      list119 = null;
       return;
     }
     blocks.push({
-      type: list103.ordered ? "ordered-list" : "unordered-list",
-      children: list103.items
+      type: list119.ordered ? "ordered-list" : "unordered-list",
+      children: list119.items
     });
-    list103 = null;
+    list119 = null;
   };
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -51220,11 +56974,11 @@ function markdownToDocument(markdown) {
     if (unordered || ordered) {
       flushParagraph();
       const orderedItem = Boolean(ordered);
-      if (!list103 || list103.ordered !== orderedItem) {
+      if (!list119 || list119.ordered !== orderedItem) {
         flushList();
-        list103 = { ordered: orderedItem, items: [] };
+        list119 = { ordered: orderedItem, items: [] };
       }
-      list103.items.push(listItem((unordered ?? ordered)[1]));
+      list119.items.push(listItem((unordered ?? ordered)[1]));
       continue;
     }
     const heading = boldOnlyInner(line);
@@ -51247,10 +57001,10 @@ function inlineToText(nodes) {
 function excerptFromDocument(nodes, max = EXCERPT_MAX2) {
   for (const node of nodes) {
     if (node.type !== "paragraph") continue;
-    const text89 = inlineToText(node.children).replace(/\s+/g, " ").trim();
-    if (!text89) continue;
-    if (text89.length <= max) return text89;
-    const slice = text89.slice(0, max);
+    const text106 = inlineToText(node.children).replace(/\s+/g, " ").trim();
+    if (!text106) continue;
+    if (text106.length <= max) return text106;
+    const slice = text106.slice(0, max);
     const lastSpace = slice.lastIndexOf(" ");
     if (lastSpace <= 0) return slice.trimEnd();
     return slice.slice(0, lastSpace).trimEnd();
@@ -51356,7 +57110,7 @@ async function scheduleApprovedClickUpTask(taskId, context) {
     return;
   }
   const resolved = await resolvePostImage(task, context);
-  const image11 = resolved.image;
+  const image15 = resolved.image;
   let createdId = null;
   try {
     const created = await context.sudo().query.Post.createOne({
@@ -51372,7 +57126,7 @@ async function scheduleApprovedClickUpTask(taskId, context) {
       query: "id url product"
     });
     createdId = created.id;
-    await attachImageToPost(context, created.id, image11);
+    await attachImageToPost(context, created.id, image15);
     await setTaskStatus(taskId, "programado");
     const url = postPublicUrl(created.product || product, created.url, created.id);
     const when = formatInMexicoCity(draft.publishedAt);
@@ -51384,7 +57138,7 @@ Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.
       console.error("[clickup] el post qued\xF3 programado pero no se pudo comentar", err);
     }
   } catch (err) {
-    await rollbackCreatedPost(context, createdId, image11);
+    await rollbackCreatedPost(context, createdId, image15);
     if (isClickUpTaskConflict(err)) {
       const raced = await findPostByClickUpTask(context, taskId);
       if (raced) {
@@ -51395,13 +57149,13 @@ Foto: ${resolved.pixabayCredit.user} en Pixabay \u2014 ${resolved.pixabayCredit.
     throw err;
   }
 }
-async function rollbackCreatedPost(context, postId, image11) {
+async function rollbackCreatedPost(context, postId, image15) {
   if (postId) {
     await context.sudo().prisma.post.delete({ where: { id: postId } }).catch((deleteErr) => {
       console.error("[clickup] no se pudo borrar el post a medias", deleteErr);
     });
   }
-  await deleteStoredPostImage(context, image11).catch((deleteErr) => {
+  await deleteStoredPostImage(context, image15).catch((deleteErr) => {
     console.error("[clickup] no se pudo borrar la imagen del post a medias", deleteErr);
   });
 }
@@ -51415,12 +57169,12 @@ function rawBodyOf(req) {
 }
 function verifyClickUpSignature(rawBody, signatureHeader, secret) {
   if (!signatureHeader) return false;
-  const expected = import_crypto10.default.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = import_crypto11.default.createHmac("sha256", secret).update(rawBody).digest("hex");
   const received = signatureHeader.trim().toLowerCase();
   const expectedBuf = Buffer.from(expected, "utf8");
   const receivedBuf = Buffer.from(received, "utf8");
   if (expectedBuf.length !== receivedBuf.length) return false;
-  return import_crypto10.default.timingSafeEqual(expectedBuf, receivedBuf);
+  return import_crypto11.default.timingSafeEqual(expectedBuf, receivedBuf);
 }
 function isApprovedStatusUpdate(payload) {
   if (payload.event !== "taskStatusUpdated") return false;
@@ -51432,10 +57186,10 @@ function isApprovedStatusUpdate(payload) {
 }
 function commentForError(err) {
   const message = err instanceof Error ? err.message : "";
-  const text89 = message.replace(/^\[clickup\]\s*/, "").trim();
-  if (!text89) return "No se pudo programar el post.";
-  if (text89.length <= 500) return text89;
-  return `${text89.slice(0, 500)}\u2026`;
+  const text106 = message.replace(/^\[clickup\]\s*/, "").trim();
+  if (!text106) return "No se pudo programar el post.";
+  if (text106.length <= 500) return text106;
+  return `${text106.slice(0, 500)}\u2026`;
 }
 async function handleClickUpWebhook(req, res, context) {
   try {
@@ -51497,7 +57251,7 @@ function registerClickUpWebhook(app, context) {
 }
 
 // webhooks/metaDataDeletion.ts
-var import_crypto11 = __toESM(require("crypto"));
+var import_crypto12 = __toESM(require("crypto"));
 var import_express3 = __toESM(require("express"));
 var DATA_DELETION_PATH = "/webhooks/meta/data-deletion";
 var STATUS_PATH = "/webhooks/meta/data-deletion/status";
@@ -51512,9 +57266,9 @@ function verifyMetaSignedRequest(signedRequest, secret) {
   const encodedSig = signedRequest.slice(0, dot);
   const encodedPayload = signedRequest.slice(dot + 1);
   const received = base64UrlDecode(encodedSig);
-  const expected = import_crypto11.default.createHmac("sha256", secret).update(encodedPayload).digest();
+  const expected = import_crypto12.default.createHmac("sha256", secret).update(encodedPayload).digest();
   if (received.length !== expected.length) return null;
-  if (!import_crypto11.default.timingSafeEqual(received, expected)) return null;
+  if (!import_crypto12.default.timingSafeEqual(received, expected)) return null;
   let payload;
   try {
     payload = JSON.parse(base64UrlDecode(encodedPayload).toString("utf8"));
@@ -51556,7 +57310,7 @@ async function handleDataDeletion(req, res, context) {
     res.sendStatus(400);
     return;
   }
-  const confirmationCode = import_crypto11.default.randomUUID().replace(/-/g, "");
+  const confirmationCode = import_crypto12.default.randomUUID().replace(/-/g, "");
   const url = statusPageUrl(confirmationCode);
   if (!url) {
     console.warn("[meta data-deletion] falta FRONTEND_URL; no se puede armar la URL de estado");
@@ -51644,6 +57398,82 @@ function registerMetaDataDeletionWebhook(app, context) {
 
 // webhooks/stripe.ts
 var import_express4 = __toESM(require("express"));
+
+// webhooks/stripeStore.ts
+var STORE_ORDER_KIND = "store_order";
+function chargeIdOf(intent) {
+  const charge = intent.latest_charge;
+  if (typeof charge === "string" && charge) return charge;
+  return typeof charge?.id === "string" ? charge.id : null;
+}
+async function handleStorePaymentIntentSucceeded(context, event) {
+  const intent = event.data?.object;
+  if (intent?.metadata?.kind !== STORE_ORDER_KIND) return;
+  const orderId = String(intent.metadata.orderId ?? "");
+  if (!orderId) return;
+  await markStoreOrderPaid(context, orderId, {
+    provider: STORE_PAYMENT_METHOD.CARD,
+    stripePaymentIntentId: intent.id,
+    stripeChargeId: chargeIdOf(intent)
+  });
+}
+async function handleStorePaymentIntentFailed(context, event) {
+  const intent = event.data?.object;
+  if (intent?.metadata?.kind !== STORE_ORDER_KIND) return;
+  const orderId = String(intent.metadata.orderId ?? "");
+  if (!orderId) return;
+  const reason = String(intent.last_payment_error?.message ?? "El banco rechaz\xF3 el cobro.").slice(0, 300);
+  const updated = await storePrisma(context).storePayment.updateMany({
+    where: { orderId, stripePaymentIntentId: intent.id, status: STORE_PAYMENT_ATTEMPT_STATUS.PENDING },
+    data: { status: STORE_PAYMENT_ATTEMPT_STATUS.FAILED, errorMessage: reason }
+  });
+  if (updated instanceof Error) throw updated;
+  if (updated.count === 1) {
+    await addStoreOrderEvent(context, {
+      orderId,
+      type: STORE_ORDER_EVENT.PAYMENT_FAILED,
+      message: "Tu tarjeta no pas\xF3. Puedes intentar con otra.",
+      isPublic: true,
+      metadata: { reason }
+    });
+  }
+}
+async function handleStoreChargeRefunded(context, charge) {
+  const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id ?? null;
+  const prisma = storePrisma(context);
+  const payment = await prisma.storePayment.findFirst({
+    where: { OR: [{ stripeChargeId: charge.id }, ...intentId ? [{ stripePaymentIntentId: intentId }] : []] },
+    select: { id: true, orderId: true, status: true, amountCents: true }
+  });
+  if (payment instanceof Error) throw payment;
+  if (!payment) return charge.metadata?.kind === STORE_ORDER_KIND;
+  if (!payment.orderId || payment.status === STORE_PAYMENT_ATTEMPT_STATUS.REFUNDED) return true;
+  const refunded = Number(charge.amount_refunded) || 0;
+  if (charge.refunded === true || refunded >= payment.amountCents) {
+    await refundStoreOrder(context, payment.orderId, {
+      reason: "Reembolso hecho desde Stripe.",
+      restock: false,
+      alreadyRefundedOnStripe: true
+    });
+    return true;
+  }
+  const updated = await prisma.storePayment.updateMany({
+    where: { id: payment.id, refundedCents: { not: refunded } },
+    data: { refundedCents: refunded }
+  });
+  if (updated instanceof Error) throw updated;
+  if (updated.count === 1) {
+    await addStoreOrderEvent(context, {
+      orderId: payment.orderId,
+      type: STORE_ORDER_EVENT.NOTE,
+      message: `Reembolso parcial desde Stripe: ${(refunded / 100).toFixed(2)} MXN en total.`,
+      metadata: { refundedCents: refunded }
+    });
+  }
+  return true;
+}
+
+// webhooks/stripe.ts
 var WEBHOOK_PATH3 = "/webhooks/stripe";
 function str(value) {
   if (typeof value === "string" && value) return value;
@@ -51817,11 +57647,11 @@ async function handleSubscriptionChange(context, event) {
 async function invoiceIdForPaymentIntent(paymentIntentId) {
   if (!paymentIntentId) return null;
   try {
-    const list103 = await stripe_default.invoicePayments.list({
+    const list119 = await stripe_default.invoicePayments.list({
       payment: { type: "payment_intent", payment_intent: paymentIntentId },
       limit: 1
     });
-    return str(list103?.data?.[0]?.invoice);
+    return str(list119?.data?.[0]?.invoice);
   } catch {
     return null;
   }
@@ -51845,6 +57675,7 @@ async function findPaymentByRefs(context, refs) {
 async function handleChargeRefunded(context, event) {
   const charge = event.data?.object;
   if (!charge?.id) return;
+  if (await handleStoreChargeRefunded(context, charge)) return;
   const refs = [charge.id, str(charge.payment_intent), str(charge.invoice)].filter(
     (ref) => Boolean(ref)
   );
@@ -51877,7 +57708,9 @@ var HANDLERS = {
   "invoice.payment_failed": handleInvoicePaymentFailed,
   "customer.subscription.updated": handleSubscriptionChange,
   "customer.subscription.deleted": handleSubscriptionChange,
-  "charge.refunded": handleChargeRefunded
+  "charge.refunded": handleChargeRefunded,
+  "payment_intent.succeeded": handleStorePaymentIntentSucceeded,
+  "payment_intent.payment_failed": handleStorePaymentIntentFailed
 };
 async function processStripeEvent(context, event) {
   const handler = HANDLERS[event?.type];
@@ -52000,6 +57833,11 @@ var storage = {
       type: "image",
       pathPrefix: prefix("rescue/")
     },
+    s3_store: {
+      ...s3Common,
+      type: "image",
+      pathPrefix: prefix("store/")
+    },
     s3_tech_files: {
       ...s3Common,
       type: "file",
@@ -52065,6 +57903,12 @@ var storage = {
       serverRoute: { path: "/images" },
       storagePath: "public/images"
     },
+    s3_store: {
+      kind: "local",
+      type: "image",
+      serverRoute: { path: "/images" },
+      storagePath: "public/images"
+    },
     s3_tech_files: {
       kind: "local",
       type: "file",
@@ -52080,7 +57924,7 @@ var storage = {
   }
 };
 var keystone_default = withSessionGuards(withAuth(
-  (0, import_core105.config)({
+  (0, import_core121.config)({
     db: {
       provider: "postgresql",
       // Sin connection_limit, Prisma abre núcleos × 2 + 1 conexiones y en Railway cuenta los

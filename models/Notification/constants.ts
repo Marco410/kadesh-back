@@ -77,6 +77,22 @@ export const NOTIFICATION_TYPE = {
   PET_TRANSFER_REDEEMED: "pet.transfer_redeemed",
   /** La persona juntó suficientes huellitas para subir de nivel. Va a ella. */
   PAWS_LEVEL_UP: "paws.level_up",
+  /** Store: the order was paid (card charged or transfer approved). Goes to the buyer. */
+  STORE_ORDER_PAID: "store.order_paid",
+  /** Store: a package of the order left. Goes to the buyer. */
+  STORE_ORDER_SHIPPED: "store.order_shipped",
+  /** Store: every package of the order was delivered. Goes to the buyer. */
+  STORE_ORDER_DELIVERED: "store.order_delivered",
+  /** Store: the order was cancelled (expired unpaid, by an admin, or refunded). Goes to the buyer. */
+  STORE_ORDER_CANCELLED: "store.order_cancelled",
+  /** Store: the transfer proof could not be confirmed. Goes to the buyer. */
+  STORE_TRANSFER_REJECTED: "store.transfer_rejected",
+  /** Store: a paid order waits to be fulfilled. Goes to platform admins. */
+  STORE_ADMIN_ORDER_PAID: "store.admin_order_paid",
+  /** Store: a transfer proof waits for review. Goes to platform admins. */
+  STORE_ADMIN_TRANSFER_REVIEW: "store.admin_transfer_review",
+  /** Store: money arrived for an order that was already cancelled. Goes to platform admins. */
+  STORE_ADMIN_PAID_AFTER_CANCEL: "store.admin_paid_after_cancel",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

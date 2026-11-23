@@ -21,7 +21,7 @@ const HISTORY_MAX_TAKE = 50;
 const typeDefs = `
   type PawHistoryEntry {
     id: ID!
-    "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | streak_bonus | admin_adjust"
+    "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | purchase | product_review | streak_bonus | admin_adjust"
     action: String!
     "earn | reversal | adjust | spend"
     kind: String!
