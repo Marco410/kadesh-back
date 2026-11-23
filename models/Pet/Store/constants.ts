@@ -82,6 +82,13 @@ export const STORE_REVIEW_STATUS_OPTIONS = [
 
 export const STORE_CURRENCY = "MXN";
 
+/**
+ * Added to the account's short descriptor (Stripe → Settings → Public details) on every store card
+ * charge, so the bank shows «KADESH* TIENDA» and not the account-wide descriptor. Latin letters,
+ * digits and spaces only; prefix + suffix must fit in 22 characters.
+ */
+export const STORE_STATEMENT_DESCRIPTOR_SUFFIX = "TIENDA";
+
 export const STORE_CATALOG_DEFAULT_TAKE = 24;
 export const STORE_CATALOG_MAX_TAKE = 48;
 export const STORE_RELATED_TAKE = 8;

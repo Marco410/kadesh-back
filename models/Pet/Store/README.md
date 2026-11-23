@@ -97,6 +97,10 @@ Invariantes de pedidos:
 - **Un intento de pago, un pedido.** El checkout manda `checkoutKey` (aleatoria, una por intento, la misma en cada reintento). `StoreOrder.checkoutKey` es única: si llegan tres clics a la vez, uno crea el pedido y los otros devuelven el stock y responden ese mismo pedido con el mismo PaymentIntent (misma llave de idempotencia de Stripe). Solo lo recupera quien lo hizo (la sesión, o el correo del invitado en los primeros 15 min). Tras una respuesta con `success: false` el front hace una llave nueva.
 - **Los envíos solo avanzan por pasos válidos** (`storeShipmentNextStatuses` en `constants.ts`): un paquete que no salió no puede quedar «Devuelto», y los de Kadesh nunca pasan por los pasos de Dropi. El panel pide `nextStatuses` y solo ofrece esos.
 
+## Estado de cuenta
+
+Cada cobro con tarjeta de la tienda lleva `statement_descriptor_suffix` (`STORE_STATEMENT_DESCRIPTOR_SUFFIX`, «TIENDA»). El banco muestra el descriptor corto de la cuenta más el sufijo, por ejemplo «KADESH* TIENDA». El descriptor de la cuenta lo comparten las suscripciones del SaaS y las donaciones (enlace `donate.stripe.com` de la landing), así que va en Stripe como «KADESH» y no como «DONACIÓN».
+
 ## Devoluciones
 
 Solo se aceptan si el producto llega defectuoso, dañado o no es el que se pidió. La persona avisa en los `STORE_RETURN_DAYS` (5) días siguientes a recibirlo y paga el envío de regreso; al recibirlo y revisarlo, Kadesh manda otro o reembolsa. Mientras `StoreSettings.returnPolicy` esté vacío, el checkout y el pedido muestran `STORE_DEFAULT_RETURN_POLICY`. `storeCatalogProduct` devuelve `returnDays` y el envío (`shippingFlatCents`, `freeShippingMinCents`) para que la landing los ponga en el JSON-LD del producto y en la página. Si cambia la regla, cambia la constante, el texto y la línea de `ProductDetail.tsx` en kadesh-landing.

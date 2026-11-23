@@ -9,6 +9,7 @@ import {
   STORE_PAYMENT_ATTEMPT_STATUS,
   STORE_PAYMENT_METHOD,
   STORE_PAYMENT_STATUS,
+  STORE_STATEMENT_DESCRIPTOR_SUFFIX,
 } from "../../../../models/Pet/Store/constants";
 import { getSessionUserId, isPlatformAdmin } from "../../../../utils/access/tenant";
 import { logActivity } from "../../../../utils/activity/logActivity";
@@ -372,6 +373,7 @@ function createOrderIntent(order: { id: string; number: string; totalCents: numb
       ...(buyer.stripeCustomerId ? { customer: buyer.stripeCustomerId } : {}),
       receipt_email: buyer.email || undefined,
       description: `Pedido ${order.number} en la tienda de Kadesh Pet`,
+      statement_descriptor_suffix: STORE_STATEMENT_DESCRIPTOR_SUFFIX,
       metadata: { kind: "store_order", orderId: order.id, orderNumber: order.number },
     },
     { idempotencyKey: `store-order-${order.id}` },
