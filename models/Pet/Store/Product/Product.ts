@@ -35,10 +35,6 @@ export default list({
       ref: "Review.product",
       many: true,
     }),
-    product_ads: relationship({
-      ref: "Ad.product",
-      many: true,
-    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",

@@ -5,6 +5,9 @@ name: Expire store orders
 # order is checked with Stripe first, in case the charge went through and only the webhook is late.
 # See models/Pet/Store/README.md.
 #
+# A second step calls `expireAds`, which marks as ended the ads whose end date passed
+# (models/Pet/Ad/README.md).
+#
 # Needs these repo secrets (Settings → Secrets and variables → Actions):
 #   KADESH_API_URL — GraphQL endpoint of the backend on Railway, e.g. https://<domain>/api/graphql
 #   CRON_SECRET     — same value as CRON_SECRET in the Railway env vars
@@ -49,3 +52,29 @@ jobs:
           fi
 
           jq -e '.data.expireStoreOrders.success == true' response.json > /dev/null
+
+      - name: Call expireAds
+        env:
+          KADESH_API_URL: ${{ secrets.KADESH_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          payload=$(jq -n --arg secret "$CRON_SECRET" '{
+            query: "mutation ExpireAds($secret: String!) { expireAds(secret: $secret) { success message ended } }",
+            variables: { secret: $secret }
+          }')
+
+          http_status=$(curl -sS -o response.json -w "%{http_code}" -X POST "$KADESH_API_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          echo "HTTP status: $http_status"
+          cat response.json | jq . 2>/dev/null || cat response.json
+
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            echo "::error::KADESH_API_URL answered HTTP $http_status."
+            exit 1
+          fi
+
+          jq -e '.data.expireAds.success == true' response.json > /dev/null

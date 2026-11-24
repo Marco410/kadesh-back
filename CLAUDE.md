@@ -94,6 +94,7 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Sync de PetPlaces con Google | apagado con `ENVIROMENT=DEV`, encendido en el resto; `PET_PLACES_GOOGLE_SYNC=true/false` lo fuerza | `isPetPlacesGoogleSyncEnabled` en `utils/helpers/nearby_petplaces.ts` |
 | Vistas de evento repetidas | 30 min | `models/Pet/PetEvent/constants.ts` |
 | Vistas de producto de la tienda y de veterinaria | repetidas 30 min; al público solo desde 10 (dueño y admin siempre) | `models/Pet/Store/constants.ts` (`STORE_PRODUCT_VIEW*`), `models/Pet/PetPlace/const.ts` (`PET_PLACE_VIEW*`) |
+| Anuncios de Kadesh Pet | `activeAds` en memoria 5 min (se limpia al guardar un anuncio), hasta 100; la web la guarda 5 min y la app 30 min; impresiones y clics repetidos 30 min, hasta 50 por llamada, 30 llamadas por IP cada 5 min; reporte de Operaciones 5 min | `models/Pet/Ad/constants.ts`, `utils/pet/ads.ts` |
 | Perfil público (`publicUserProfile`) | unas 10 consultas por vista sin caché; el landing guarda la página 5 min por persona | `graphql/customs/queries/publicProfile.ts`, kadesh-landing `src/app/u/[username]/page.tsx` |
 | Caché de `pawLeaderboard` | 10 min por periodo, o hasta que cambie un saldo (`pawsLedgerVersion`); el landing la pide cada 5 min | `models/Pet/Paws/constants.ts` (`LEADERBOARD_CACHE_MS`) |
 | Huellitas | tope global 60 al día; tienda: 10 por línea de pedido entregada de $100 o más y 5 por reseñar lo comprado, tope de 3 al día cada una; topes por acción y niveles en el mismo archivo; apagado sin `PAWS_ENABLED=true` | `models/Pet/Paws/constants.ts`, `utils/pet/paws.ts` |
@@ -104,8 +105,8 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Errores y vistas de admin repetidos | 10 min | `utils/activity/appErrorsPlugin.ts`, `graphql/customs/mutations/activity/trackEvents.ts` |
 | Subida de archivos / cuerpo JSON | 200 MB / 15 MB | `keystone.ts` |
 | Imágenes que descarga el back | 8 MB | `utils/pet/petCard.ts`, `utils/clickup/postImage.ts` |
-| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500, ranking de huellitas 50, historial de huellitas 50, catálogo de la tienda 48, reseñas de producto 20, lista de deseos 500, pedidos propios 20, productos y pedidos en Operaciones 100 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts`, `pawLeaderboard.ts`, `myPaws.ts`, `models/Pet/Store/constants.ts` |
-| Crons (GitHub Actions) | cada hora al minuto 5 (avisos de eventos y vencimiento de pedidos de la tienda, tope 200 por corrida); diario 15:00 UTC; diario 16:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `expire-store-orders.yml`, `send-pet-reminders.yml`, `send-animal-follow-ups.yml` |
+| Tope de filas | eventos 48, aliados 300, mensajes de la bandeja 500, ranking de huellitas 50, historial de huellitas 50, catálogo de la tienda 48, reseñas de producto 20, lista de deseos 500, pedidos propios 20, productos y pedidos en Operaciones 100, anuncios en Operaciones 100 | `petEvents.ts`, `rescueAllies.ts`, `whatsapp/whatsappConversations.ts`, `pawLeaderboard.ts`, `myPaws.ts`, `models/Pet/Store/constants.ts` |
+| Crons (GitHub Actions) | cada hora al minuto 5 (avisos de eventos, vencimiento de pedidos de la tienda, tope 200 por corrida, y fin de anuncios vencidos); diario 15:00 UTC; diario 16:00 UTC | `.github/workflows/send-pet-event-notifications.yml`, `expire-store-orders.yml`, `send-pet-reminders.yml`, `send-animal-follow-ups.yml` |
 | Seguimiento de casos | recordatorios a 7 y 21 días; inactivo a 45 (sin dueño, 30); topes 200 / 500 por corrida | `models/Pet/Animal/Animal.followUp.ts`, `graphql/customs/mutations/pet/sendAnimalFollowUps.ts` |
 
 La revalidación de caché de los fronts debe quedar por debajo de 1 h, que es lo que duran las URLs firmadas.
@@ -127,7 +128,7 @@ Cada petición con sesión cuesta 3 consultas antes del resolver (`sessionData` 
 - **`getNearbyAnimals`** (`graphql/customs/queries/nearbyAnimals.ts`): trae todos los animales sin `take`, filtra estado, ubicación y distancia en memoria y pagina al final. Crece con la tabla.
 - **Bandeja de WhatsApp** (`graphql/customs/queries/whatsapp/whatsappConversations.ts`): 500 mensajes con `businessLead { salesPerson }` → hasta 500 consultas extra por poll.
 - **`nextFollowUpDate`** (`models/Saas/Tech/StatusBusinessLead/TechStatusBusinessLead.ts`): campo virtual con una consulta por fila. No lo pidas en listas largas.
-- **Solo las lists `Store*` tienen `graphql.maxTake`**: en las demás el front puede pedir miles de leads en una petición.
+- **Solo las lists `Store*` y `Ad` tienen `graphql.maxTake`**: en las demás el front puede pedir miles de leads en una petición.
 - **Índices que faltan**: `TechBusinessLead.createdAt` (es el orden de todas las listas de leads) y `source`; `TechWhatsAppMessage (companyId, createdAt)`.
 - **`adminCompanyInsights`** (`graphql/customs/queries/admin/adminCompanyInsights.ts`): un `count` por vendedor en `Promise.all` y un `take: 5000`. Con el pool en 5 se encolan; si aparece `P2024`, es aquí.
 - **`salesVelocity`** (`utils/analytics/salesVelocity.ts`): carga todos los status de la empresa con su lead.

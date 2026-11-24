@@ -567,37 +567,6 @@ export const PET_PLACES_SEED_LOCATION = {
   lng: Number(process.env.PET_PLACES_SEED_LNG) || -99.1332,
 };
 
-export const TYPES_AD = [
-  {
-    label: "Producto",
-    value: "product",
-  },
-  {
-    label: "Lugar",
-    value: "pet_place",
-  },
-  {
-    label: "Servicio",
-    value: "service",
-  },
-  
-];
-
-export const STATUS_AD = [
-  {
-    label: "Pendiente",
-    value: "pending",
-  },
-  {
-    label: "Aprobado",
-    value: "approved",
-  },
-  {
-    label: "Rechazado",
-    value: "rejected",
-  }
-];
-
 /** Etiquetas de categorías creadas cuando el nombre era un valor fijo. Las nuevas guardan el texto visible. */
 export const POST_CATEGORIES = [
   { label: "Cuidado y Salud", value: "care_health" },

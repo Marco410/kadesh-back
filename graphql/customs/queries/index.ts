@@ -47,6 +47,8 @@ import storeQueries from "./store";
 import adminStore from "./admin/adminStore";
 import adminStoreOrders from "./admin/adminStoreOrders";
 import adminStoreSummary from "./admin/adminStoreSummary";
+import adminAds from "./admin/adminAds";
+import activeAds from "./pet/activeAds";
 
 const customQuery = {
   typeDefs: `
@@ -96,6 +98,8 @@ const customQuery = {
     ${adminStore.typeDefs}
     ${adminStoreOrders.typeDefs}
     ${adminStoreSummary.typeDefs}
+    ${adminAds.typeDefs}
+    ${activeAds.typeDefs}
   `,
   definitions: `
     ${nearbyAnimals.definition}
@@ -146,6 +150,8 @@ const customQuery = {
     ${adminStore.definition}
     ${adminStoreOrders.definition}
     ${adminStoreSummary.definition}
+    ${adminAds.definition}
+    ${activeAds.definition}
   `,
   resolvers: {
     ...nearbyAnimals.resolver,
@@ -196,6 +202,8 @@ const customQuery = {
     ...adminStore.resolver,
     ...adminStoreOrders.resolver,
     ...adminStoreSummary.resolver,
+    ...adminAds.resolver,
+    ...activeAds.resolver,
   },
 };
 
