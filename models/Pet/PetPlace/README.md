@@ -30,6 +30,16 @@ Citas/reservas: ver [`PetPlaceAppointment/README.md`](./PetPlaceAppointment/READ
 - `pipelineStatus`: solo admin.
 - Verificación, slug, `views`, campos de Google y relaciones (`services`, `patients`, `pet_place_*`): solo el admin los manda al crear.
 
+## Vistas
+
+`views` cuenta quién abre la página de la ficha. La suma `recordPetPlaceView` (sudo, SQL directo), que el landing llama una vez al abrirla:
+
+- Una por persona (o IP + navegador sin sesión) y ficha cada 30 min (`PET_PLACE_VIEW_DEDUPE_MS` en `const.ts`).
+- No cuentan el dueño de la ficha, los admins ni los bots conocidos.
+- Al público el número se le devuelve solo desde 10 vistas (`PET_PLACE_VIEWS_PUBLIC_MIN`); al dueño y al admin siempre.
+- Empezó a contar el 2026-11-23: las fichas viejas tienen `views` vacío o en 0.
+- En Operaciones → Kadesh Pet → Resumen → Veterinarias: «Más vistas» (`adminPetSummary.places.topViewed` y `places.views`), de siempre.
+
 ## Qué no va aquí
 
 Importación masiva desde Places (`executeImportPetPlace`). El catálogo de servicios es [`PetPlaceService/README.md`](./PetPlaceService/README.md).

@@ -1892,6 +1892,7 @@ model StoreProduct {
   ratingAverage                  Float?                @default(0)
   ratingCount                    Int?                  @default(0)
   salesCount                     Int?                  @default(0)
+  viewsCount                     Int                   @default(0)
   metaTitle                      String                @default("")
   metaDescription                String                @default("")
   variants                       StoreProductVariant[] @relation("StoreProductVariant_product")

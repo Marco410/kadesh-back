@@ -222,3 +222,12 @@ export const services = [
     description: "Atención veterinaria en la comodidad del hogar del dueño.",
   },
 ];
+
+/**
+ * Clinic page views (`recordPetPlaceView`): the same person (or the same IP + browser without a
+ * session) adds one view per clinic in this window, however many times they reload.
+ */
+export const PET_PLACE_VIEW_DEDUPE_MS = 30 * 60 * 1000;
+
+/** Below this many views the public page hides the number. The owner and admins always see it. */
+export const PET_PLACE_VIEWS_PUBLIC_MIN = 10;

@@ -33,6 +33,8 @@ const typeDefs = `
     ratingAverage: Float!
     ratingCount: Int!
     salesCount: Int!
+    "All-time page views."
+    viewsCount: Int!
     isFeatured: Boolean!
     externalId: String
     category: String
@@ -88,6 +90,7 @@ type Row = {
   ratingAverage: number | null;
   ratingCount: number | null;
   salesCount: number | null;
+  viewsCount: number | null;
   isFeatured: boolean | null;
   externalId: string | null;
   createdAt: Date | null;
@@ -141,6 +144,7 @@ const resolver = {
           ratingAverage: true,
           ratingCount: true,
           salesCount: true,
+          viewsCount: true,
           isFeatured: true,
           externalId: true,
           createdAt: true,
@@ -187,6 +191,7 @@ const resolver = {
         ratingAverage: Number(product.ratingAverage) || 0,
         ratingCount: Number(product.ratingCount) || 0,
         salesCount: Number(product.salesCount) || 0,
+        viewsCount: Number(product.viewsCount) || 0,
         isFeatured: Boolean(product.isFeatured),
         externalId: product.externalId,
         category: product.category?.name ?? null,

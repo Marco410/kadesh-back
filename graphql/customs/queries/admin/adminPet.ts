@@ -53,6 +53,17 @@ const typeDefs = `
     topCities: [AdminCount!]!
   }
 
+  type AdminPetTopPlace {
+    id: ID!
+    name: String!
+    slug: String
+    municipality: String
+    state: String
+    verified: Boolean!
+    "All-time views of the clinic page (not limited to the period)."
+    views: Int!
+  }
+
   type AdminPetPlacesSummary {
     total: Int!
     veterinaries: Int!
@@ -65,6 +76,10 @@ const typeDefs = `
     byClaimStatus: [AdminCount!]!
     byType: [AdminCount!]!
     topStates: [AdminCount!]!
+    "Sum of all clinic page views, all time."
+    views: Int!
+    "Clinics with the most page views, all time."
+    topViewed: [AdminPetTopPlace!]!
   }
 
   type AdminPetUsersSummary {
@@ -581,6 +596,8 @@ const resolver = {
       byClaimStatus,
       placeTypes,
       placeStates,
+      placeViews,
+      topViewedPlaces,
     ] = await Promise.all([
       prisma.petPlace.count(),
       prisma.petPlace.count({ where: { types: { some: { value: "veterinary" } } } }),
@@ -593,6 +610,13 @@ const resolver = {
       groupCounts(prisma, "petPlace", "claimStatus", {}),
       placesByType(prisma),
       placesTopStates(prisma),
+      prisma.petPlace.aggregate({ _sum: { views: true } }),
+      prisma.petPlace.findMany({
+        where: { views: { gt: 0 } },
+        orderBy: [{ views: "desc" }, { name: "asc" }],
+        take: TOP_VIEWED,
+        select: { id: true, name: true, slug: true, municipality: true, state: true, verified: true, views: true },
+      }),
     ]);
 
     const [usersTotal, usersNew, usersPrev, views, viewsSignedIn, favorites, comments, topViewed, animalClaims, placeClaims, services] =
@@ -642,6 +666,16 @@ const resolver = {
         byClaimStatus,
         byType: placeTypes,
         topStates: placeStates,
+        views: Number(placeViews?._sum?.views ?? 0),
+        topViewed: (topViewedPlaces as Array<Record<string, any>>).map((place) => ({
+          id: place.id,
+          name: place.name,
+          slug: place.slug ?? null,
+          municipality: place.municipality ?? null,
+          state: place.state ?? null,
+          verified: Boolean(place.verified),
+          views: Number(place.views ?? 0),
+        })),
       },
       users: { total: usersTotal, newInPeriod: usersNew, newPrevPeriod: usersPrev },
       engagement: { views, viewsSignedIn, favorites, comments, topViewed },
