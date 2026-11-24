@@ -278,7 +278,7 @@ export default list({
     }),
     pet_place_ads: relationship({
       ...adminCreateOnly,
-      ref: "Ad.pet_place",
+      ref: "Ad.petPlace",
       many: true,
     }),
     address: text(),

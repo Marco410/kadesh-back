@@ -65,6 +65,7 @@ import StoreSettings from "./Pet/Store/StoreSettings/StoreSettings";
 import TokenNotification from "./TokenNotification/TokenNotification";
 import Notification from "./Notification/Notification";
 import Ad from "./Pet/Ad/Ad";
+import AdDailyStat from "./Pet/Ad/AdDailyStat/AdDailyStat";
 import Post from "./Blog/Post/Post";
 import PostComment from "./Blog/Post/PostComment/PostComment";
 import PostLike from "./Blog/Post/PostLike/PostLike";
@@ -125,6 +126,7 @@ export default withActivityHooks({
   BlockedIp,
   Notification,
   Ad,
+  AdDailyStat,
   Animal,
   AnimalBreed,
   AnimalClaim,

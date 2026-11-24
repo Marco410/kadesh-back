@@ -107,33 +107,66 @@ model Notification {
 }
 
 model Ad {
-  id              String    @id @default(cuid())
-  title           String    @default("")
-  description     String    @default("")
-  active          Boolean   @default(false)
-  start_date      DateTime? @postgresql.Date
-  end_date        DateTime? @postgresql.Date
-  price           Int?
-  status          String?
-  type            String?
-  lat             String    @default("")
-  lng             String    @default("")
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  pet_place       PetPlace? @relation("Ad_pet_place", fields: [pet_placeId], references: [id])
-  pet_placeId     String?   @map("pet_place")
-  product         Product?  @relation("Ad_product", fields: [productId], references: [id])
-  productId       String?   @map("product")
-  user            User?     @relation("Ad_user", fields: [userId], references: [id])
-  userId          String?   @map("user")
-  createdAt       DateTime? @default(now())
+  id                  String        @id @default(cuid())
+  kind                String        @default("brand")
+  status              String        @default("draft")
+  title               String        @default("")
+  body                String        @default("")
+  brandLabel          String        @default("")
+  ctaLabel            String        @default("")
+  image_id            String?
+  image_filesize      Int?
+  image_width         Int?
+  image_height        Int?
+  image_extension     String?
+  tone                String        @default("orange")
+  url                 String        @default("")
+  storeProduct        StoreProduct? @relation("Ad_storeProduct", fields: [storeProductId], references: [id])
+  storeProductId      String?       @map("storeProduct")
+  petPlace            PetPlace?     @relation("Ad_petPlace", fields: [petPlaceId], references: [id])
+  petPlaceId          String?       @map("petPlace")
+  animal              Animal?       @relation("Ad_animal", fields: [animalId], references: [id])
+  animalId            String?       @map("animal")
+  placements          Json          @default("[]")
+  startDate           DateTime?     @postgresql.Date
+  endDate             DateTime?     @postgresql.Date
+  weight              Int           @default(5)
+  geoScope            String        @default("national")
+  lat                 Float?
+  lng                 Float?
+  radiusKm            Int?
+  zoneLabel           String        @default("")
+  advertiserName      String        @default("")
+  advertiserContact   String        @default("")
+  advertiserUser      User?         @relation("Ad_advertiserUser", fields: [advertiserUserId], references: [id])
+  advertiserUserId    String?       @map("advertiserUser")
+  priceCents          Int?          @default(0)
+  paymentStatus       String        @default("pending")
+  paymentMethod       String?
+  paymentNote         String        @default("")
+  createdAt           DateTime?     @default(now())
+  updatedAt           DateTime?     @updatedAt
+  from_AdDailyStat_ad AdDailyStat[] @relation("AdDailyStat_ad")
 
-  @@index([pet_placeId])
-  @@index([productId])
-  @@index([userId])
+  @@index([storeProductId])
+  @@index([petPlaceId])
+  @@index([animalId])
+  @@index([advertiserUserId])
+  @@index([status, endDate])
+}
+
+model AdDailyStat {
+  id          String   @id @default(cuid())
+  ad          Ad?      @relation("AdDailyStat_ad", fields: [adId], references: [id])
+  adId        String?  @map("ad")
+  day         DateTime @postgresql.Date
+  placement   String
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+
+  @@unique([adId, day, placement])
+  @@index([adId])
+  @@index([day])
 }
 
 model Animal {
@@ -183,6 +216,7 @@ model Animal {
   followUpSentAt                  DateTime?
   inactiveAt                      DateTime?
   createdAt                       DateTime?             @default(now())
+  from_Ad_animal                  Ad[]                  @relation("Ad_animal")
   from_Animal_duplicateOf         Animal[]              @relation("Animal_duplicateOf")
   from_AnimalClaim_animal         AnimalClaim[]         @relation("AnimalClaim_animal")
   from_AdoptionApplication_animal AdoptionApplication[] @relation("AdoptionApplication_animal")
@@ -712,7 +746,7 @@ model PetPlace {
   pet_place_schedules             Schedule[]            @relation("Schedule_pet_place")
   pet_place_appointments          PetPlaceAppointment[] @relation("PetPlaceAppointment_pet_place")
   pet_place_reviews               Review[]              @relation("Review_pet_place")
-  pet_place_ads                   Ad[]                  @relation("Ad_pet_place")
+  pet_place_ads                   Ad[]                  @relation("Ad_petPlace")
   address                         String                @default("")
   google_place_id                 String?               @unique
   google_opening_hours            String                @default("")
@@ -1004,7 +1038,6 @@ model Product {
   brand                 String
   type                  String
   product_reviews       Review[]   @relation("Review_product")
-  product_ads           Ad[]       @relation("Ad_product")
   createdAt             DateTime?  @default(now())
   from_Cart_product     Cart[]     @relation("Cart_product")
   from_WishList_product WishList[] @relation("WishList_product")
@@ -1900,6 +1933,7 @@ model StoreProduct {
   reviews                        StoreProductReview[]  @relation("StoreProductReview_product")
   createdAt                      DateTime?             @default(now())
   updatedAt                      DateTime?             @default(now()) @updatedAt
+  from_Ad_storeProduct           Ad[]                  @relation("Ad_storeProduct")
   from_StoreCoupon_products      StoreCoupon[]         @relation("StoreCoupon_products")
   from_StoreOrderItem_product    StoreOrderItem[]      @relation("StoreOrderItem_product")
   from_StoreWishlistItem_product StoreWishlistItem[]   @relation("StoreWishlistItem_product")
@@ -2717,7 +2751,7 @@ model User {
   from_ErrorIssue_resolvedBy               ErrorIssue[]               @relation("ErrorIssue_resolvedBy")
   from_BlockedIp_createdBy                 BlockedIp[]                @relation("BlockedIp_createdBy")
   from_Notification_recipient              Notification[]             @relation("Notification_recipient")
-  from_Ad_user                             Ad[]                       @relation("Ad_user")
+  from_Ad_advertiserUser                   Ad[]                       @relation("Ad_advertiserUser")
   from_Animal_user                         Animal[]                   @relation("Animal_user")
   from_Animal_facebookPublishedBy          Animal[]                   @relation("Animal_facebookPublishedBy")
   from_AnimalClaim_claimant                AnimalClaim[]              @relation("AnimalClaim_claimant")

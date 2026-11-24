@@ -477,24 +477,37 @@ input NotificationCreateInput {
 
 type Ad {
   id: ID!
-  title: String
-  description: String
-  active: Boolean
-  start_date: CalendarDay
-  end_date: CalendarDay
-  price: Int
+  kind: String
   status: String
-  type: String
-  lat: String
-  lng: String
+  title: String
+  body: String
+  brandLabel: String
+  ctaLabel: String
   image: ImageFieldOutput
-  pet_place: PetPlace
-  product: Product
-  user: User
+  tone: String
+  url: String
+  storeProduct: StoreProduct
+  petPlace: PetPlace
+  animal: Animal
+  placements: [String!]
+  startDate: CalendarDay
+  endDate: CalendarDay
+  weight: Int
+  geoScope: String
+  lat: Float
+  lng: Float
+  radiusKm: Int
+  zoneLabel: String
+  advertiserName: String
+  advertiserContact: String
+  advertiserUser: User
+  priceCents: Int
+  paymentStatus: String
+  paymentMethod: String
+  paymentNote: String
   createdAt: DateTime
+  updatedAt: DateTime
 }
-
-scalar CalendarDay @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339#section-5.6")
 
 type ImageFieldOutput {
   id: ID!
@@ -512,6 +525,8 @@ enum ImageExtension {
   gif
 }
 
+scalar CalendarDay @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339#section-5.6")
+
 input AdWhereUniqueInput {
   id: ID
 }
@@ -521,20 +536,34 @@ input AdWhereInput {
   OR: [AdWhereInput!]
   NOT: [AdWhereInput!]
   id: IDFilter
+  kind: StringFilter
+  status: StringFilter
   title: StringFilter
-  description: StringFilter
-  active: BooleanFilter
-  start_date: CalendarDayNullableFilter
-  end_date: CalendarDayNullableFilter
-  price: IntNullableFilter
-  status: StringNullableFilter
-  type: StringNullableFilter
-  lat: StringFilter
-  lng: StringFilter
-  pet_place: PetPlaceWhereInput
-  product: ProductWhereInput
-  user: UserWhereInput
+  body: StringFilter
+  brandLabel: StringFilter
+  ctaLabel: StringFilter
+  tone: StringFilter
+  url: StringFilter
+  storeProduct: StoreProductWhereInput
+  petPlace: PetPlaceWhereInput
+  animal: AnimalWhereInput
+  startDate: CalendarDayNullableFilter
+  endDate: CalendarDayNullableFilter
+  weight: IntFilter
+  geoScope: StringFilter
+  lat: FloatNullableFilter
+  lng: FloatNullableFilter
+  radiusKm: IntNullableFilter
+  zoneLabel: StringFilter
+  advertiserName: StringFilter
+  advertiserContact: StringFilter
+  advertiserUser: UserWhereInput
+  priceCents: IntNullableFilter
+  paymentStatus: StringFilter
+  paymentMethod: StringNullableFilter
+  paymentNote: StringFilter
   createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
 }
 
 input CalendarDayNullableFilter {
@@ -548,37 +577,87 @@ input CalendarDayNullableFilter {
   not: CalendarDayNullableFilter
 }
 
+input IntFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntFilter
+}
+
+input FloatNullableFilter {
+  equals: Float
+  in: [Float!]
+  notIn: [Float!]
+  lt: Float
+  lte: Float
+  gt: Float
+  gte: Float
+  not: FloatNullableFilter
+}
+
 input AdOrderByInput {
   id: OrderDirection
-  title: OrderDirection
-  description: OrderDirection
-  active: OrderDirection
-  start_date: OrderDirection
-  end_date: OrderDirection
-  price: OrderDirection
+  kind: OrderDirection
   status: OrderDirection
-  type: OrderDirection
+  title: OrderDirection
+  body: OrderDirection
+  brandLabel: OrderDirection
+  ctaLabel: OrderDirection
+  tone: OrderDirection
+  url: OrderDirection
+  startDate: OrderDirection
+  endDate: OrderDirection
+  weight: OrderDirection
+  geoScope: OrderDirection
   lat: OrderDirection
   lng: OrderDirection
+  radiusKm: OrderDirection
+  zoneLabel: OrderDirection
+  advertiserName: OrderDirection
+  advertiserContact: OrderDirection
+  priceCents: OrderDirection
+  paymentStatus: OrderDirection
+  paymentMethod: OrderDirection
+  paymentNote: OrderDirection
   createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input AdUpdateInput {
-  title: String
-  description: String
-  active: Boolean
-  start_date: CalendarDay
-  end_date: CalendarDay
-  price: Int
+  kind: String
   status: String
-  type: String
-  lat: String
-  lng: String
+  title: String
+  body: String
+  brandLabel: String
+  ctaLabel: String
   image: ImageFieldInput
-  pet_place: PetPlaceRelateToOneForUpdateInput
-  product: ProductRelateToOneForUpdateInput
-  user: UserRelateToOneForUpdateInput
+  tone: String
+  url: String
+  storeProduct: StoreProductRelateToOneForUpdateInput
+  petPlace: PetPlaceRelateToOneForUpdateInput
+  animal: AnimalRelateToOneForUpdateInput
+  placements: [String!]
+  startDate: CalendarDay
+  endDate: CalendarDay
+  weight: Int
+  geoScope: String
+  lat: Float
+  lng: Float
+  radiusKm: Int
+  zoneLabel: String
+  advertiserName: String
+  advertiserContact: String
+  advertiserUser: UserRelateToOneForUpdateInput
+  priceCents: Int
+  paymentStatus: String
+  paymentMethod: String
+  paymentNote: String
   createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input ImageFieldInput {
@@ -588,15 +667,21 @@ input ImageFieldInput {
 """The `Upload` scalar type represents a file upload."""
 scalar Upload
 
+input StoreProductRelateToOneForUpdateInput {
+  create: StoreProductCreateInput
+  connect: StoreProductWhereUniqueInput
+  disconnect: Boolean
+}
+
 input PetPlaceRelateToOneForUpdateInput {
   create: PetPlaceCreateInput
   connect: PetPlaceWhereUniqueInput
   disconnect: Boolean
 }
 
-input ProductRelateToOneForUpdateInput {
-  create: ProductCreateInput
-  connect: ProductWhereUniqueInput
+input AnimalRelateToOneForUpdateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
   disconnect: Boolean
 }
 
@@ -606,21 +691,41 @@ input AdUpdateArgs {
 }
 
 input AdCreateInput {
-  title: String
-  description: String
-  active: Boolean
-  start_date: CalendarDay
-  end_date: CalendarDay
-  price: Int
+  kind: String
   status: String
-  type: String
-  lat: String
-  lng: String
+  title: String
+  body: String
+  brandLabel: String
+  ctaLabel: String
   image: ImageFieldInput
-  pet_place: PetPlaceRelateToOneForCreateInput
-  product: ProductRelateToOneForCreateInput
-  user: UserRelateToOneForCreateInput
+  tone: String
+  url: String
+  storeProduct: StoreProductRelateToOneForCreateInput
+  petPlace: PetPlaceRelateToOneForCreateInput
+  animal: AnimalRelateToOneForCreateInput
+  placements: [String!]
+  startDate: CalendarDay
+  endDate: CalendarDay
+  weight: Int
+  geoScope: String
+  lat: Float
+  lng: Float
+  radiusKm: Int
+  zoneLabel: String
+  advertiserName: String
+  advertiserContact: String
+  advertiserUser: UserRelateToOneForCreateInput
+  priceCents: Int
+  paymentStatus: String
+  paymentMethod: String
+  paymentNote: String
   createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StoreProductRelateToOneForCreateInput {
+  create: StoreProductCreateInput
+  connect: StoreProductWhereUniqueInput
 }
 
 input PetPlaceRelateToOneForCreateInput {
@@ -628,9 +733,85 @@ input PetPlaceRelateToOneForCreateInput {
   connect: PetPlaceWhereUniqueInput
 }
 
-input ProductRelateToOneForCreateInput {
-  create: ProductCreateInput
-  connect: ProductWhereUniqueInput
+input AnimalRelateToOneForCreateInput {
+  create: AnimalCreateInput
+  connect: AnimalWhereUniqueInput
+}
+
+type AdDailyStat {
+  id: ID!
+  ad: Ad
+  day: CalendarDay
+  placement: String
+  impressions: Int
+  clicks: Int
+}
+
+input AdDailyStatWhereUniqueInput {
+  id: ID
+}
+
+input AdDailyStatWhereInput {
+  AND: [AdDailyStatWhereInput!]
+  OR: [AdDailyStatWhereInput!]
+  NOT: [AdDailyStatWhereInput!]
+  id: IDFilter
+  ad: AdWhereInput
+  day: CalendarDayFilter
+  placement: StringFilter
+  impressions: IntFilter
+  clicks: IntFilter
+}
+
+input CalendarDayFilter {
+  equals: CalendarDay
+  in: [CalendarDay!]
+  notIn: [CalendarDay!]
+  lt: CalendarDay
+  lte: CalendarDay
+  gt: CalendarDay
+  gte: CalendarDay
+  not: CalendarDayFilter
+}
+
+input AdDailyStatOrderByInput {
+  id: OrderDirection
+  day: OrderDirection
+  placement: OrderDirection
+  impressions: OrderDirection
+  clicks: OrderDirection
+}
+
+input AdDailyStatUpdateInput {
+  ad: AdRelateToOneForUpdateInput
+  day: CalendarDay
+  placement: String
+  impressions: Int
+  clicks: Int
+}
+
+input AdRelateToOneForUpdateInput {
+  create: AdCreateInput
+  connect: AdWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AdDailyStatUpdateArgs {
+  where: AdDailyStatWhereUniqueInput!
+  data: AdDailyStatUpdateInput!
+}
+
+input AdDailyStatCreateInput {
+  ad: AdRelateToOneForCreateInput
+  day: CalendarDay
+  placement: String
+  impressions: Int
+  clicks: Int
+}
+
+input AdRelateToOneForCreateInput {
+  create: AdCreateInput
+  connect: AdWhereUniqueInput
 }
 
 type Animal {
@@ -743,17 +924,6 @@ input AnimalWhereInput {
   followUpSentAt: DateTimeNullableFilter
   inactiveAt: DateTimeNullableFilter
   createdAt: DateTimeNullableFilter
-}
-
-input IntFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntFilter
 }
 
 input AnimalMultimediaManyRelationFilter {
@@ -891,12 +1061,6 @@ input PetRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
-input AnimalRelateToOneForUpdateInput {
-  create: AnimalCreateInput
-  connect: AnimalWhereUniqueInput
-  disconnect: Boolean
-}
-
 input AnimalUpdateArgs {
   where: AnimalWhereUniqueInput!
   data: AnimalUpdateInput!
@@ -976,11 +1140,6 @@ input AnimalViewRelateToManyForCreateInput {
 input PetRelateToOneForCreateInput {
   create: PetCreateInput
   connect: PetWhereUniqueInput
-}
-
-input AnimalRelateToOneForCreateInput {
-  create: AnimalCreateInput
-  connect: AnimalWhereUniqueInput
 }
 
 type AnimalBreed {
@@ -2792,17 +2951,6 @@ input PetHealthRecordWhereInput {
   updatedAt: DateTimeNullableFilter
 }
 
-input CalendarDayFilter {
-  equals: CalendarDay
-  in: [CalendarDay!]
-  notIn: [CalendarDay!]
-  lt: CalendarDay
-  lte: CalendarDay
-  gt: CalendarDay
-  gte: CalendarDay
-  not: CalendarDayFilter
-}
-
 input PetHealthRecordAttachmentManyRelationFilter {
   every: PetHealthRecordAttachmentWhereInput
   some: PetHealthRecordAttachmentWhereInput
@@ -3061,7 +3209,7 @@ type PetPlace {
   pet_place_reviewsCount(where: ReviewWhereInput! = {}): Int
   reviewsCount: Int
   averageRating: Float
-  pet_place_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
+  pet_place_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   pet_place_adsCount(where: AdWhereInput! = {}): Int
   address: String
   google_place_id: String
@@ -3585,17 +3733,6 @@ input PetPlaceSearchAreaWhereInput {
   radiusKm: FloatNullableFilter
   googleResults: IntNullableFilter
   searchedAt: DateTimeNullableFilter
-}
-
-input FloatNullableFilter {
-  equals: Float
-  in: [Float!]
-  notIn: [Float!]
-  lt: Float
-  lte: Float
-  gt: Float
-  gte: Float
-  not: FloatNullableFilter
 }
 
 input PetPlaceSearchAreaOrderByInput {
@@ -4711,8 +4848,6 @@ type Product {
   type: String
   product_reviews(where: ReviewWhereInput! = {}, orderBy: [ReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReviewWhereUniqueInput): [Review!]
   product_reviewsCount(where: ReviewWhereInput! = {}): Int
-  product_ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
-  product_adsCount(where: AdWhereInput! = {}): Int
   createdAt: DateTime
 }
 
@@ -4732,7 +4867,6 @@ input ProductWhereInput {
   brand: StringFilter
   type: StringFilter
   product_reviews: ReviewManyRelationFilter
-  product_ads: AdManyRelationFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -4755,7 +4889,6 @@ input ProductUpdateInput {
   brand: String
   type: String
   product_reviews: ReviewRelateToManyForUpdateInput
-  product_ads: AdRelateToManyForUpdateInput
   createdAt: DateTime
 }
 
@@ -4772,7 +4905,6 @@ input ProductCreateInput {
   brand: String
   type: String
   product_reviews: ReviewRelateToManyForCreateInput
-  product_ads: AdRelateToManyForCreateInput
   createdAt: DateTime
 }
 
@@ -5206,6 +5338,12 @@ input ReviewUpdateInput {
   createdAt: DateTime
 }
 
+input ProductRelateToOneForUpdateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
+  disconnect: Boolean
+}
+
 input ReviewUpdateArgs {
   where: ReviewWhereUniqueInput!
   data: ReviewUpdateInput!
@@ -5220,6 +5358,11 @@ input ReviewCreateInput {
   google_user: String
   google_user_photo: String
   createdAt: DateTime
+}
+
+input ProductRelateToOneForCreateInput {
+  create: ProductCreateInput
+  connect: ProductWhereUniqueInput
 }
 
 type Role {
@@ -8958,12 +9101,6 @@ input StoreProductImageUpdateInput {
   createdAt: DateTime
 }
 
-input StoreProductRelateToOneForUpdateInput {
-  create: StoreProductCreateInput
-  connect: StoreProductWhereUniqueInput
-  disconnect: Boolean
-}
-
 input StoreProductImageUpdateArgs {
   where: StoreProductImageWhereUniqueInput!
   data: StoreProductImageUpdateInput!
@@ -8976,11 +9113,6 @@ input StoreProductImageCreateInput {
   alt: String
   order: Int
   createdAt: DateTime
-}
-
-input StoreProductRelateToOneForCreateInput {
-  create: StoreProductCreateInput
-  connect: StoreProductWhereUniqueInput
 }
 
 type StoreProductReview {
@@ -12558,6 +12690,12 @@ type Mutation {
   updateAds(data: [AdUpdateArgs!]!): [Ad]
   deleteAd(where: AdWhereUniqueInput!): Ad
   deleteAds(where: [AdWhereUniqueInput!]!): [Ad]
+  createAdDailyStat(data: AdDailyStatCreateInput!): AdDailyStat
+  createAdDailyStats(data: [AdDailyStatCreateInput!]!): [AdDailyStat]
+  updateAdDailyStat(where: AdDailyStatWhereUniqueInput!, data: AdDailyStatUpdateInput!): AdDailyStat
+  updateAdDailyStats(data: [AdDailyStatUpdateArgs!]!): [AdDailyStat]
+  deleteAdDailyStat(where: AdDailyStatWhereUniqueInput!): AdDailyStat
+  deleteAdDailyStats(where: [AdDailyStatWhereUniqueInput!]!): [AdDailyStat]
   createAnimal(data: AnimalCreateInput!): Animal
   createAnimals(data: [AnimalCreateInput!]!): [Animal]
   updateAnimal(where: AnimalWhereUniqueInput!, data: AnimalUpdateInput!): Animal
@@ -13300,6 +13438,8 @@ type Mutation {
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
+  recordAdEvents(events: [AdEventInput!]!): RecordAdEventsResult!
+  expireAds(secret: String!): ExpireAdsResult!
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
@@ -13353,8 +13493,11 @@ type Query {
   notifications(where: NotificationWhereInput! = {}, orderBy: [NotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: NotificationWhereUniqueInput): [Notification!]
   notificationsCount(where: NotificationWhereInput! = {}): Int
   ad(where: AdWhereUniqueInput!): Ad
-  ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
+  ads(where: AdWhereInput! = {}, orderBy: [AdOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: AdWhereUniqueInput): [Ad!]
   adsCount(where: AdWhereInput! = {}): Int
+  adDailyStat(where: AdDailyStatWhereUniqueInput!): AdDailyStat
+  adDailyStats(where: AdDailyStatWhereInput! = {}, orderBy: [AdDailyStatOrderByInput!]! = [], take: Int! = 500, skip: Int! = 0, cursor: AdDailyStatWhereUniqueInput): [AdDailyStat!]
+  adDailyStatsCount(where: AdDailyStatWhereInput! = {}): Int
   animal(where: AnimalWhereUniqueInput!): Animal
   animals(where: AnimalWhereInput! = {}, orderBy: [AnimalOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalWhereUniqueInput): [Animal!]
   animalsCount(where: AnimalWhereInput! = {}): Int
@@ -13798,6 +13941,10 @@ type Query {
   ): AdminStoreOrdersResult!
   adminStoreOrder(id: ID!): AdminStoreOrderDetail
   adminStoreSummary(days: Int): AdminStoreSummary!
+  adminAds(take: Int, skip: Int, status: String, kind: String, search: String, days: Int): AdminAdList!
+  adminAdStats(days: Int, adId: ID): AdminAdStats!
+  adminAdTargets(kind: String!, search: String): [AdminAdTarget!]!
+  activeAds: [PublicAd!]!
 }
 
 union AuthenticatedItem = User
@@ -15032,6 +15179,32 @@ type BackfillAlertRegionsResult {
   processed: Int!
   updated: Int!
   remaining: Int!
+}
+
+enum AdEventType {
+  IMPRESSION
+  CLICK
+}
+
+input AdEventInput {
+  adId: ID!
+
+  """animal_detail | vet_detail | blog | store"""
+  placement: String!
+  type: AdEventType!
+}
+
+type RecordAdEventsResult {
+  """
+  Events that counted. Admins, bots, unknown ads and repeats within 30 min do not.
+  """
+  accepted: Int!
+}
+
+type ExpireAdsResult {
+  success: Boolean!
+  message: String!
+  ended: Int!
 }
 
 type RescueOrganizationResult {
@@ -17870,4 +18043,118 @@ type AdminStoreSummary {
 
   """Active products with the most page views, all time."""
   topViewed: [AdminStoreSummaryViewed!]!
+}
+
+type AdminAdRow {
+  id: ID!
+  kind: String!
+  status: String!
+  title: String!
+  brandLabel: String!
+  tone: String!
+  imageUrl: String
+  placements: [String!]!
+  startDate: String
+  endDate: String
+  weight: Int!
+  geoScope: String!
+  zoneLabel: String!
+  advertiserName: String!
+  priceCents: Int!
+  paymentStatus: String!
+
+  """Name of the animal, product or clinic it promotes."""
+  targetLabel: String
+  createdAt: String
+
+  """In the chosen period."""
+  impressions: Int!
+  clicks: Int!
+}
+
+type AdminAdList {
+  total: Int!
+  items: [AdminAdRow!]!
+}
+
+type AdminAdStatPoint {
+  key: String!
+  impressions: Int!
+  clicks: Int!
+}
+
+type AdminAdStatAd {
+  adId: ID!
+  title: String!
+  impressions: Int!
+  clicks: Int!
+}
+
+type AdminAdStats {
+  days: Int!
+  impressions: Int!
+  clicks: Int!
+  previousImpressions: Int!
+  previousClicks: Int!
+
+  """
+  One point per day (Mexico City), oldest first, days without events included.
+  """
+  series: [AdminAdStatPoint!]!
+
+  """key: animal_detail | vet_detail | blog | store"""
+  byPlacement: [AdminAdStatPoint!]!
+
+  """Empty when the report is for one ad."""
+  topAds: [AdminAdStatAd!]!
+  activeAds: Int!
+}
+
+type AdminAdTarget {
+  id: ID!
+  label: String!
+  slug: String
+
+  """Suggested center for an ad by zone."""
+  lat: Float
+  lng: Float
+}
+
+type PublicAd {
+  id: ID!
+
+  """house | store_product | pet_place | animal | brand"""
+  kind: String!
+  title: String!
+  body: String!
+  brandLabel: String!
+  ctaLabel: String!
+
+  """orange | green | sky | violet | neutral"""
+  tone: String!
+  imageUrl: String
+
+  """
+  A path of Kadesh Pet (/animales/…, /tienda/…, /veterinarias/…) or an outside https link.
+  """
+  href: String!
+
+  """animal_detail | vet_detail | blog | store"""
+  placements: [String!]!
+
+  """1 to 10: share of the rotation."""
+  weight: Int!
+
+  """
+  The animal, product or clinic it promotes: its own page does not show it.
+  """
+  targetId: ID
+
+  """
+  national | radius. With radius, show it only within radiusKm of the screen's reference point.
+  """
+  geoScope: String!
+  lat: Float
+  lng: Float
+  radiusKm: Int
 }

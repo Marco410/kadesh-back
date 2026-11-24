@@ -31,6 +31,7 @@ import sendAnimalFollowUps from "./pet/sendAnimalFollowUps";
 import adoptionApplications from "./pet/adoptionApplications";
 import petCardMutations from "./pet/card";
 import petEventMutations from "./pet/events";
+import adMutations from "./pet/ads";
 import rescueMutations from "./pet/rescue";
 import unsubscribeBlog from "./unsubscribeBlog";
 import publishScheduledPosts from "./publishScheduledPosts";
@@ -98,6 +99,7 @@ const customMutation = {
     ${adoptionApplications.typeDefs}
     ${petCardMutations.typeDefs}
     ${petEventMutations.typeDefs}
+    ${adMutations.typeDefs}
     ${rescueMutations.typeDefs}
     ${unsubscribeBlog.typeDefs}
     ${publishScheduledPosts.typeDefs}
@@ -164,6 +166,7 @@ const customMutation = {
     ${adoptionApplications.definition}
     ${petCardMutations.definition}
     ${petEventMutations.definition}
+    ${adMutations.definition}
     ${rescueMutations.definition}
     ${unsubscribeBlog.definition}
     ${publishScheduledPosts.definition}
@@ -230,6 +233,7 @@ const customMutation = {
     ...adoptionApplications.resolver,
     ...petCardMutations.resolver,
     ...petEventMutations.resolver,
+    ...adMutations.resolver,
     ...rescueMutations.resolver,
     ...unsubscribeBlog.resolver,
     ...publishScheduledPosts.resolver,
