@@ -40,7 +40,8 @@
     "usage:rollup": "tsx scripts/rollupDailyUsage.ts",
     "pipeline:backfill": "tsx scripts/backfillStageChanges.ts",
     "whatsapp:admins-on": "tsx scripts/enableAdminWhatsappNotifications.ts",
-    "whatsapp:admins-on:prod": "cross-env KADESH_ENV=prod tsx scripts/enableAdminWhatsappNotifications.ts"
+    "whatsapp:admins-on:prod": "cross-env KADESH_ENV=prod tsx scripts/enableAdminWhatsappNotifications.ts",
+    "test:meta-feed": "tsx --test utils/store/metaFeed.test.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",
