@@ -243,7 +243,23 @@ export function formatPesos(amount: number): string {
 const DEFAULT_NOTES = /^sin informaci[oó]n adicional\.?$/i;
 export const NO_BREED = /^(sin asignar|no se|no sé|desconocid[ao])$/i;
 
-export function buildAnimalFacebookMessage(animal: AnimalPostData, now = new Date()): string {
+/** «Zapopan, Jalisco»: ciudad y estado del registro más reciente, para la línea de arriba del post. */
+function areaOf(log?: PostLog | null) {
+  return [clean(log?.city), clean(log?.state)]
+    .filter((part) => part && !/^sin especificar$/i.test(part))
+    .join(", ");
+}
+
+/**
+ * El post arranca con la ciudad y el estado (📍) para que quien lo ve sepa de un vistazo si le
+ * toca. En Facebook va en texto plano (no interpreta `*negritas*`); el canal de WhatsApp lo pide en
+ * negritas con `boldArea`.
+ */
+export function buildAnimalFacebookMessage(
+  animal: AnimalPostData,
+  now = new Date(),
+  { boldArea = false }: { boldArea?: boolean } = {},
+): string {
   const typeKey = TYPE_ALIASES[foldText(animal.animal_type?.name)] ?? foldText(animal.animal_type?.name);
   const type = typeInfo(animal.animal_type?.name);
   const sex = animal.sex;
@@ -256,6 +272,8 @@ export function buildAnimalFacebookMessage(animal: AnimalPostData, now = new Dat
   const who = named ? name : type.little[gender(sex)];
 
   const lines: string[] = [];
+  const area = areaOf(latest);
+  if (area) lines.push(boldArea ? `📍 *${area}*` : `📍 ${area}`, "");
   if (copy) {
     lines.push(`${copy.header(sex)} ${type.emoji}`);
     lines.push(copy.intro(who, sex));
@@ -322,25 +340,18 @@ export async function loadAnimalFacebookMessage(
 
 /**
  * Texto para el canal de WhatsApp de Kadesh Pet (lo copia un admin desde Operaciones y lo pega en
- * el canal). Es el mismo del post de Facebook con tres cambios:
- * - arriba, la ciudad y el estado, para que quien sigue el canal vea de un vistazo si le toca;
+ * el canal). Es el mismo del post de Facebook (que ya arranca con la ciudad y el estado) con tres
+ * cambios:
+ * - la ciudad y el estado de arriba en negritas;
  * - sin hashtags (en WhatsApp no sirven);
  * - abajo, el enlace a la ficha (el «¿Lo has visto? Entra al enlace…» ya viene del post). Va la
  *   ficha completa y no `/f/{folio}`: la vista previa de WhatsApp no sigue redirecciones.
  */
 
 export function buildAnimalChannelMessage(animal: AnimalPostData, link: string, now = new Date()): string {
-  const latest = animal.logs?.[0] ?? null;
-  const area = [clean(latest?.city), clean(latest?.state)]
-    .filter((part) => part && !/^sin especificar$/i.test(part))
-    .join(", ");
   // El post de Facebook termina con el párrafo de hashtags: aquí no va.
-  const blocks = buildAnimalFacebookMessage(animal, now).split("\n\n");
+  const blocks = buildAnimalFacebookMessage(animal, now, { boldArea: true }).split("\n\n");
   if (blocks.length > 1 && blocks[blocks.length - 1].trim().startsWith("#")) blocks.pop();
 
-  const lines: string[] = [];
-  if (area) lines.push(`📍 *${area}*`, "");
-  lines.push(blocks.join("\n\n"));
-  lines.push("", `🔗 ${link}`);
-  return lines.join("\n");
+  return [blocks.join("\n\n"), "", `🔗 ${link}`].join("\n");
 }
