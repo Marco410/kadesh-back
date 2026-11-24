@@ -249,3 +249,11 @@ Qué: `Animal.rewardOffered` (sí/no, por defecto no) y `Animal.rewardAmount` (p
 Por qué: muchas familias ofrecen recompensa y la ponían en las señas o en notas, sin formato y sin advertencia.
 
 Qué no hacer: no mostrarla en otros estados (si el caso cambia, se oculta aunque siga guardada). No quitar el aviso «nunca pagues por adelantado»: la estafa más común a quien perdió una mascota es «la tengo, deposítame». Migración pendiente: `yarn migrate` (dos columnas nuevas en `Animal`).
+
+### 2026-11-24 — El post de Facebook arranca con la ciudad y el estado
+
+Qué: `buildAnimalFacebookMessage` pone primero `📍 Zapopan, Jalisco` (ciudad y estado del registro más reciente), igual que el texto del canal de WhatsApp. En Facebook va en texto plano; el canal lo pide en negritas (`boldArea`) y ya no arma esa línea por su cuenta. Aplica a la publicación automática y al botón de Operaciones; los posts que ya salieron no cambian.
+
+Por qué: quien ve el post en el feed decide en la primera línea si le toca; la ciudad estaba más abajo, después de las señas.
+
+Qué no hacer: no usar `*negritas*` en el post de Facebook (no las interpreta y salen los asteriscos). La línea 📍 de más abajo (lugar exacto y colonia) se queda: la de arriba es solo la zona.
