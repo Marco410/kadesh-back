@@ -99,6 +99,15 @@ export const STORE_ADMIN_MAX_TAKE = 100;
 /** Saved products per person. */
 export const STORE_WISHLIST_MAX = 500;
 
+/**
+ * Product page views (`recordStoreProductView`): the same person (or the same IP + browser without a
+ * session) adds one view per product in this window, however many times they reload.
+ */
+export const STORE_PRODUCT_VIEW_DEDUPE_MS = 30 * 60 * 1000;
+
+/** Below this many views the product page hides the number (a new product with «2 vistas» looks empty). Admin always sees it. */
+export const STORE_PRODUCT_VIEWS_PUBLIC_MIN = 10;
+
 /** Image URLs are signed for 1 h: this cache must stay well below that. */
 export const STORE_FACETS_CACHE_MS = 10 * 60 * 1000;
 

@@ -14385,6 +14385,8 @@ var STORE_REVIEWS_DEFAULT_TAKE = 10;
 var STORE_REVIEWS_MAX_TAKE = 20;
 var STORE_ADMIN_MAX_TAKE = 100;
 var STORE_WISHLIST_MAX = 500;
+var STORE_PRODUCT_VIEW_DEDUPE_MS = 30 * 60 * 1e3;
+var STORE_PRODUCT_VIEWS_PUBLIC_MIN = 10;
 var STORE_FACETS_CACHE_MS = 10 * 60 * 1e3;
 var STORE_LOW_STOCK = 5;
 var STORE_SEARCH_MIN_LENGTH = 2;
@@ -15178,6 +15180,17 @@ var StoreProduct_default = (0, import_core53.list)({
     ratingAverage: (0, import_fields53.float)({ defaultValue: 0, ...readOnly }),
     ratingCount: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
     salesCount: (0, import_fields53.integer)({ defaultValue: 0, ...readOnly }),
+    // Added by `recordStoreProductView` with raw SQL: a Prisma update would move `updatedAt` and
+    // bump the catalog cache on every visit.
+    viewsCount: (0, import_fields53.integer)({
+      defaultValue: 0,
+      db: { isNullable: false },
+      ui: {
+        description: "Vistas de la p\xE1gina del producto. No cuentan los admins, los bots ni repetir en 30 min",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" }
+      }
+    }),
     metaTitle: (0, import_fields53.text)(),
     metaDescription: (0, import_fields53.text)(),
     variants: (0, import_fields53.relationship)({ ref: "StoreProductVariant.product", many: true }),
@@ -33827,6 +33840,132 @@ var resolver25 = {
 };
 var createClinicAppointment_default = { typeDefs: typeDefs28, definition: definition25, resolver: resolver25 };
 
+// models/Pet/PetPlace/const.ts
+var PET_PLACE_VIEW_DEDUPE_MS = 30 * 60 * 1e3;
+var PET_PLACE_VIEWS_PUBLIC_MIN = 10;
+
+// utils/security/knownCrawlers.ts
+var import_net = require("net");
+var META_IPV4 = [
+  "31.13.24.0/21",
+  "31.13.64.0/18",
+  "45.64.40.0/22",
+  "57.141.0.0/20",
+  "57.141.16.0/21",
+  "57.141.24.0/22",
+  "57.141.28.0/23",
+  "57.144.0.0/14",
+  "66.220.144.0/20",
+  "69.63.176.0/20",
+  "69.171.224.0/19",
+  "74.119.76.0/22",
+  "102.132.96.0/20",
+  "103.4.96.0/22",
+  "129.134.0.0/16",
+  "147.75.208.0/20",
+  "157.240.0.0/16",
+  "163.70.128.0/17",
+  "163.77.128.0/17",
+  "173.252.64.0/18",
+  "179.60.192.0/22",
+  "185.60.216.0/22",
+  "185.89.216.0/22",
+  "204.15.20.0/22"
+];
+var META_IPV6 = [
+  "2401:db00::/32",
+  "2620:0:1c00::/40",
+  "2803:6080::/29",
+  "2a03:2880::/31",
+  "2a03:2887:ff2c::/47",
+  "2a03:83e0::/32",
+  "2a10:f781:10:cee0::/64"
+];
+var BOT_USER_AGENT = /facebookexternalhit|facebookcatalog|facebot|meta-externalagent|meta-externalfetcher|meta-webindexer|whatsapp|twitterbot|slackbot|telegrambot|linkedinbot|discordbot|pinterestbot|googlebot|google-inspectiontool|adsbot-google|mediapartners-google|storebot-google|bingbot|yandexbot|baiduspider|duckduckbot|applebot|petalbot|ahrefsbot|semrushbot|headlesschrome|chrome-lighthouse/i;
+var metaRanges = new import_net.BlockList();
+for (const [ranges, family] of [
+  [META_IPV4, "ipv4"],
+  [META_IPV6, "ipv6"]
+]) {
+  for (const cidr of ranges) {
+    const [network, prefix2] = cidr.split("/");
+    metaRanges.addSubnet(network, Number(prefix2), family);
+  }
+}
+function isMetaIp(ip) {
+  if (!ip) return false;
+  const family = (0, import_net.isIP)(ip);
+  if (family === 4) return metaRanges.check(ip, "ipv4");
+  if (family === 6) return metaRanges.check(ip, "ipv6");
+  return false;
+}
+function isBotUserAgent(userAgent) {
+  return Boolean(userAgent && BOT_USER_AGENT.test(userAgent));
+}
+function isKnownCrawlerRequest(req) {
+  if (!req) return false;
+  return isBotUserAgent(requestUserAgent(req)) || isMetaIp(requestIp(req));
+}
+
+// graphql/customs/mutations/pet/veterinary/recordPetPlaceView.ts
+var typeDefs29 = `
+  type PetPlaceViewResult {
+    "Whether this visit counted. The owner, admins, bots and repeats within 30 min do not."
+    counted: Boolean!
+    "Total views to show, or null while the clinic has fewer than the public minimum (the owner and admins always get it)."
+    viewsCount: Int
+  }
+`;
+var definition26 = `
+  recordPetPlaceView(placeId: ID!): PetPlaceViewResult!
+`;
+var firstVisit = createDeduper(PET_PLACE_VIEW_DEDUPE_MS);
+function visitorKey(context) {
+  const userId = getSessionUserId(context.session);
+  if (userId) return `u:${userId}`;
+  return `ip:${requestIp(context.req) ?? "?"}|${requestUserAgent(context.req) ?? ""}`;
+}
+function prismaOf6(context) {
+  return context.sudo().prisma;
+}
+var resolver26 = {
+  /**
+   * The clinic page calls it once when it opens and shows the total it returns. Uses the existing
+   * `PetPlace.views` column, added with raw SQL so no hook runs. Never fails outward: on any error
+   * it answers `counted: false` and the page shows no number.
+   */
+  recordPetPlaceView: async (_root, { placeId }, context) => {
+    const none = { counted: false, viewsCount: null };
+    try {
+      const prisma = prismaOf6(context);
+      const place = await prisma.petPlace.findUnique({
+        where: { id: placeId },
+        select: { userId: true, views: true }
+      });
+      if (!place || place instanceof Error) return none;
+      const userId = getSessionUserId(context.session);
+      const isOwner = Boolean(userId && userId === place.userId);
+      const isAdmin = isPlatformAdmin(context.session);
+      const shown2 = (total) => isOwner || isAdmin || total >= PET_PLACE_VIEWS_PUBLIC_MIN ? total : null;
+      const current = place.views ?? 0;
+      if (isOwner || isAdmin || isKnownCrawlerRequest(context.req) || !firstVisit(`${placeId}:${visitorKey(context)}`)) {
+        return { counted: false, viewsCount: shown2(current) };
+      }
+      const rows2 = await prisma.$queryRaw`
+        UPDATE "PetPlace" SET "views" = COALESCE("views", 0) + 1
+        WHERE "id" = ${placeId}
+        RETURNING "views"
+      `;
+      if (rows2 instanceof Error) throw rows2;
+      return { counted: true, viewsCount: shown2(Number(rows2[0]?.views ?? current + 1)) };
+    } catch (error) {
+      console.error("[recordPetPlaceView]", error);
+      return none;
+    }
+  }
+};
+var recordPetPlaceView_default = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+
 // graphql/customs/mutations/pet/veterinary/index.ts
 var veterinaryMutations = {
   typeDefs: `
@@ -33836,6 +33975,7 @@ var veterinaryMutations = {
     ${requestPetPlaceService_default.typeDefs}
     ${createPetPlacePatient_default.typeDefs}
     ${createClinicAppointment_default.typeDefs}
+    ${recordPetPlaceView_default.typeDefs}
   `,
   definition: `
     ${claimPetPlace_default.definition}
@@ -33844,6 +33984,7 @@ var veterinaryMutations = {
     ${requestPetPlaceService_default.definition}
     ${createPetPlacePatient_default.definition}
     ${createClinicAppointment_default.definition}
+    ${recordPetPlaceView_default.definition}
   `,
   resolver: {
     ...claimPetPlace_default.resolver,
@@ -33851,7 +33992,8 @@ var veterinaryMutations = {
     ...verifyPetPlace_default.resolver,
     ...requestPetPlaceService_default.resolver,
     ...createPetPlacePatient_default.resolver,
-    ...createClinicAppointment_default.resolver
+    ...createClinicAppointment_default.resolver,
+    ...recordPetPlaceView_default.resolver
   }
 };
 var veterinary_default = veterinaryMutations;
@@ -33874,7 +34016,7 @@ var TYPE_ALIASES2 = {
   mam\u00EDfero: "mammal",
   mammal: "mammal"
 };
-var typeDefs29 = `
+var typeDefs30 = `
   input CreateAnimalReportInput {
     type: String!
     name: String!
@@ -33905,7 +34047,7 @@ var typeDefs29 = `
     url: String!
   }
 `;
-var definition26 = `
+var definition27 = `
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
 `;
 function serviceToken(context) {
@@ -33999,7 +34141,7 @@ async function storeRemoteImage(context, url) {
   );
   return stored;
 }
-var resolver26 = {
+var resolver27 = {
   createAnimalReport: async (_root, { input }, context) => {
     try {
       assertCanCreate(context);
@@ -34106,11 +34248,11 @@ var resolver26 = {
     }
   }
 };
-var createAnimalReport = { typeDefs: typeDefs29, definition: definition26, resolver: resolver26 };
+var createAnimalReport = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
 var createAnimalReport_default = createAnimalReport;
 
 // graphql/customs/mutations/pet/animalClaims.ts
-var typeDefs30 = `
+var typeDefs31 = `
   type AnimalClaimResult {
     success: Boolean!
     message: String!
@@ -34122,7 +34264,7 @@ var typeDefs30 = `
     cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
   }
 `;
-var definition27 = `
+var definition28 = `
   resolveAnimalClaim(claimId: ID!, approve: Boolean!, reason: String): AnimalClaimResult!
   cancelAnimalClaim(claimId: ID!): AnimalClaimResult!
 `;
@@ -34148,7 +34290,7 @@ async function canResolve(context, claim) {
     userId
   );
 }
-var resolver27 = {
+var resolver28 = {
   resolveAnimalClaim: async (_root, { claimId, approve, reason }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return fail4("Inicia sesi\xF3n para responder la solicitud.");
@@ -34276,7 +34418,7 @@ var resolver27 = {
     return { success: true, message: "Cancelaste tu solicitud.", animalSlug: claim.animal.slug ?? null };
   }
 };
-var animalClaims = { typeDefs: typeDefs30, definition: definition27, resolver: resolver27 };
+var animalClaims = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
 var animalClaims_default = animalClaims;
 
 // utils/pet/reportLogs.ts
@@ -34326,7 +34468,7 @@ async function closeReportAsAdopted(context, reportId, notes) {
 // graphql/customs/mutations/pet/closeAnimalReport.ts
 var MAX_STORY = 1e3;
 var MAX_NOTES = 300;
-var typeDefs31 = `
+var typeDefs32 = `
   input CloseAnimalReportInput {
     animalId: ID!
     outcome: String!
@@ -34348,7 +34490,7 @@ var typeDefs31 = `
     closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
   }
 `;
-var definition28 = `
+var definition29 = `
   closeAnimalReport(input: CloseAnimalReportInput!): CloseAnimalReportResult!
 `;
 var DEFAULT_NOTES2 = {
@@ -34374,7 +34516,7 @@ async function canClose(context, animal, userId) {
     userId
   );
 }
-var resolver28 = {
+var resolver29 = {
   closeAnimalReport: async (_root, { input }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return fail5("Inicia sesi\xF3n para cerrar el caso.");
@@ -34444,7 +34586,7 @@ var resolver28 = {
     };
   }
 };
-var closeAnimalReport_default = { typeDefs: typeDefs31, definition: definition28, resolver: resolver28 };
+var closeAnimalReport_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
 
 // utils/security/turnstile.ts
 var VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -34476,7 +34618,7 @@ async function verifyTurnstile(token, ip) {
 }
 
 // graphql/customs/mutations/pet/animalSightings.ts
-var typeDefs32 = `
+var typeDefs33 = `
   input ReportAnimalSightingInput {
     animalId: ID!
     lat: String!
@@ -34500,7 +34642,7 @@ var typeDefs32 = `
     sightingId: ID
   }
 `;
-var definition29 = `
+var definition30 = `
   reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
   setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
 `;
@@ -34519,7 +34661,7 @@ function coordinate(value, min, max) {
   const num2 = Number.parseFloat(value);
   return Number.isFinite(num2) && num2 >= min && num2 <= max ? num2 : null;
 }
-var resolver29 = {
+var resolver30 = {
   reportAnimalSighting: async (_root, { input }, context) => {
     if (input.website?.trim()) {
       return { success: true, message: "\xA1Gracias! Ya le avisamos a quien lo busca.", sightingId: null };
@@ -34644,7 +34786,7 @@ var resolver29 = {
     }
   }
 };
-var animalSightings_default = { typeDefs: typeDefs32, definition: definition29, resolver: resolver29 };
+var animalSightings_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
 
 // utils/pet/publicProfile.ts
 function publicDisplayName(name, lastName) {
@@ -34693,7 +34835,7 @@ var PAW_LEVEL_TYPE_DEFS = `
     nextAt: Int
   }
 `;
-var typeDefs33 = `
+var typeDefs34 = `
   ${PAW_LEVEL_TYPE_DEFS}
 
   type PawLeaderboardEntry {
@@ -34711,7 +34853,7 @@ var typeDefs33 = `
     isMe: Boolean!
   }
 `;
-var definition30 = `pawLeaderboard(period: String, take: Int): [PawLeaderboardEntry!]!`;
+var definition31 = `pawLeaderboard(period: String, take: Int): [PawLeaderboardEntry!]!`;
 var cache2 = /* @__PURE__ */ new Map();
 function invalidatePawLeaderboard() {
   cache2.clear();
@@ -34800,7 +34942,7 @@ async function loadLeaderboard(context, period) {
     };
   });
 }
-var resolver30 = {
+var resolver31 = {
   pawLeaderboard: async (_root, args, context) => {
     if (!pawsEnabled()) return [];
     const period = args.period === "month" ? "month" : "all_time";
@@ -34824,20 +34966,20 @@ var resolver30 = {
     }));
   }
 };
-var pawLeaderboard_default = { typeDefs: typeDefs33, definition: definition30, resolver: resolver30 };
+var pawLeaderboard_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
 
 // graphql/customs/mutations/pet/paws.ts
-var typeDefs34 = `
+var typeDefs35 = `
   type PawRankingVisibilityResult {
     success: Boolean!
     message: String!
     rankingHidden: Boolean
   }
 `;
-var definition31 = `
+var definition32 = `
   setPawRankingVisibility(hidden: Boolean!): PawRankingVisibilityResult!
 `;
-var resolver31 = {
+var resolver32 = {
   setPawRankingVisibility: async (_root, { hidden }, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return { success: false, message: "Inicia sesi\xF3n para cambiar esto.", rankingHidden: null };
@@ -34858,10 +35000,10 @@ var resolver31 = {
     }
   }
 };
-var paws_default = { typeDefs: typeDefs34, definition: definition31, resolver: resolver31 };
+var paws_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
 
 // graphql/customs/mutations/store/setStoreWishlist.ts
-var typeDefs35 = `
+var typeDefs36 = `
   type StoreWishlistResult {
     success: Boolean!
     message: String!
@@ -34869,10 +35011,10 @@ var typeDefs35 = `
     saved: Boolean!
   }
 `;
-var definition32 = `
+var definition33 = `
   setStoreWishlist(productId: ID!, saved: Boolean!): StoreWishlistResult!
 `;
-var resolver32 = {
+var resolver33 = {
   /** Saves a product to the wishlist or takes it out. One row per person and product. */
   setStoreWishlist: async (_root, { productId, saved }, context) => {
     const userId = getSessionUserId(context.session);
@@ -34913,10 +35055,10 @@ var resolver32 = {
     }
   }
 };
-var setStoreWishlist_default = { typeDefs: typeDefs35, definition: definition32, resolver: resolver32 };
+var setStoreWishlist_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
 
 // graphql/customs/mutations/store/storeProductReviews.ts
-var typeDefs36 = `
+var typeDefs37 = `
   input StoreProductReviewInput {
     productId: ID!
     "1 to 5"
@@ -34934,7 +35076,7 @@ var typeDefs36 = `
     ratingCount: Int
   }
 `;
-var definition33 = `
+var definition34 = `
   submitStoreProductReview(input: StoreProductReviewInput!): StoreProductReviewResult!
   deleteMyStoreProductReview(productId: ID!): StoreProductReviewResult!
 `;
@@ -34942,7 +35084,7 @@ var EMPTY2 = { reviewId: null, ratingAverage: null, ratingCount: null };
 function fail7(message) {
   return { success: false, message, ...EMPTY2 };
 }
-var resolver33 = {
+var resolver34 = {
   /** Writes or edits the caller's review of a product. */
   submitStoreProductReview: async (_root, { input }, context) => {
     const userId = getSessionUserId(context.session);
@@ -35053,7 +35195,7 @@ var resolver33 = {
     }
   }
 };
-var storeProductReviews_default = { typeDefs: typeDefs36, definition: definition33, resolver: resolver33 };
+var storeProductReviews_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
 
 // utils/store/address.ts
 function clean5(value, max) {
@@ -36298,7 +36440,7 @@ var CART_QUOTE_TYPEDEFS = `
 var EMAIL_PATTERN3 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var CHECKOUT_KEY_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
 var GUEST_REPLAY_MS = 15 * 60 * 1e3;
-var typeDefs37 = `
+var typeDefs38 = `
   ${CART_QUOTE_TYPEDEFS}
   ${STORE_ADDRESS_TYPEDEFS}
 
@@ -36365,7 +36507,7 @@ var typeDefs37 = `
     quote: StoreCartQuote
   }
 `;
-var definition34 = `
+var definition35 = `
   placeStoreOrder(input: StorePlaceOrderInput!): StorePlaceOrderResult!
 `;
 var EMPTY3 = {
@@ -36602,7 +36744,7 @@ async function replayPlacedOrder(context, order, who) {
   }
   return { ...base, message: "Pedido creado. Falta confirmar el pago.", stripeClientSecret: clientSecret };
 }
-var resolver34 = {
+var resolver35 = {
   placeStoreOrder: async (_root, { input }, context) => {
     if (!storeEnabled() && !isPlatformAdmin(context.session)) {
       return fail8("STORE_CLOSED", "La tienda a\xFAn no est\xE1 disponible.");
@@ -36796,12 +36938,12 @@ var resolver34 = {
     }
   }
 };
-var placeStoreOrder_default = { typeDefs: typeDefs37, definition: definition34, resolver: resolver34 };
+var placeStoreOrder_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
 
 // graphql/customs/mutations/store/storeOrderActions.ts
 var import_stream2 = require("stream");
 var import_image_size2 = require("image-size");
-var typeDefs38 = `
+var typeDefs39 = `
   type StoreOrderActionResult {
     success: Boolean!
     message: String!
@@ -36829,7 +36971,7 @@ var typeDefs38 = `
     paid: Int!
   }
 `;
-var definition35 = `
+var definition36 = `
   uploadStoreTransferProof(orderNumber: String!, file: Upload!, reference: String): StoreOrderActionResult!
   resumeStoreOrderPayment(orderNumber: String!): StoreOrderPaymentResult!
   cancelMyStoreOrder(orderNumber: String!): StoreOrderActionResult!
@@ -36867,7 +37009,7 @@ async function readCapped(stream, maxBytes) {
   }
   return Buffer.concat(chunks);
 }
-var resolver35 = {
+var resolver36 = {
   /** The buyer uploads the proof of their transfer: the order waits for an admin to confirm it. */
   uploadStoreTransferProof: async (_root, args, context) => {
     const userId = getSessionUserId(context.session);
@@ -37097,7 +37239,64 @@ var resolver35 = {
     };
   }
 };
-var storeOrderActions_default = { typeDefs: typeDefs38, definition: definition35, resolver: resolver35 };
+var storeOrderActions_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+
+// graphql/customs/mutations/store/recordStoreProductView.ts
+var typeDefs40 = `
+  type StoreProductViewResult {
+    "Whether this visit counted. Admins, bots and repeats within 30 min do not."
+    counted: Boolean!
+    "Total views to show, or null while the product has fewer than the public minimum."
+    viewsCount: Int
+  }
+`;
+var definition37 = `
+  recordStoreProductView(productId: ID!): StoreProductViewResult!
+`;
+var firstVisit2 = createDeduper(STORE_PRODUCT_VIEW_DEDUPE_MS);
+function visitorKey2(context) {
+  const userId = getSessionUserId(context.session);
+  if (userId) return `u:${userId}`;
+  return `ip:${requestIp(context.req) ?? "?"}|${requestUserAgent(context.req) ?? ""}`;
+}
+function shown(viewsCount, isAdmin) {
+  return isAdmin || viewsCount >= STORE_PRODUCT_VIEWS_PUBLIC_MIN ? viewsCount : null;
+}
+var resolver37 = {
+  /**
+   * The product page calls it once when it opens and shows the total it returns. Never fails
+   * outward: on any error it answers `counted: false` and the page shows no number.
+   */
+  recordStoreProductView: async (_root, { productId }, context) => {
+    const none = { counted: false, viewsCount: null };
+    try {
+      const isAdmin = isPlatformAdmin(context.session);
+      if (!storeEnabled() && !isAdmin) return none;
+      const prisma = storePrisma(context);
+      const product = await prisma.storeProduct.findUnique({
+        where: { id: productId },
+        select: { status: true, viewsCount: true }
+      });
+      if (!product || product instanceof Error || product.status !== STORE_PRODUCT_STATUS.ACTIVE) return none;
+      const current = product.viewsCount ?? 0;
+      if (isAdmin || isKnownCrawlerRequest(context.req) || !firstVisit2(`${productId}:${visitorKey2(context)}`)) {
+        return { counted: false, viewsCount: shown(current, isAdmin) };
+      }
+      const rows2 = await prisma.$queryRaw`
+        UPDATE "StoreProduct" SET "viewsCount" = "viewsCount" + 1
+        WHERE "id" = ${productId}
+        RETURNING "viewsCount"
+      `;
+      if (rows2 instanceof Error) throw rows2;
+      const total = Number(rows2[0]?.viewsCount ?? current + 1);
+      return { counted: true, viewsCount: shown(total, false) };
+    } catch (error) {
+      console.error("[recordStoreProductView]", error);
+      return none;
+    }
+  }
+};
+var recordStoreProductView_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
 
 // graphql/customs/mutations/store/index.ts
 var storeMutations = {
@@ -37106,18 +37305,21 @@ var storeMutations = {
     ${storeProductReviews_default.typeDefs}
     ${placeStoreOrder_default.typeDefs}
     ${storeOrderActions_default.typeDefs}
+    ${recordStoreProductView_default.typeDefs}
   `,
   definition: `
     ${setStoreWishlist_default.definition}
     ${storeProductReviews_default.definition}
     ${placeStoreOrder_default.definition}
     ${storeOrderActions_default.definition}
+    ${recordStoreProductView_default.definition}
   `,
   resolver: {
     ...setStoreWishlist_default.resolver,
     ...storeProductReviews_default.resolver,
     ...placeStoreOrder_default.resolver,
-    ...storeOrderActions_default.resolver
+    ...storeOrderActions_default.resolver,
+    ...recordStoreProductView_default.resolver
   }
 };
 var store_default = storeMutations;
@@ -37125,7 +37327,7 @@ var store_default = storeMutations;
 // graphql/customs/mutations/pet/sendAnimalFollowUps.ts
 var MAX_REMINDERS_PER_RUN = 200;
 var MAX_INACTIVE_PER_RUN = 500;
-var typeDefs39 = `
+var typeDefs41 = `
   type SendAnimalFollowUpsResult {
     success: Boolean!
     message: String!
@@ -37134,7 +37336,7 @@ var typeDefs39 = `
     failed: Int!
   }
 `;
-var definition36 = `
+var definition38 = `
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
 `;
 var empty2 = { reminded: 0, inactivated: 0, failed: 0 };
@@ -37250,7 +37452,7 @@ async function remind(context, animal) {
   }
   return true;
 }
-var resolver36 = {
+var resolver38 = {
   sendAnimalFollowUps: async (_root, { secret }, context) => {
     const expected = process.env.CRON_SECRET?.trim();
     if (!expected || secret !== expected) {
@@ -37289,7 +37491,7 @@ var resolver36 = {
     }
   }
 };
-var sendAnimalFollowUps_default = { typeDefs: typeDefs39, definition: definition36, resolver: resolver36 };
+var sendAnimalFollowUps_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
 var import_graphql6 = require("graphql");
@@ -37434,7 +37636,7 @@ async function copyReportPhotosToPet(context, animalId, petId) {
 }
 
 // utils/pet/adoptionApplications.ts
-function prismaOf6(context) {
+function prismaOf7(context) {
   return context.sudo().prisma;
 }
 async function settleApplicationsAfterAdoption(context, {
@@ -37443,7 +37645,7 @@ async function settleApplicationsAfterAdoption(context, {
   petId
 }) {
   try {
-    const prisma = prismaOf6(context);
+    const prisma = prismaOf7(context);
     const open = await prisma.adoptionApplication.findMany({
       where: { animalId: animal.id, status: { in: ADOPTION_APPLICATION_ACTIVE_STATUSES } },
       select: { id: true, applicantId: true }
@@ -37481,7 +37683,7 @@ async function settleApplicationsAfterAdoption(context, {
 }
 
 // utils/pet/petTransfer.ts
-function prismaOf7(context) {
+function prismaOf8(context) {
   return context.sudo().prisma;
 }
 var SEX_VALUES = /* @__PURE__ */ new Set(["male", "female", "unknown"]);
@@ -37507,7 +37709,7 @@ async function createPetFromReport(context, report, target) {
     },
     query: "id"
   });
-  const prisma = prismaOf7(context);
+  const prisma = prismaOf8(context);
   if (target.ownerId) {
     const removed = await prisma.petOwner.deleteMany({ where: { petId: created.id } });
     if (removed instanceof Error) throw removed;
@@ -37531,7 +37733,7 @@ async function createPetFromReport(context, report, target) {
 }
 async function cancelPendingTransfers(context, petId) {
   try {
-    const result5 = await prismaOf7(context).petTransfer.updateMany({
+    const result5 = await prismaOf8(context).petTransfer.updateMany({
       where: { petId, status: "pending" },
       data: { status: "cancelled" }
     });
@@ -37541,7 +37743,7 @@ async function cancelPendingTransfers(context, petId) {
   }
 }
 async function loadTransferablePet(context, petId) {
-  const pet = await prismaOf7(context).pet.findUnique({
+  const pet = await prismaOf8(context).pet.findUnique({
     where: { id: petId },
     select: { id: true, name: true, status: true, organizationId: true, publicReportId: true }
   });
@@ -37549,7 +37751,7 @@ async function loadTransferablePet(context, petId) {
   return pet;
 }
 async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {}) {
-  const prisma = prismaOf7(context);
+  const prisma = prismaOf8(context);
   const removed = await prisma.petOwner.deleteMany({ where: { petId: pet.id } });
   if (removed instanceof Error) throw removed;
   const owner = await prisma.petOwner.create({
@@ -37572,7 +37774,7 @@ async function transferPetToOwner(context, pet, newOwnerId, { reportNote } = {})
 }
 
 // graphql/customs/mutations/pet/adoptionApplications.ts
-var typeDefs40 = `
+var typeDefs42 = `
   input AdoptionApplicationInput {
     phone: String!
     "Por qu\xE9 quiere adoptarlo (20 a 1000 caracteres)"
@@ -37605,7 +37807,7 @@ var typeDefs40 = `
     petId: ID
   }
 `;
-var definition37 = `
+var definition39 = `
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
   "Solo quien la envi\xF3 y solo mientras siga \xABEnviada\xBB (submitted)."
   editAdoptionApplication(applicationId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
@@ -37617,7 +37819,7 @@ var definition37 = `
 var ANIMAL_FIELDS = "id name slug user { id } organization { id name } duplicateOf { id }";
 var HOUSING_VALUES = new Set(ADOPTION_HOUSING_OPTIONS.map((option) => option.value));
 var OWNERSHIP_VALUES = new Set(ADOPTION_HOUSING_OWNERSHIP_OPTIONS.map((option) => option.value));
-function prismaOf8(context) {
+function prismaOf9(context) {
   return context.sudo().prisma;
 }
 function errorMessage(error, fallback) {
@@ -37711,7 +37913,7 @@ var REVIEW_COPY = {
     body: note || "Gracias por querer adoptar. Hay m\xE1s animales esperando un hogar en KADESH."
   })
 };
-var resolver37 = {
+var resolver39 = {
   submitAdoptionApplication: async (_root, { animalId, input }, context) => {
     const fail16 = (message) => ({ success: false, message, application: null });
     try {
@@ -37796,7 +37998,7 @@ var resolver37 = {
       if (clean6.length > ADOPTION_APPLICATION_LIMITS.NOTE_MAX) {
         return fail16(`El mensaje puede tener hasta ${ADOPTION_APPLICATION_LIMITS.NOTE_MAX} caracteres.`);
       }
-      const updated = await prismaOf8(context).adoptionApplication.update({
+      const updated = await prismaOf9(context).adoptionApplication.update({
         where: { id: application.id },
         data: {
           status,
@@ -37854,7 +38056,7 @@ var resolver37 = {
       }
       const checked = validateInput(input);
       if (!checked.ok) return fail16(checked.message);
-      const updated = await prismaOf8(context).adoptionApplication.update({
+      const updated = await prismaOf9(context).adoptionApplication.update({
         where: { id: application.id },
         data: { phone: checked.phone, message: input.message.trim(), answers: answersFrom(input) }
       });
@@ -37894,7 +38096,7 @@ var resolver37 = {
       const application = await loadApplication(context, applicationId);
       if (!userId || application.applicant?.id !== userId) return fail16("Solo quien envi\xF3 la solicitud puede retirarla.");
       if (!ADOPTION_APPLICATION_ACTIVE_STATUSES.includes(application.status)) return fail16("Esta solicitud ya est\xE1 cerrada.");
-      const updated = await prismaOf8(context).adoptionApplication.update({
+      const updated = await prismaOf9(context).adoptionApplication.update({
         where: { id: application.id },
         data: { status: ADOPTION_APPLICATION_STATUS.WITHDRAWN, decidedAt: /* @__PURE__ */ new Date() }
       });
@@ -37985,11 +38187,11 @@ var resolver37 = {
     }
   }
 };
-var adoptionApplications_default = { typeDefs: typeDefs40, definition: definition37, resolver: resolver37 };
+var adoptionApplications_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
 
 // graphql/customs/mutations/pet/card/markPetAsLost.ts
 var import_graphql7 = require("graphql");
-var typeDefs41 = `
+var typeDefs43 = `
   input PetLastSeenLocationInput {
     lat: String!
     lng: String!
@@ -38003,10 +38205,10 @@ var typeDefs41 = `
     url: String!
   }
 `;
-var definition38 = `
+var definition40 = `
   markPetAsLost(petId: ID!, lastSeenLocation: PetLastSeenLocationInput!, lastSeenDate: String!, notes: String, contactPhone: String): MarkPetAsLostResult!
 `;
-var resolver38 = {
+var resolver40 = {
   /**
    * Crea el reporte de perdida con los datos y fotos de la mascota, la marca `lost` y liga los dos.
    * El reporte sale por `createAnimalReport` (mismo slug, ciudad, validaciones, alerta de zona y
@@ -38086,21 +38288,21 @@ var resolver38 = {
     }
   }
 };
-var markPetAsLost_default = { typeDefs: typeDefs41, definition: definition38, resolver: resolver38 };
+var markPetAsLost_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
 
 // graphql/customs/mutations/pet/card/markPetAsFound.ts
 var import_graphql8 = require("graphql");
 var BACK_HOME_STATUS = "in_family";
-var typeDefs42 = `
+var typeDefs44 = `
   type MarkPetAsFoundResult {
     petId: ID!
     reportId: ID
   }
 `;
-var definition39 = `
+var definition41 = `
   markPetAsFound(petId: ID!): MarkPetAsFoundResult!
 `;
-var resolver39 = {
+var resolver41 = {
   /** La mascota vuelve a `active` y su reporte se cierra con una bitácora "En familia". */
   markPetAsFound: async (_root, { petId }, context) => {
     try {
@@ -38157,22 +38359,22 @@ var resolver39 = {
     }
   }
 };
-var markPetAsFound_default = { typeDefs: typeDefs42, definition: definition39, resolver: resolver39 };
+var markPetAsFound_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
 
 // graphql/customs/mutations/pet/card/addPetFamilyMember.ts
 var import_graphql9 = require("graphql");
 var PET_FAMILY_USER_NOT_FOUND = "PET_FAMILY_USER_NOT_FOUND";
-var typeDefs43 = `
+var typeDefs45 = `
   type PetFamilyMemberResult {
     id: ID!
     role: String!
     userName: String!
   }
 `;
-var definition40 = `
+var definition42 = `
   addPetFamilyMember(petId: ID!, email: String!): PetFamilyMemberResult!
 `;
-var resolver40 = {
+var resolver42 = {
   /**
    * El dueño principal agrega a un familiar por correo: nadie puede leer el `id` de otro `User`,
    * así que la búsqueda va con sudo y solo devuelve el nombre.
@@ -38213,13 +38415,13 @@ var resolver40 = {
     }
   }
 };
-var addPetFamilyMember_default = { typeDefs: typeDefs43, definition: definition40, resolver: resolver40 };
+var addPetFamilyMember_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
 
 // graphql/customs/mutations/pet/card/registerPetFamilyMember.ts
 var import_graphql10 = require("graphql");
 var EMAIL_PATTERN4 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 var MIN_PASSWORD_LENGTH = 8;
-var typeDefs44 = `
+var typeDefs46 = `
   input RegisterPetFamilyMemberInput {
     name: String!
     lastName: String
@@ -38235,13 +38437,13 @@ var typeDefs44 = `
     createdAccount: Boolean!
   }
 `;
-var definition41 = `
+var definition43 = `
   registerPetFamilyMember(petId: ID!, input: RegisterPetFamilyMemberInput!): RegisterPetFamilyMemberResult!
 `;
 function displayName(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver41 = {
+var resolver43 = {
   /**
    * El dueño principal registra a un familiar que aún no tiene cuenta: crea la cuenta con la
    * contraseña que él elige, lo agrega como `family` y le manda un correo que le dice que esa
@@ -38322,7 +38524,7 @@ var resolver41 = {
     }
   }
 };
-var registerPetFamilyMember_default = { typeDefs: typeDefs44, definition: definition41, resolver: resolver41 };
+var registerPetFamilyMember_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
 
 // utils/pet/petReminders.ts
 function reminderUrl(reminder) {
@@ -38482,7 +38684,7 @@ async function sendReminderNotification(context, reminder) {
 
 // graphql/customs/mutations/pet/card/sendDuePetReminders.ts
 var MAX_PER_RUN = 500;
-var typeDefs45 = `
+var typeDefs47 = `
   type SendDuePetRemindersResult {
     success: Boolean!
     message: String!
@@ -38491,11 +38693,11 @@ var typeDefs45 = `
     failed: Int!
   }
 `;
-var definition42 = `
+var definition44 = `
   sendDuePetReminders(secret: String!): SendDuePetRemindersResult!
 `;
 var empty3 = { processed: 0, sent: 0, failed: 0 };
-var resolver42 = {
+var resolver44 = {
   /**
    * Manda los `PetReminder` pendientes cuya fecha de aviso (`dueDate - notifyDaysBefore`) ya llegó
    * (hoy en CDMX o antes). La llama un cron diario (.github/workflows/send-pet-reminders.yml) con
@@ -38561,12 +38763,12 @@ var resolver42 = {
     }
   }
 };
-var sendDuePetReminders_default = { typeDefs: typeDefs45, definition: definition42, resolver: resolver42 };
+var sendDuePetReminders_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
 
 // graphql/customs/mutations/pet/card/petTransfer.ts
 var import_crypto7 = require("crypto");
 var import_graphql11 = require("graphql");
-var typeDefs46 = `
+var typeDefs48 = `
   type PetTransferCodeResult {
     success: Boolean!
     message: String!
@@ -38594,13 +38796,13 @@ var typeDefs46 = `
     petId: ID
   }
 `;
-var definition43 = `
+var definition45 = `
   createPetTransferCode(petId: ID!, message: String): PetTransferCodeResult!
   cancelPetTransferCode(transferId: ID!): PetTransferCodeResult!
   previewPetTransferCode(code: String!): PetTransferPreview!
   redeemPetTransferCode(code: String!): PetTransferRedeemResult!
 `;
-function prismaOf9(context) {
+function prismaOf10(context) {
   return context.sudo().prisma;
 }
 function errorMessage2(error, fallback) {
@@ -38619,7 +38821,7 @@ function newCode() {
 async function requireGiver(context, petId) {
   const userId = getSessionUserId(context.session);
   if (!userId) throw new import_graphql11.GraphQLError("Inicia sesi\xF3n para continuar.");
-  const pet = await prismaOf9(context).pet.findUnique({
+  const pet = await prismaOf10(context).pet.findUnique({
     where: { id: petId },
     select: { id: true, name: true, status: true, organizationId: true, organization: { select: { id: true, name: true } } }
   });
@@ -38644,7 +38846,7 @@ async function loadRedeemable(context, rawCode, userId) {
   if (code.length !== PET_TRANSFER_CODE_LENGTH) {
     return { ok: false, message: `El c\xF3digo tiene ${PET_TRANSFER_CODE_LENGTH} letras y n\xFAmeros, como 7KQ2-M9XA.` };
   }
-  const prisma = prismaOf9(context);
+  const prisma = prismaOf10(context);
   const transfer = await prisma.petTransfer.findUnique({ where: { code } });
   if (!transfer || !transfer.petId) return { ok: false, message: "Ese c\xF3digo no existe. Revisa que est\xE9 bien escrito." };
   if (transfer.status === PET_TRANSFER_STATUS.REDEEMED) return { ok: false, message: "Ese c\xF3digo ya se us\xF3." };
@@ -38674,7 +38876,7 @@ async function loadRedeemable(context, rawCode, userId) {
 function displayName2(user) {
   return [user?.name, user?.lastName].filter(Boolean).join(" ").trim();
 }
-var resolver43 = {
+var resolver45 = {
   createPetTransferCode: async (_root, { petId, message }, context) => {
     const fail16 = (text106) => ({ success: false, message: text106, transfer: null });
     try {
@@ -38689,7 +38891,7 @@ var resolver43 = {
         return fail16(`El mensaje puede tener hasta ${PET_TRANSFER_MESSAGE_MAX} caracteres.`);
       }
       await cancelPendingTransfers(context, pet.id);
-      const prisma = prismaOf9(context);
+      const prisma = prismaOf10(context);
       let code = "";
       for (let attempt = 0; attempt < 5 && !code; attempt += 1) {
         const candidate = newCode();
@@ -38730,7 +38932,7 @@ var resolver43 = {
   cancelPetTransferCode: async (_root, { transferId }, context) => {
     const fail16 = (text106) => ({ success: false, message: text106, transfer: null });
     try {
-      const prisma = prismaOf9(context);
+      const prisma = prismaOf10(context);
       const transfer = await prisma.petTransfer.findUnique({ where: { id: transferId } });
       if (!transfer?.petId) return fail16("No encontramos ese c\xF3digo.");
       const userId = getSessionUserId(context.session);
@@ -38811,7 +39013,7 @@ var resolver43 = {
       const found = await loadRedeemable(context, code, userId);
       if (!found.ok) return fail16(found.message);
       const { transfer } = found;
-      const prisma = prismaOf9(context);
+      const prisma = prismaOf10(context);
       const claimed = await prisma.petTransfer.updateMany({
         where: { id: transfer.id, status: PET_TRANSFER_STATUS.PENDING },
         data: { status: PET_TRANSFER_STATUS.REDEEMED, redeemedById: userId, redeemedAt: /* @__PURE__ */ new Date() }
@@ -38877,7 +39079,7 @@ var resolver43 = {
     }
   }
 };
-var petTransfer_default = { typeDefs: typeDefs46, definition: definition43, resolver: resolver43 };
+var petTransfer_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
 
 // graphql/customs/mutations/pet/card/index.ts
 var petCardMutations = {
@@ -38910,7 +39112,7 @@ var card_default = petCardMutations;
 
 // utils/notifications/eventAlerts.ts
 var DAY_MS7 = 24 * 60 * 60 * 1e3;
-function prismaOf10(context) {
+function prismaOf11(context) {
   return context.sudo().prisma;
 }
 function petEventUrl(slug) {
@@ -38966,7 +39168,7 @@ function isWithinAlertLead(startsAt, now = /* @__PURE__ */ new Date()) {
 }
 async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new Date()) {
   try {
-    const prisma = prismaOf10(context);
+    const prisma = prismaOf11(context);
     const row = await prisma.petEvent.findUnique({
       where: { id: eventId },
       select: {
@@ -39013,7 +39215,7 @@ async function loadPetEventForNotice(context, eventId, now = /* @__PURE__ */ new
   }
 }
 async function findEventAlertCandidates(context, event) {
-  const prisma = prismaOf10(context);
+  const prisma = prismaOf11(context);
   const since = new Date(Date.now() - DAY_MS7);
   const zoneReach = event.scope === PET_EVENT_SCOPE.ZONE ? Math.max(0, Math.round(event.reachKm || 0)) : 0;
   const rows2 = await prisma.$queryRaw`
@@ -39095,7 +39297,7 @@ async function notifyEventInZone(context, eventId) {
 }
 async function interestedUserIds(context, eventId) {
   try {
-    const rows2 = await prismaOf10(context).petEventInterest.findMany({
+    const rows2 = await prismaOf11(context).petEventInterest.findMany({
       where: { eventId, userId: { not: null } },
       select: { userId: true }
     });
@@ -39206,7 +39408,7 @@ var petEventSharedTypeDefs = `
 function failure(message) {
   return { success: false, message, event: null };
 }
-function prismaOf11(context) {
+function prismaOf12(context) {
   return context.sudo().prisma;
 }
 async function eventForCaller(context, id) {
@@ -39231,7 +39433,7 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
     const event = await loadPetEventForNotice(context, eventId, now);
     if (!event || event.status !== PET_EVENT_STATUS.APPROVED || event.zoneAlertsSentAt || !event.next) return null;
     if (!isWithinAlertLead(event.next.startsAt, now)) return null;
-    const prisma = prismaOf11(context);
+    const prisma = prismaOf12(context);
     const claimed = await prisma.petEvent.updateMany({
       where: { id: eventId, zoneAlertsSentAt: null, status: PET_EVENT_STATUS.APPROVED },
       data: { zoneAlertsSentAt: now }
@@ -39249,11 +39451,11 @@ async function sendZoneAlertsIfDue(context, eventId, now = /* @__PURE__ */ new D
 }
 
 // graphql/customs/mutations/pet/events/submitPetEvent.ts
-var typeDefs47 = ``;
-var definition44 = `
+var typeDefs49 = ``;
+var definition46 = `
   submitPetEvent(input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver44 = {
+var resolver46 = {
   /**
    * Publica un evento con sus fechas. Si no lo manda un admin queda «En revisión» y se avisa a los
    * admins; un admin lo publica directo (y avisa a la zona si la fecha está cerca). Las fotos se
@@ -39311,7 +39513,7 @@ var resolver44 = {
     }
   }
 };
-var submitPetEvent_default = { typeDefs: typeDefs47, definition: definition44, resolver: resolver44 };
+var submitPetEvent_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
 
 // utils/seo/indexNow.ts
 var DEFAULT_KEY = "6973631b0c498ed8f41a79e2d4c9211f";
@@ -39366,11 +39568,11 @@ async function submitPetEventToIndexNow(context, eventId) {
 }
 
 // graphql/customs/mutations/pet/events/updateMyPetEvent.ts
-var typeDefs48 = ``;
-var definition45 = `
+var typeDefs50 = ``;
+var definition47 = `
   updateMyPetEvent(id: ID!, input: PetEventInput!): PetEventMutationResult!
 `;
-var resolver45 = {
+var resolver47 = {
   /**
    * Edita un evento propio (el formulario completo, con todas sus fechas). Si quien edita no es
    * admin y el evento estaba publicado o rechazado, vuelve a «En revisión». Si cambiaron las fechas
@@ -39381,7 +39583,7 @@ var resolver45 = {
     if (!userId) return failure("Inicia sesi\xF3n para editar el evento.");
     const isAdmin = isPlatformAdmin(context.session);
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const event = await prisma.petEvent.findUnique({
         where: { id },
         select: {
@@ -39479,14 +39681,14 @@ var resolver45 = {
     }
   }
 };
-var updateMyPetEvent_default = { typeDefs: typeDefs48, definition: definition45, resolver: resolver45 };
+var updateMyPetEvent_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
 
 // graphql/customs/mutations/pet/events/cancelPetEvent.ts
-var typeDefs49 = ``;
-var definition46 = `
+var typeDefs51 = ``;
+var definition48 = `
   cancelPetEvent(id: ID!, reason: String): PetEventMutationResult!
 `;
-var resolver46 = {
+var resolver48 = {
   /**
    * Cancela un evento (quien lo publicó o un admin). Si llegó a publicarse, la ficha sigue visible
    * con el aviso de cancelado y se avisa a quienes marcaron «Me interesa» o «Asistiré».
@@ -39496,7 +39698,7 @@ var resolver46 = {
     if (!userId) return failure("Inicia sesi\xF3n para cancelar el evento.");
     const isAdmin = isPlatformAdmin(context.session);
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const event = await prisma.petEvent.findUnique({
         where: { id },
         select: { id: true, title: true, status: true, userId: true, approvedAt: true, lastEndsAt: true }
@@ -39534,10 +39736,10 @@ var resolver46 = {
     }
   }
 };
-var cancelPetEvent_default = { typeDefs: typeDefs49, definition: definition46, resolver: resolver46 };
+var cancelPetEvent_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
 
 // graphql/customs/mutations/pet/events/setPetEventInterest.ts
-var typeDefs50 = `
+var typeDefs52 = `
   type PetEventInterestResult {
     success: Boolean!
     message: String!
@@ -39548,7 +39750,7 @@ var typeDefs50 = `
     isFull: Boolean!
   }
 `;
-var definition47 = `
+var definition49 = `
   setPetEventInterest(eventId: ID!, kind: String): PetEventInterestResult!
 `;
 var KINDS = new Set(Object.values(PET_EVENT_INTEREST_KIND));
@@ -39564,7 +39766,7 @@ async function counts(prisma, eventId, capacity) {
     isFull: capacity ? goingCount >= capacity : false
   };
 }
-var resolver47 = {
+var resolver49 = {
   /**
    * «Me interesa» (`interested`), «Asistiré» (`going`) o quitarlo (`kind: null`). Con cupo,
    * «Asistiré» se cierra cuando ya hay tantas personas como lugares; «Me interesa» siempre se puede.
@@ -39577,7 +39779,7 @@ var resolver47 = {
     const nextKind = kind ? kind.trim() : null;
     if (nextKind && !KINDS.has(nextKind)) return { success: false, message: "Opci\xF3n no v\xE1lida.", ...empty4 };
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const event = await prisma.petEvent.findUnique({
         where: { id: eventId },
         select: { id: true, status: true, capacity: true, lastEndsAt: true }
@@ -39628,84 +39830,21 @@ var resolver47 = {
     }
   }
 };
-var setPetEventInterest_default = { typeDefs: typeDefs50, definition: definition47, resolver: resolver47 };
-
-// utils/security/knownCrawlers.ts
-var import_net = require("net");
-var META_IPV4 = [
-  "31.13.24.0/21",
-  "31.13.64.0/18",
-  "45.64.40.0/22",
-  "57.141.0.0/20",
-  "57.141.16.0/21",
-  "57.141.24.0/22",
-  "57.141.28.0/23",
-  "57.144.0.0/14",
-  "66.220.144.0/20",
-  "69.63.176.0/20",
-  "69.171.224.0/19",
-  "74.119.76.0/22",
-  "102.132.96.0/20",
-  "103.4.96.0/22",
-  "129.134.0.0/16",
-  "147.75.208.0/20",
-  "157.240.0.0/16",
-  "163.70.128.0/17",
-  "163.77.128.0/17",
-  "173.252.64.0/18",
-  "179.60.192.0/22",
-  "185.60.216.0/22",
-  "185.89.216.0/22",
-  "204.15.20.0/22"
-];
-var META_IPV6 = [
-  "2401:db00::/32",
-  "2620:0:1c00::/40",
-  "2803:6080::/29",
-  "2a03:2880::/31",
-  "2a03:2887:ff2c::/47",
-  "2a03:83e0::/32",
-  "2a10:f781:10:cee0::/64"
-];
-var BOT_USER_AGENT = /facebookexternalhit|facebookcatalog|facebot|meta-externalagent|meta-externalfetcher|meta-webindexer|whatsapp|twitterbot|slackbot|telegrambot|linkedinbot|discordbot|pinterestbot|googlebot|google-inspectiontool|adsbot-google|mediapartners-google|storebot-google|bingbot|yandexbot|baiduspider|duckduckbot|applebot|petalbot|ahrefsbot|semrushbot|headlesschrome|chrome-lighthouse/i;
-var metaRanges = new import_net.BlockList();
-for (const [ranges, family] of [
-  [META_IPV4, "ipv4"],
-  [META_IPV6, "ipv6"]
-]) {
-  for (const cidr of ranges) {
-    const [network, prefix2] = cidr.split("/");
-    metaRanges.addSubnet(network, Number(prefix2), family);
-  }
-}
-function isMetaIp(ip) {
-  if (!ip) return false;
-  const family = (0, import_net.isIP)(ip);
-  if (family === 4) return metaRanges.check(ip, "ipv4");
-  if (family === 6) return metaRanges.check(ip, "ipv6");
-  return false;
-}
-function isBotUserAgent(userAgent) {
-  return Boolean(userAgent && BOT_USER_AGENT.test(userAgent));
-}
-function isKnownCrawlerRequest(req) {
-  if (!req) return false;
-  return isBotUserAgent(requestUserAgent(req)) || isMetaIp(requestIp(req));
-}
+var setPetEventInterest_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
 
 // graphql/customs/mutations/pet/events/recordPetEventView.ts
-var typeDefs51 = `
+var typeDefs53 = `
   type PetEventViewResult {
     "Si esta visita sum\xF3. No suman quien lo public\xF3, los admins, los bots ni repetir en 30 min."
     counted: Boolean!
     viewsCount: Int!
   }
 `;
-var definition48 = `
+var definition50 = `
   recordPetEventView(eventId: ID!): PetEventViewResult!
 `;
-var firstVisit = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
-function visitorKey(context) {
+var firstVisit3 = createDeduper(PET_EVENT_VIEW_DEDUPE_MS);
+function visitorKey3(context) {
   const userId = getSessionUserId(context.session);
   if (userId) return `u:${userId}`;
   return `ip:${requestIp(context.req) ?? "?"}|${requestUserAgent(context.req) ?? ""}`;
@@ -39714,14 +39853,14 @@ function isPublic(event) {
   if (event.status === PET_EVENT_STATUS.APPROVED) return true;
   return event.status === PET_EVENT_STATUS.CANCELLED && Boolean(event.approvedAt);
 }
-var resolver48 = {
+var resolver50 = {
   /**
    * La web la llama una vez al abrir la ficha y muestra el total que devuelve. Nunca falla hacia
    * afuera: si algo sale mal responde `counted: false` y la ficha se queda con el número que tenía.
    */
   recordPetEventView: async (_root, { eventId }, context) => {
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const event = await prisma.petEvent.findUnique({
         where: { id: eventId },
         select: { id: true, status: true, approvedAt: true, userId: true, viewsCount: true }
@@ -39732,7 +39871,7 @@ var resolver48 = {
       if (userId && userId === event.userId) return current;
       if (isPlatformAdmin(context.session)) return current;
       if (isKnownCrawlerRequest(context.req)) return current;
-      if (!firstVisit(`${eventId}:${visitorKey(context)}`)) return current;
+      if (!firstVisit3(`${eventId}:${visitorKey3(context)}`)) return current;
       const rows2 = await prisma.$queryRaw`
         UPDATE "PetEvent" SET "viewsCount" = "viewsCount" + 1
         WHERE "id" = ${eventId}
@@ -39745,14 +39884,14 @@ var resolver48 = {
     }
   }
 };
-var recordPetEventView_default = { typeDefs: typeDefs51, definition: definition48, resolver: resolver48 };
+var recordPetEventView_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
 
 // graphql/customs/mutations/pet/events/reviewPetEvent.ts
-var typeDefs52 = ``;
-var definition49 = `
+var typeDefs54 = ``;
+var definition51 = `
   reviewPetEvent(id: ID!, approved: Boolean!, note: String): PetEventMutationResult!
 `;
-var resolver49 = {
+var resolver51 = {
   /**
    * Operaciones → Kadesh Pet → Eventos. Aprobar publica el evento, avisa a quien lo publicó y, si
    * su próxima fecha está a 14 días o menos, a la zona (si no, el cron avisa cuando falten 14).
@@ -39762,7 +39901,7 @@ var resolver49 = {
     const adminId = getSessionUserId(context.session);
     if (!adminId || !isPlatformAdmin(context.session)) return failure("Solo un administrador puede revisar eventos.");
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const event = await prisma.petEvent.findUnique({
         where: { id },
         select: {
@@ -39850,14 +39989,14 @@ var resolver49 = {
     }
   }
 };
-var reviewPetEvent_default = { typeDefs: typeDefs52, definition: definition49, resolver: resolver49 };
+var reviewPetEvent_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
 
 // graphql/customs/mutations/pet/events/sendPetEventNotifications.ts
 var MAX_REMINDERS_PER_RUN2 = 500;
 var MAX_ZONE_EVENTS_PER_RUN = 50;
 var HOUR_MS2 = 60 * 60 * 1e3;
 var DAY_MS8 = 24 * HOUR_MS2;
-var typeDefs53 = `
+var typeDefs55 = `
   type SendPetEventNotificationsResult {
     success: Boolean!
     message: String!
@@ -39869,11 +40008,11 @@ var typeDefs53 = `
     zoneRecipients: Int!
   }
 `;
-var definition50 = `
+var definition52 = `
   sendPetEventNotifications(secret: String!): SendPetEventNotificationsResult!
 `;
 async function sendReminders(context, now) {
-  const prisma = prismaOf11(context);
+  const prisma = prismaOf12(context);
   const until = new Date(now.getTime() + PET_EVENT_ALERTS.REMINDER_HOURS * HOUR_MS2);
   const rows2 = await prisma.$queryRaw`
     SELECT i.id, i."user" AS "userId", e.id AS "eventId", s.id AS "sessionId", s."startsAt" AS "startsAt"
@@ -39932,7 +40071,7 @@ async function sendReminders(context, now) {
   return sent;
 }
 async function sendDueZoneAlerts(context, now) {
-  const prisma = prismaOf11(context);
+  const prisma = prismaOf12(context);
   const leadUntil = new Date(now.getTime() + PET_EVENT_ALERTS.LEAD_DAYS * DAY_MS8);
   const rows2 = await prisma.$queryRaw`
     SELECT e.id
@@ -39957,7 +40096,7 @@ async function sendDueZoneAlerts(context, now) {
   }
   return { events, recipients };
 }
-var resolver50 = {
+var resolver52 = {
   /**
    * La llama cada hora .github/workflows/send-pet-event-notifications.yml con `CRON_SECRET`:
    * (a) recordatorios de fechas que empiezan en las próximas 24 h, una vez por fecha y persona;
@@ -39988,13 +40127,13 @@ var resolver50 = {
     }
   }
 };
-var sendPetEventNotifications_default = { typeDefs: typeDefs53, definition: definition50, resolver: resolver50 };
+var sendPetEventNotifications_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
 
 // graphql/customs/mutations/pet/events/backfillAlertRegions.ts
 var NOMINATIM_GAP_MS = 1100;
 var DEFAULT_LIMIT = 40;
 var MAX_LIMIT = 100;
-var typeDefs54 = `
+var typeDefs56 = `
   type BackfillAlertRegionsResult {
     success: Boolean!
     message: String!
@@ -40003,11 +40142,11 @@ var typeDefs54 = `
     remaining: Int!
   }
 `;
-var definition51 = `
+var definition53 = `
   backfillAlertRegions(limit: Int): BackfillAlertRegionsResult!
 `;
 var sleep2 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-var resolver51 = {
+var resolver53 = {
   /**
    * Una vez, después de desplegar los eventos: llena `alertCity` / `alertStateCode` de quienes ya
    * tenían zona de alertas (desde ahora se llenan solos al guardar la zona). Solo admins. Se corre
@@ -40017,7 +40156,7 @@ var resolver51 = {
     const empty4 = { processed: 0, updated: 0, remaining: 0 };
     if (!isPlatformAdmin(context.session)) return { success: false, message: "Solo admins.", ...empty4 };
     try {
-      const prisma = prismaOf11(context);
+      const prisma = prismaOf12(context);
       const take = Math.min(Math.max(Number(limit) || DEFAULT_LIMIT, 1), MAX_LIMIT);
       const where = { alertLat: { not: null }, alertLng: { not: null }, alertStateCode: null, anonymizedAt: null };
       const users = await prisma.user.findMany({
@@ -40056,7 +40195,7 @@ var resolver51 = {
     }
   }
 };
-var backfillAlertRegions_default = { typeDefs: typeDefs54, definition: definition51, resolver: resolver51 };
+var backfillAlertRegions_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
 
 // graphql/customs/mutations/pet/events/index.ts
 var petEventMutations = {
@@ -40095,15 +40234,15 @@ var petEventMutations = {
 var events_default = petEventMutations;
 
 // graphql/customs/mutations/pet/rescue/activateRescueOrganization.ts
-var typeDefs55 = ``;
-var definition52 = `
+var typeDefs57 = ``;
+var definition54 = `
   activateRescueOrganization(input: RescueOrganizationCreateInput!): RescueOrganizationResult!
 `;
 var TYPE_LABEL2 = Object.fromEntries(RESCUE_ORG_TYPE_OPTIONS.map((option) => [option.value, option.label]));
 function failure2(message) {
   return { success: false, message, organization: null };
 }
-var resolver52 = {
+var resolver54 = {
   /**
    * Activa un espacio de rescate: crea la organización «En revisión» con quien llama como admin y
    * avisa a los admins de Kadesh para validarla por WhatsApp. El logo y la portada se suben
@@ -40181,7 +40320,7 @@ var resolver52 = {
     }
   }
 };
-var activateRescueOrganization_default = { typeDefs: typeDefs55, definition: definition52, resolver: resolver52 };
+var activateRescueOrganization_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
 var import_graphql12 = require("graphql");
@@ -40221,7 +40360,7 @@ var rescueSharedTypeDefs = `
   }
 `;
 var RESCUE_MEMBER_USER_NOT_FOUND = "RESCUE_MEMBER_USER_NOT_FOUND";
-function prismaOf12(context) {
+function prismaOf13(context) {
   return context.sudo().prisma;
 }
 function displayName3(user) {
@@ -40241,8 +40380,8 @@ async function countRescueAdmins(context, organizationId) {
 }
 
 // graphql/customs/mutations/pet/rescue/rescueMembers.ts
-var typeDefs56 = ``;
-var definition53 = `
+var typeDefs58 = ``;
+var definition55 = `
   addRescueOrganizationMember(organizationId: ID!, email: String!, role: String!): RescueMemberResult!
   setRescueOrganizationMemberRole(memberId: ID!, role: String!): RescueMemberResult!
   removeRescueOrganizationMember(memberId: ID!): RescueMemberResult!
@@ -40261,7 +40400,7 @@ async function loadMember(context, memberId) {
     query: "id role user { id } organization { id name }"
   });
 }
-var resolver53 = {
+var resolver55 = {
   addRescueOrganizationMember: async (_root, { organizationId, email, role }, context) => {
     try {
       const { organization } = await requireRescueRole(context, organizationId, [RESCUE_MEMBER_ROLE.ADMIN]);
@@ -40397,7 +40536,7 @@ var resolver53 = {
     }
   }
 };
-var rescueMembers_default = { typeDefs: typeDefs56, definition: definition53, resolver: resolver53 };
+var rescueMembers_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
 
 // graphql/customs/mutations/pet/rescue/rescuePets.ts
 var import_graphql13 = require("graphql");
@@ -40407,7 +40546,7 @@ var STATUS_LABEL2 = {
   rescued: "Rescatado"
 };
 var RESCUE_ADOPTER_NOT_FOUND = "RESCUE_ADOPTER_NOT_FOUND";
-var typeDefs57 = `
+var typeDefs59 = `
   type RescuePetResult {
     success: Boolean!
     message: String!
@@ -40435,7 +40574,7 @@ var typeDefs57 = `
     adopterName: String
   }
 `;
-var definition54 = `
+var definition56 = `
   convertAnimalToPet(animalId: ID!, organizationId: ID): RescuePetResult!
   "status: in_adoption | rescued. location es obligatoria si la ficha a\xFAn no tiene reporte."
   publishRescuePet(petId: ID!, status: String!, location: PetLastSeenLocationInput, notes: String): PublishRescuePetResult!
@@ -40457,7 +40596,7 @@ async function loadRescuePet(context, petId) {
   if (!pet.organization) throw new import_graphql13.GraphQLError("Esta mascota no es ficha de un espacio de rescate.");
   return pet;
 }
-var resolver54 = {
+var resolver56 = {
   convertAnimalToPet: async (_root, { animalId, organizationId }, context) => {
     const fail16 = (message) => ({ success: false, message, petId: null, organizationId: null });
     try {
@@ -40544,7 +40683,7 @@ var resolver54 = {
       if (!RESCUE_ORG_ACTIVE_STATUSES.includes(org.status)) return fail16("Este espacio de rescate no est\xE1 activo.");
       if (pet.status !== PET_STATUS.ACTIVE) return fail16("Solo se publica una ficha activa.");
       const notes = args.notes?.trim() ?? "";
-      const prisma = prismaOf12(context);
+      const prisma = prismaOf13(context);
       let reportId;
       let slug;
       let createdReport = false;
@@ -40705,7 +40844,7 @@ var resolver54 = {
     }
   }
 };
-var rescuePets_default = { typeDefs: typeDefs57, definition: definition54, resolver: resolver54 };
+var rescuePets_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
 
 // graphql/customs/mutations/pet/rescue/index.ts
 var rescueMutations = {
@@ -40729,7 +40868,7 @@ var rescueMutations = {
 var rescue_default = rescueMutations;
 
 // graphql/customs/mutations/unsubscribeBlog.ts
-var typeDefs58 = `
+var typeDefs60 = `
   type UnsubscribeBlogResult {
     success: Boolean!
     message: String!
@@ -40739,10 +40878,10 @@ var typeDefs58 = `
     unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
   }
 `;
-var definition55 = `
+var definition57 = `
   unsubscribeBlog(email: String!, product: String!): UnsubscribeBlogResult!
 `;
-var resolver55 = {
+var resolver57 = {
   /**
    * Desactiva (`active: false`) la suscripción al blog de un producto. Cada front manda su
    * propio `product`, así que quien se da de baja del blog de Pet sigue en el de SaaS.
@@ -40793,10 +40932,10 @@ var resolver55 = {
     }
   }
 };
-var unsubscribeBlog_default = { typeDefs: typeDefs58, definition: definition55, resolver: resolver55 };
+var unsubscribeBlog_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
 
 // graphql/customs/mutations/publishScheduledPosts.ts
-var typeDefs59 = `
+var typeDefs61 = `
   type PublishScheduledPostsResult {
     success: Boolean!
     message: String!
@@ -40807,10 +40946,10 @@ var typeDefs59 = `
     publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
   }
 `;
-var definition56 = `
+var definition58 = `
   publishScheduledPosts(secret: String!): PublishScheduledPostsResult!
 `;
-var resolver56 = {
+var resolver58 = {
   /**
    * Pensada para un cron externo, no para un usuario logueado: se autoriza con `CRON_SECRET`, no
    * con sesión/rol. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -40859,10 +40998,10 @@ var resolver56 = {
     }
   }
 };
-var publishScheduledPosts_default = { typeDefs: typeDefs59, definition: definition56, resolver: resolver56 };
+var publishScheduledPosts_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
 
 // graphql/customs/mutations/upsertDraftSystemRelease.ts
-var typeDefs60 = `
+var typeDefs62 = `
   type UpsertDraftSystemReleaseResult {
     success: Boolean!
     message: String!
@@ -40873,7 +41012,7 @@ var typeDefs60 = `
     upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
   }
 `;
-var definition57 = `
+var definition59 = `
   upsertDraftSystemRelease(secret: String!, product: String!, entry: String!): UpsertDraftSystemReleaseResult!
 `;
 var ALLOWED_PRODUCTS = [PRODUCT.PET, PRODUCT.SAAS];
@@ -40882,7 +41021,7 @@ function todayPlaceholderVersion() {
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return `Borrador ${today}`;
 }
-var resolver57 = {
+var resolver59 = {
   /**
    * Pensada para el CI de kadesh-landing / kadesh-business (GitHub Actions en esos repos,
    * no en este), no para un usuario logueado: se autoriza con `SYSTEM_RELEASE_SECRET`, no con
@@ -40950,7 +41089,7 @@ var resolver57 = {
     }
   }
 };
-var upsertDraftSystemRelease_default = { typeDefs: typeDefs60, definition: definition57, resolver: resolver57 };
+var upsertDraftSystemRelease_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
 
 // utils/whatsapp/friendlyError.ts
 function cleanMessage(raw) {
@@ -41045,7 +41184,7 @@ function denyCompanyWhatsappUseMessage(session2) {
 }
 
 // graphql/customs/mutations/whatsapp/updateCompanyWhatsappSettings.ts
-var typeDefs61 = `
+var typeDefs63 = `
   input UpdateCompanyWhatsappSettingsInput {
     companyId: ID!
     phoneNumberId: String
@@ -41069,7 +41208,7 @@ var typeDefs61 = `
     updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
   }
 `;
-var definition58 = `
+var definition60 = `
   updateCompanyWhatsappSettings(input: UpdateCompanyWhatsappSettingsInput!): UpdateCompanyWhatsappSettingsResult!
 `;
 var SETTINGS_QUERY2 = "id whatsappPhoneNumberId whatsappBusinessAccountId whatsappDisplayPhoneNumber whatsappTokenPreview whatsappAppSecretEncrypted whatsappConnectedAt";
@@ -41085,7 +41224,7 @@ function toResult5(success, message, company) {
     connectedAt: company?.whatsappConnectedAt ?? null
   };
 }
-var resolver58 = {
+var resolver60 = {
   updateCompanyWhatsappSettings: async (_root, { input }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, input.companyId)) {
@@ -41189,7 +41328,7 @@ var resolver58 = {
     return toResult5(true, "Configuraci\xF3n de WhatsApp guardada", updated);
   }
 };
-var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs61, definition: definition58, resolver: resolver58 };
+var updateCompanyWhatsappSettings_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
 
 // utils/whatsapp/templateStatus.ts
 var TEMPLATE_STATUS_MAP = {
@@ -41323,7 +41462,7 @@ async function ensureOutreachTemplate(company, context) {
 }
 
 // graphql/customs/mutations/whatsapp/testCompanyWhatsappConnection.ts
-var typeDefs62 = `
+var typeDefs64 = `
   type TestCompanyWhatsappConnectionResult {
     success: Boolean!
     message: String!
@@ -41337,10 +41476,10 @@ var typeDefs62 = `
     testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
   }
 `;
-var definition59 = `
+var definition61 = `
   testCompanyWhatsappConnection(companyId: ID!): TestCompanyWhatsappConnectionResult!
 `;
-var resolver59 = {
+var resolver61 = {
   testCompanyWhatsappConnection: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -41385,7 +41524,7 @@ var resolver59 = {
     }
   }
 };
-var testCompanyWhatsappConnection_default = { typeDefs: typeDefs62, definition: definition59, resolver: resolver59 };
+var testCompanyWhatsappConnection_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
 
 // utils/whatsapp/matchPhone.ts
 function phoneTail(raw) {
@@ -41523,7 +41662,7 @@ async function resolveWhatsAppTarget({ businessLeadId, teamMemberId, phone }, co
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMessage.ts
-var typeDefs63 = `
+var typeDefs65 = `
   type SendWhatsAppMessageResult {
     success: Boolean!
     message: String!
@@ -41534,10 +41673,10 @@ var typeDefs63 = `
     sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
   }
 `;
-var definition60 = `
+var definition62 = `
   sendWhatsAppMessage(businessLeadId: ID, teamMemberId: ID, phone: String, body: String!): SendWhatsAppMessageResult!
 `;
-var resolver60 = {
+var resolver62 = {
   sendWhatsAppMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -41598,7 +41737,7 @@ var resolver60 = {
     }
   }
 };
-var sendWhatsAppMessage_default = { typeDefs: typeDefs63, definition: definition60, resolver: resolver60 };
+var sendWhatsAppMessage_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
 
 // utils/whatsapp/parseChatExport.ts
 var IOS_LINE = /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?\s?[Mm]\.?)?)\]\s*([^:]+):\s?(.*)$/;
@@ -41687,7 +41826,7 @@ function distinctSenders(messages) {
 
 // graphql/customs/mutations/whatsapp/importWhatsAppChatExport.ts
 var DEDUPE_LOOKBACK = 5e3;
-var typeDefs64 = `
+var typeDefs66 = `
   type ImportWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -41704,7 +41843,7 @@ var typeDefs64 = `
     ): ImportWhatsAppChatExportResult!
   }
 `;
-var definition61 = `
+var definition63 = `
   importWhatsAppChatExport(
     businessLeadId: ID!
     fileName: String
@@ -41715,7 +41854,7 @@ var definition61 = `
 function toResult6(success, message, imported = 0, skippedDuplicates = 0) {
   return { success, message, imported, skippedDuplicates };
 }
-var resolver61 = {
+var resolver63 = {
   importWhatsAppChatExport: async (_root, {
     businessLeadId,
     content,
@@ -41801,10 +41940,10 @@ var resolver61 = {
     );
   }
 };
-var importWhatsAppChatExport_default = { typeDefs: typeDefs64, definition: definition61, resolver: resolver61 };
+var importWhatsAppChatExport_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
 
 // graphql/customs/mutations/whatsapp/startWhatsAppConversation.ts
-var typeDefs65 = `
+var typeDefs67 = `
   type StartWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -41814,7 +41953,7 @@ var typeDefs65 = `
     startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
   }
 `;
-var definition62 = `
+var definition64 = `
   startWhatsAppConversation(businessLeadId: ID, teamMemberId: ID, phone: String, templateName: String, templateLanguage: String, templateParams: [String!]): StartWhatsAppConversationResult!
 `;
 function toResult7(success, message) {
@@ -41826,7 +41965,7 @@ function renderTemplateBody(bodyText, params) {
     return value === void 0 ? match : value;
   });
 }
-var resolver62 = {
+var resolver64 = {
   startWhatsAppConversation: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -41932,7 +42071,7 @@ var resolver62 = {
     }
   }
 };
-var startWhatsAppConversation_default = { typeDefs: typeDefs65, definition: definition62, resolver: resolver62 };
+var startWhatsAppConversation_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
 var import_crypto8 = __toESM(require("crypto"));
@@ -41981,7 +42120,7 @@ async function getSignedStorageUrl({
 }
 
 // graphql/customs/mutations/whatsapp/sendWhatsAppMediaMessage.ts
-var typeDefs66 = `
+var typeDefs68 = `
   type SendWhatsAppMediaMessageResult {
     success: Boolean!
     message: String!
@@ -41992,7 +42131,7 @@ var typeDefs66 = `
     sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
   }
 `;
-var definition63 = `
+var definition65 = `
   sendWhatsAppMediaMessage(businessLeadId: ID, teamMemberId: ID, phone: String, media: Upload!, caption: String): SendWhatsAppMediaMessageResult!
 `;
 async function streamToBuffer(stream) {
@@ -42005,7 +42144,7 @@ async function streamToBuffer(stream) {
 function toResult8(success, message, messageId = null) {
   return { success, message, messageId };
 }
-var resolver63 = {
+var resolver65 = {
   sendWhatsAppMediaMessage: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -42089,10 +42228,10 @@ var resolver63 = {
     }
   }
 };
-var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs66, definition: definition63, resolver: resolver63 };
+var sendWhatsAppMediaMessage_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
 
 // graphql/customs/mutations/whatsapp/assignWhatsAppConversation.ts
-var typeDefs67 = `
+var typeDefs69 = `
   type AssignWhatsAppConversationResult {
     success: Boolean!
     message: String!
@@ -42102,13 +42241,13 @@ var typeDefs67 = `
     assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
   }
 `;
-var definition64 = `
+var definition66 = `
   assignWhatsAppConversation(businessLeadId: ID!, salesPersonId: ID): AssignWhatsAppConversationResult!
 `;
 function toResult9(success, message) {
   return { success, message };
 }
-var resolver64 = {
+var resolver66 = {
   assignWhatsAppConversation: async (_root, {
     businessLeadId,
     salesPersonId
@@ -42165,10 +42304,10 @@ var resolver64 = {
     return toResult9(true, "Chat sin asignar. Solo lo ven los administradores.");
   }
 };
-var assignWhatsAppConversation_default = { typeDefs: typeDefs67, definition: definition64, resolver: resolver64 };
+var assignWhatsAppConversation_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
 
 // graphql/customs/mutations/whatsapp/linkWhatsAppContactToLead.ts
-var typeDefs68 = `
+var typeDefs70 = `
   type LinkWhatsAppContactToLeadResult {
     success: Boolean!
     message: String!
@@ -42179,13 +42318,13 @@ var typeDefs68 = `
     linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
   }
 `;
-var definition65 = `
+var definition67 = `
   linkWhatsAppContactToLead(businessLeadId: ID!, phone: String!): LinkWhatsAppContactToLeadResult!
 `;
 function toResult10(success, message, linked = 0) {
   return { success, message, linked };
 }
-var resolver65 = {
+var resolver67 = {
   linkWhatsAppContactToLead: async (_root, { businessLeadId, phone }, context) => {
     const session2 = context.session;
     const companyId = getSessionCompanyId(session2);
@@ -42222,7 +42361,7 @@ var resolver65 = {
     return toResult10(true, "Conversaci\xF3n enlazada al cliente", count2);
   }
 };
-var linkWhatsAppContactToLead_default = { typeDefs: typeDefs68, definition: definition65, resolver: resolver65 };
+var linkWhatsAppContactToLead_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
 
 // utils/whatsapp/webhookConfig.ts
 function getWebhookConfig() {
@@ -42235,7 +42374,7 @@ function getWebhookConfig() {
 // graphql/customs/mutations/whatsapp/discoverWhatsappAccount.ts
 var REQUIRED_SCOPES = ["whatsapp_business_messaging", "whatsapp_business_management"];
 var MIN_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1e3;
-var typeDefs69 = `
+var typeDefs71 = `
   input DiscoverWhatsappAccountInput {
     companyId: ID!
     appId: String!
@@ -42271,7 +42410,7 @@ var typeDefs69 = `
     discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
   }
 `;
-var definition66 = `
+var definition68 = `
   discoverWhatsappAccount(input: DiscoverWhatsappAccountInput!): DiscoverWhatsappAccountResult!
 `;
 function fail9(message, detail = null) {
@@ -42288,7 +42427,7 @@ function fail9(message, detail = null) {
     templateError: null
   };
 }
-var resolver66 = {
+var resolver68 = {
   /**
    * Descubre en vez de pedir: con App ID + App Secret + token averigua el WABA y el número
    * (`debug_token` + `/phone_numbers`), valida permisos, guarda todo cifrado, configura el
@@ -42462,7 +42601,7 @@ var resolver66 = {
     };
   }
 };
-var discoverWhatsappAccount_default = { typeDefs: typeDefs69, definition: definition66, resolver: resolver66 };
+var discoverWhatsappAccount_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
 
 // utils/googleCalendar/state.ts
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
@@ -42529,7 +42668,7 @@ function denyGoogleCalendarAccessMessage(session2) {
 }
 
 // graphql/customs/mutations/googleCalendar/getGoogleCalendarAuthUrl.ts
-var typeDefs70 = `
+var typeDefs72 = `
   type GoogleCalendarAuthUrlResult {
     success: Boolean!
     message: String
@@ -42540,11 +42679,11 @@ var typeDefs70 = `
     getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
   }
 `;
-var definition67 = `
+var definition69 = `
   getGoogleCalendarAuthUrl(scopeType: String!, companyId: ID): GoogleCalendarAuthUrlResult!
 `;
 var fail10 = (message) => ({ success: false, message, url: null });
-var resolver67 = {
+var resolver69 = {
   getGoogleCalendarAuthUrl: async (_root, { scopeType, companyId }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -42574,7 +42713,7 @@ var resolver67 = {
     }
   }
 };
-var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs70, definition: definition67, resolver: resolver67 };
+var getGoogleCalendarAuthUrl_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
 
 // utils/googleCalendar/calendars.ts
 async function syncCalendarList(context, accountId, calendars) {
@@ -42629,7 +42768,7 @@ async function deleteSelections(context, selectionIds) {
 }
 
 // graphql/customs/mutations/googleCalendar/connectGoogleCalendarAccount.ts
-var typeDefs71 = `
+var typeDefs73 = `
   type ConnectGoogleCalendarResult {
     success: Boolean!
     message: String!
@@ -42642,7 +42781,7 @@ var typeDefs71 = `
     connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
   }
 `;
-var definition68 = `
+var definition70 = `
   connectGoogleCalendarAccount(code: String!, state: String!): ConnectGoogleCalendarResult!
 `;
 var fail11 = (message) => ({
@@ -42652,7 +42791,7 @@ var fail11 = (message) => ({
   googleAccountEmail: null,
   calendarsCount: null
 });
-var resolver68 = {
+var resolver70 = {
   connectGoogleCalendarAccount: async (_root, { code, state }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -42741,10 +42880,10 @@ var resolver68 = {
     }
   }
 };
-var connectGoogleCalendarAccount_default = { typeDefs: typeDefs71, definition: definition68, resolver: resolver68 };
+var connectGoogleCalendarAccount_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
 
 // graphql/customs/mutations/googleCalendar/disconnectGoogleCalendarAccount.ts
-var typeDefs72 = `
+var typeDefs74 = `
   type GoogleCalendarActionResult {
     success: Boolean!
     message: String!
@@ -42754,10 +42893,10 @@ var typeDefs72 = `
     disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
   }
 `;
-var definition69 = `
+var definition71 = `
   disconnectGoogleCalendarAccount(accountId: ID!): GoogleCalendarActionResult!
 `;
-var resolver69 = {
+var resolver71 = {
   disconnectGoogleCalendarAccount: async (_root, { accountId }, context) => {
     const sudo = context.sudo();
     const account = await sudo.query.GoogleCalendarAccount.findOne({
@@ -42793,10 +42932,10 @@ var resolver69 = {
     }
   }
 };
-var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs72, definition: definition69, resolver: resolver69 };
+var disconnectGoogleCalendarAccount_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
 
 // graphql/customs/mutations/googleCalendar/refreshGoogleCalendarList.ts
-var typeDefs73 = `
+var typeDefs75 = `
   type RefreshGoogleCalendarListResult {
     success: Boolean!
     message: String!
@@ -42807,10 +42946,10 @@ var typeDefs73 = `
     refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
   }
 `;
-var definition70 = `
+var definition72 = `
   refreshGoogleCalendarList(accountId: ID!): RefreshGoogleCalendarListResult!
 `;
-var resolver70 = {
+var resolver72 = {
   refreshGoogleCalendarList: async (_root, { accountId }, context) => {
     const account = await context.sudo().query.GoogleCalendarAccount.findOne({
       where: { id: accountId },
@@ -42856,10 +42995,10 @@ var resolver70 = {
     }
   }
 };
-var refreshGoogleCalendarList_default = { typeDefs: typeDefs73, definition: definition70, resolver: resolver70 };
+var refreshGoogleCalendarList_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
 
 // graphql/customs/mutations/googleCalendar/toggleGoogleCalendarSelection.ts
-var typeDefs74 = `
+var typeDefs76 = `
   type ToggleGoogleCalendarSelectionResult {
     success: Boolean!
     message: String!
@@ -42871,10 +43010,10 @@ var typeDefs74 = `
     toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
   }
 `;
-var definition71 = `
+var definition73 = `
   toggleGoogleCalendarSelection(selectionId: ID!, isSelected: Boolean!): ToggleGoogleCalendarSelectionResult!
 `;
-var resolver71 = {
+var resolver73 = {
   toggleGoogleCalendarSelection: async (_root, { selectionId, isSelected }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -42908,10 +43047,10 @@ var resolver71 = {
     };
   }
 };
-var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs74, definition: definition71, resolver: resolver71 };
+var toggleGoogleCalendarSelection_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
 
 // graphql/customs/mutations/googleCalendar/setGoogleCalendarPushSettings.ts
-var typeDefs75 = `
+var typeDefs77 = `
   input GoogleCalendarPushSettingsInput {
     pushActivities: Boolean
     pushProposals: Boolean
@@ -42933,7 +43072,7 @@ var typeDefs75 = `
     setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
   }
 `;
-var definition72 = `
+var definition74 = `
   setGoogleCalendarPushSettings(selectionId: ID!, settings: GoogleCalendarPushSettingsInput!): SetGoogleCalendarPushSettingsResult!
 `;
 var FLAGS = ["pushActivities", "pushProposals", "pushFollowUps", "pushTasks"];
@@ -42946,7 +43085,7 @@ var fail12 = (message) => ({
   pushFollowUps: null,
   pushTasks: null
 });
-var resolver72 = {
+var resolver74 = {
   setGoogleCalendarPushSettings: async (_root, { selectionId, settings }, context) => {
     const selection = await context.sudo().query.GoogleCalendarSelection.findOne({
       where: { id: selectionId },
@@ -42981,10 +43120,10 @@ var resolver72 = {
     };
   }
 };
-var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs75, definition: definition72, resolver: resolver72 };
+var setGoogleCalendarPushSettings_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
 
 // graphql/customs/mutations/activity/trackEvents.ts
-var typeDefs76 = `
+var typeDefs78 = `
   input TrackEventInput {
     """ui.section_viewed, ui.feature_locked_viewed, ui.upgrade_clicked, ui.tour_completed, ui.tour_skipped, lead.exported, auth.logout, auth.heartbeat, app.client_error (tambi\xE9n sin sesi\xF3n), admin.viewed_company, admin.viewed_person, admin.viewed_ai_prompt"""
     type: String!
@@ -43007,7 +43146,7 @@ var typeDefs76 = `
     trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
   }
 `;
-var definition73 = `
+var definition75 = `
   trackEvents(events: [TrackEventInput!]!): TrackEventsResult!
 `;
 var MAX_EVENTS = 50;
@@ -43215,7 +43354,7 @@ async function recentlyViewed(context, actorId, type, companyId, entityId) {
   });
   return Boolean(found);
 }
-var resolver73 = {
+var resolver75 = {
   trackEvents: async (_root, { events }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -43287,10 +43426,10 @@ var resolver73 = {
     return { accepted, rejected: list119.length - accepted };
   }
 };
-var trackEvents_default = { typeDefs: typeDefs76, definition: definition73, resolver: resolver73 };
+var trackEvents_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
 
 // graphql/customs/mutations/admin/companyOps.ts
-var typeDefs77 = `
+var typeDefs79 = `
   type AdminOpsActionResult {
     success: Boolean!
     message: String!
@@ -43301,7 +43440,7 @@ var typeDefs77 = `
     adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
   }
 `;
-var definition74 = `
+var definition76 = `
   adminExtendTrial(companyId: ID!, days: Int, until: String): AdminOpsActionResult!
   adminSetCompanyAccountManager(companyId: ID!, userId: ID): AdminOpsActionResult!
 `;
@@ -43335,7 +43474,7 @@ var REVIVABLE_STATUSES = /* @__PURE__ */ new Set([
   SUBSCRIPTION_STATUS.UNPAID,
   SUBSCRIPTION_STATUS.CANCELLED
 ]);
-var resolver74 = {
+var resolver76 = {
   /**
    * Mueve el fin de la prueba gratuita (`currentPeriodEnd` de la suscripción vigente).
    * `days` suma desde hoy o desde el fin actual (lo que sea más tarde); `until` fija la fecha.
@@ -43445,7 +43584,7 @@ var resolver74 = {
     return result(true, to ? `Ahora la cuenta es de ${to}.` : "La cuenta qued\xF3 sin due\xF1o.");
   }
 };
-var companyOps_default = { typeDefs: typeDefs77, definition: definition74, resolver: resolver74 };
+var companyOps_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
 
 // graphql/customs/queries/admin/shared.ts
 var adminSharedTypeDefs = `
@@ -43686,7 +43825,7 @@ function latestDate(...dates) {
 }
 
 // graphql/customs/mutations/admin/accountControl.ts
-var typeDefs78 = `
+var typeDefs80 = `
   type AdminControlResult {
     success: Boolean!
     message: String!
@@ -43713,7 +43852,7 @@ var typeDefs78 = `
     adminAnonymizeUser(userId: ID!, confirmEmail: String!, reason: String!): AdminControlResult!
   }
 `;
-var definition75 = `
+var definition77 = `
   adminSetCompanySuspension(companyId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminSetUserSuspension(userId: ID!, suspended: Boolean!, reason: String): AdminControlResult!
   adminRevokeSessions(userId: ID, companyId: ID): AdminControlResult!
@@ -43735,7 +43874,7 @@ var ANONYMIZED_LABEL = "persona anonimizada";
 function result2(success, message) {
   return { success, message };
 }
-function prismaOf13(context) {
+function prismaOf14(context) {
   return context.sudo().prisma;
 }
 function hasPlatformRole(roles) {
@@ -43760,11 +43899,11 @@ function adminIdOf(context) {
 }
 var NOT_ADMIN = result2(false, "Solo un administrador de Kadesh puede hacer esto.");
 var REASON_REQUIRED = result2(false, `Escribe el motivo (m\xEDnimo ${MIN_REASON} letras).`);
-var resolver75 = {
+var resolver77 = {
   /** Nadie del equipo puede entrar mientras la empresa esté suspendida; al suspender se cierran sus sesiones. */
   adminSetCompanySuspension: async (_root, { companyId, suspended, reason }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const company = await prisma.saasCompany.findUnique({
       where: { id: companyId },
       select: {
@@ -43821,7 +43960,7 @@ var resolver75 = {
     const adminId = adminIdOf(context);
     if (!adminId) return NOT_ADMIN;
     if (userId === adminId) return result2(false, "No puedes suspenderte a ti mismo.");
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -43880,7 +44019,7 @@ var resolver75 = {
     if (Boolean(userId) === Boolean(companyId)) {
       return result2(false, "Indica una persona o una empresa.");
     }
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     if (userId) {
       if (userId === adminId) return result2(false, "Para cerrar tus propias sesiones usa Cerrar sesi\xF3n.");
       const user = await prisma.user.findUnique({
@@ -43929,7 +44068,7 @@ var resolver75 = {
     removeOtherAdmins
   }, context) => {
     if (!adminIdOf(context)) return NOT_ADMIN;
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const company = await prisma.saasCompany.findUnique({
       where: { id: companyId },
       select: {
@@ -44014,7 +44153,7 @@ var resolver75 = {
     if (userId === adminId) return { ...result2(false, "No puedes entrar como t\xFA mismo."), token: null };
     const why = cleanReason(reason);
     if (!why) return { ...REASON_REQUIRED, token: null };
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const target = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -44091,7 +44230,7 @@ var resolver75 = {
    */
   adminExportPersonData: async (_root, { userId }, context) => {
     assertPlatformAdmin(context);
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -44198,7 +44337,7 @@ var resolver75 = {
     if (userId === adminId) return result2(false, "No puedes anonimizar tu propia cuenta.");
     const why = cleanReason(reason);
     if (!why) return REASON_REQUIRED;
-    const prisma = prismaOf13(context);
+    const prisma = prismaOf14(context);
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -44302,23 +44441,23 @@ var resolver75 = {
     return result2(true, "Cuenta anonimizada: se borraron sus datos personales y ya no puede entrar.");
   }
 };
-var accountControl_default = { typeDefs: typeDefs78, definition: definition75, resolver: resolver75 };
+var accountControl_default = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
 
 // graphql/customs/mutations/admin/animals.ts
-var typeDefs79 = `
+var typeDefs81 = `
   type Mutation {
     adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
     adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
   }
 `;
-var definition76 = `
+var definition78 = `
   adminPublishAnimalToFacebook(animalId: ID!, force: Boolean): AdminOpsActionResult!
   adminPurgeAnimalViews(animalId: ID!, onlyAnonymous: Boolean): AdminOpsActionResult!
 `;
 function deny() {
   return { success: false, message: "Solo un administrador de Kadesh puede hacer esto." };
 }
-var resolver76 = {
+var resolver78 = {
   /**
    * Publica el animal en la Página de Facebook de Pet. Si ya se publicó, no lo repite salvo
    * `force` (volver a publicar a propósito). Sirve para los que subieron usuarios (no se
@@ -44362,16 +44501,16 @@ var resolver76 = {
     };
   }
 };
-var animals_default = { typeDefs: typeDefs79, definition: definition76, resolver: resolver76 };
+var animals_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
 
 // graphql/customs/mutations/admin/paws.ts
 var REASON_MIN = 5;
 var REASON_MAX = 300;
-var typeDefs80 = ``;
-var definition77 = `
+var typeDefs82 = ``;
+var definition79 = `
   adminAdjustPaws(userId: ID!, amount: Int!, reason: String!): AdminOpsActionResult!
 `;
-var resolver77 = {
+var resolver79 = {
   adminAdjustPaws: async (_root, { userId, amount, reason }, context) => {
     const adminId = getSessionUserId(context.session);
     if (!adminId || !isPlatformAdmin(context.session)) {
@@ -44405,10 +44544,10 @@ var resolver77 = {
     }
   }
 };
-var paws_default2 = { typeDefs: typeDefs80, definition: definition77, resolver: resolver77 };
+var paws_default2 = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
 
 // graphql/customs/mutations/admin/storeOrders.ts
-var typeDefs81 = `
+var typeDefs83 = `
   type AdminStoreActionResult {
     success: Boolean!
     message: String!
@@ -44425,7 +44564,7 @@ var typeDefs81 = `
     shippingCostCents: Int
   }
 `;
-var definition78 = `
+var definition80 = `
   adminReviewStoreTransfer(orderId: ID!, approve: Boolean!, note: String): AdminStoreActionResult!
   adminUpdateStoreShipment(shipmentId: ID!, input: AdminStoreShipmentInput!): AdminStoreActionResult!
   adminCancelStoreOrder(orderId: ID!, reason: String!): AdminStoreActionResult!
@@ -44440,7 +44579,7 @@ async function findOrder(context, orderId) {
   if (order instanceof Error) throw order;
   return order;
 }
-var resolver78 = {
+var resolver80 = {
   /** Confirms the money of a transfer arrived, or sends the buyer back to upload another proof. */
   adminReviewStoreTransfer: async (_root, args, context) => {
     assertPlatformAdmin(context);
@@ -44588,10 +44727,10 @@ var resolver78 = {
     return updated.count === 1 ? { success: true, message: "Nota guardada." } : { success: false, message: "No encontramos el pedido." };
   }
 };
-var storeOrders_default = { typeDefs: typeDefs81, definition: definition78, resolver: resolver78 };
+var storeOrders_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
 
 // graphql/customs/mutations/admin/zoneAlerts.ts
-var typeDefs82 = `
+var typeDefs84 = `
   type Mutation {
     adminUpdateZoneAlerts(
       userId: ID!
@@ -44603,7 +44742,7 @@ var typeDefs82 = `
     ): AdminOpsActionResult!
   }
 `;
-var definition79 = `
+var definition81 = `
   adminUpdateZoneAlerts(
     userId: ID!
     enabled: Boolean
@@ -44616,7 +44755,7 @@ var definition79 = `
 function result3(success, message) {
   return { success, message };
 }
-var resolver79 = {
+var resolver81 = {
   adminUpdateZoneAlerts: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) return result3(false, "Solo un administrador de Kadesh puede hacer esto.");
     const prisma = context.sudo().prisma;
@@ -44686,17 +44825,17 @@ var resolver79 = {
     return result3(true, changes.length ? `Listo: ${changes.join(", ")}.` : "Guardado.");
   }
 };
-var adminZoneAlerts = { typeDefs: typeDefs82, definition: definition79, resolver: resolver79 };
+var adminZoneAlerts = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
 var zoneAlerts_default = adminZoneAlerts;
 
 // graphql/customs/mutations/admin/errorIssues.ts
-var typeDefs83 = `
+var typeDefs85 = `
   type Mutation {
     """status: open | resolved | ignored"""
     adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
   }
 `;
-var definition80 = `
+var definition82 = `
   adminSetErrorIssueStatus(fingerprint: ID!, status: String!, note: String): AdminOpsActionResult!
 `;
 var STATUS_LABELS2 = {
@@ -44708,7 +44847,7 @@ var MAX_NOTE = 2e3;
 function result4(success, message) {
   return { success, message };
 }
-var resolver80 = {
+var resolver82 = {
   adminSetErrorIssueStatus: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return result4(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -44752,10 +44891,10 @@ var resolver80 = {
     return result4(true, "Listo.");
   }
 };
-var errorIssues_default = { typeDefs: typeDefs83, definition: definition80, resolver: resolver80 };
+var errorIssues_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
 
 // graphql/customs/mutations/admin/security.ts
-var typeDefs84 = `
+var typeDefs86 = `
   type AdminBlockIpResult {
     success: Boolean!
     message: String!
@@ -44769,7 +44908,7 @@ var typeDefs84 = `
     adminUnblockIp(ip: String!): AdminOpsActionResult!
   }
 `;
-var definition81 = `
+var definition83 = `
   adminBlockIp(ip: String!, reason: String, days: Int, force: Boolean): AdminBlockIpResult!
   adminUnblockIp(ip: String!): AdminOpsActionResult!
 `;
@@ -44800,7 +44939,7 @@ async function usedByAdmin(prisma, ip) {
   ]);
   return Boolean(event || auth);
 }
-var resolver81 = {
+var resolver83 = {
   adminBlockIp: async (_root, args, context) => {
     if (!isPlatformAdmin(context.session)) {
       return blockResult(false, "Solo un administrador de Kadesh puede hacer esto.");
@@ -44862,10 +45001,10 @@ var resolver81 = {
     return { success: true, message: "IP desbloqueada." };
   }
 };
-var security_default = { typeDefs: typeDefs84, definition: definition81, resolver: resolver81 };
+var security_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
 
 // graphql/customs/mutations/rollupDailyUsage.ts
-var typeDefs85 = `
+var typeDefs87 = `
   type RollupDailyUsageDay {
     day: String!
     companies: Int!
@@ -44881,11 +45020,11 @@ var typeDefs85 = `
     rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
   }
 `;
-var definition82 = `
+var definition84 = `
   rollupDailyUsage(secret: String!, day: String, days: Int): RollupDailyUsageResult!
 `;
 var MAX_DAYS2 = 62;
-var resolver82 = {
+var resolver84 = {
   /**
    * Arma `SaasCompanyDailyUsage` (ver utils/usage/dailyUsageRollup.ts). Se autoriza con
    * `CRON_SECRET`. Hoy no la llama ningún cron (el de GitHub Actions se quitó el 2026-11-12, ver
@@ -44919,18 +45058,18 @@ var resolver82 = {
     }
   }
 };
-var rollupDailyUsage_default = { typeDefs: typeDefs85, definition: definition82, resolver: resolver82 };
+var rollupDailyUsage_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
 
 // graphql/customs/mutations/notifications/markAllNotificationsRead.ts
-var typeDefs86 = `
+var typeDefs88 = `
   type Mutation {
     markAllNotificationsRead(product: String): Int!
   }
 `;
-var definition83 = `
+var definition85 = `
   markAllNotificationsRead(product: String): Int!
 `;
-var resolver83 = {
+var resolver85 = {
   /**
    * Marca como leídas todas las notificaciones no leídas de quien tiene la sesión (opcionalmente
    * solo las de un producto: "pet" | "saas"). Devuelve cuántas cambió. Marcar una sola se hace
@@ -44952,29 +45091,29 @@ var resolver83 = {
     return result5?.count ?? 0;
   }
 };
-var markAllNotificationsRead_default = { typeDefs: typeDefs86, definition: definition83, resolver: resolver83 };
+var markAllNotificationsRead_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
 
 // graphql/customs/mutations/notifications/pushTokens.ts
-var typeDefs87 = `
+var typeDefs89 = `
   type Mutation {
     registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
     unregisterPushToken(token: String!): Boolean!
   }
 `;
-var definition84 = `
+var definition86 = `
   registerPushToken(token: String!, platform: String!, deviceId: String): Boolean!
   unregisterPushToken(token: String!): Boolean!
 `;
 var EXPO_TOKEN_RE = /^Expo(nent)?PushToken\[[^\]]{1,200}\]$/;
 var PLATFORMS = new Set(Object.values(PUSH_PLATFORM));
-function prismaOf14(context) {
+function prismaOf15(context) {
   return context.sudo().prisma;
 }
 function unwrap4(value) {
   if (value instanceof Error) throw value;
   return value;
 }
-var resolver84 = {
+var resolver86 = {
   /**
    * Guarda (o actualiza) el token push de este dispositivo para quien tiene la sesión. Un token es
    * de un solo dispositivo: si estaba con otra cuenta (cambio de sesión en el mismo teléfono), pasa
@@ -44987,7 +45126,7 @@ var resolver84 = {
     if (!EXPO_TOKEN_RE.test(cleanToken)) throw new Error("Token de notificaciones no v\xE1lido.");
     if (!PLATFORMS.has(platform)) throw new Error("Plataforma no v\xE1lida.");
     const cleanDevice = deviceId?.trim().slice(0, 200) || null;
-    const prisma = prismaOf14(context);
+    const prisma = prismaOf15(context);
     const existing = unwrap4(
       await prisma.tokenNotification.findMany({ where: { token: cleanToken }, select: { id: true } })
     );
@@ -45021,12 +45160,12 @@ var resolver84 = {
     const userId = getSessionUserId(context.session);
     if (!userId) return false;
     const result5 = unwrap4(
-      await prismaOf14(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
+      await prismaOf15(context).tokenNotification.deleteMany({ where: { token: token.trim(), userId } })
     );
     return result5.count > 0;
   }
 };
-var pushTokens_default = { typeDefs: typeDefs87, definition: definition84, resolver: resolver84 };
+var pushTokens_default = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
 
 // graphql/customs/mutations/index.ts
 var customMutation = {
@@ -45359,7 +45498,7 @@ async function getAnimalCoverUrls(ids, context) {
 // graphql/customs/queries/nearbyAnimals.ts
 var MAX_LIST_LIMIT = 500;
 var MAX_PINS = 1e3;
-var typeDefs88 = `
+var typeDefs90 = `
   type AnimalMultimediaImage {
     id: ID!
     url: String
@@ -45459,7 +45598,7 @@ var typeDefs88 = `
     getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
   }
 `;
-var definition85 = `
+var definition87 = `
   getNearbyAnimals(input: NearbyAnimalsInput!): NearbyAnimalsResult!
   getNearbyAnimalPins(input: NearbyAnimalsInput!): NearbyAnimalPinsResult!
 `;
@@ -45477,7 +45616,7 @@ function formatDate(date) {
   hours = hours % 12 || 12;
   return `${month}/${day}/${year}, ${String(hours).padStart(2, "0")}:${minutes}:${seconds} ${ampm}`;
 }
-function prismaOf15(context) {
+function prismaOf16(context) {
   return context.sudo().prisma;
 }
 function filtersOf(input) {
@@ -45496,7 +45635,7 @@ async function getRecentSightings(rows2, context) {
   const byAnimal = /* @__PURE__ */ new Map();
   if (ids.length === 0) return byAnimal;
   const since = new Date(Date.now() - MAP_SIGHTING_HOURS * 60 * 60 * 1e3);
-  const sightings = await prismaOf15(context).animalSighting.findMany({
+  const sightings = await prismaOf16(context).animalSighting.findMany({
     where: { animalId: { in: ids }, hidden: false, seenAt: { gte: since } },
     orderBy: [{ seenAt: "desc" }],
     // Tope duro: ningún animal pasa de 3 en el mapa.
@@ -45561,11 +45700,11 @@ function clampInt2(value, fallback, max) {
   if (!Number.isFinite(num2) || num2 < 0) return fallback;
   return Math.min(num2, max);
 }
-var resolver85 = {
+var resolver87 = {
   getNearbyAnimals: async (_root, { input }, context) => {
     const limit = clampInt2(input.limit, 10, MAX_LIST_LIMIT);
     const skip = clampInt2(input.skip, 0, Number.MAX_SAFE_INTEGER);
-    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf15(context), filtersOf(input), { limit, skip });
+    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf16(context), filtersOf(input), { limit, skip });
     const ids = rows2.map((row) => row.id);
     const [multimedia, authors, sightings] = await Promise.all([
       getMultimedia(ids, context),
@@ -45604,7 +45743,7 @@ var resolver85 = {
    * (el input los trae con valor por defecto, 10 y 0, aunque no se manden).
    */
   getNearbyAnimalPins: async (_root, { input }, context) => {
-    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf15(context), filtersOf(input), { limit: MAX_PINS, skip: 0 });
+    const { rows: rows2, total } = await queryNearbyAnimals(prismaOf16(context), filtersOf(input), { limit: MAX_PINS, skip: 0 });
     const ids = rows2.map((row) => row.id);
     const [covers, sightings] = await Promise.all([getAnimalCoverUrls(ids, context), getRecentSightings(rows2, context)]);
     return {
@@ -45632,10 +45771,10 @@ var resolver85 = {
     };
   }
 };
-var nearbyAnimals_default = { typeDefs: typeDefs88, definition: definition85, resolver: resolver85 };
+var nearbyAnimals_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
 
 // graphql/customs/queries/findAnimalReportDuplicates.ts
-var typeDefs89 = `
+var typeDefs91 = `
   type AnimalReportDuplicate {
     id: ID!
     """Nombre real; vac\xEDo si no se sabe."""
@@ -45659,7 +45798,7 @@ var typeDefs89 = `
     isMine: Boolean!
   }
 `;
-var definition86 = `
+var definition88 = `
   findAnimalReportDuplicates(
     phone: String
     phone2: String
@@ -45683,7 +45822,7 @@ function cleanPhone(raw) {
   const normalized = normalizeMxPhone(value);
   return normalized.ok ? normalized.digits : value;
 }
-var resolver86 = {
+var resolver88 = {
   findAnimalReportDuplicates: async (_root, args, context) => {
     const sessionUserId = getSessionUserId(context.session);
     if (!isSignedIn(context.session) && !sessionUserId) {
@@ -45711,7 +45850,7 @@ var resolver86 = {
     }));
   }
 };
-var findAnimalReportDuplicates = { typeDefs: typeDefs89, definition: definition86, resolver: resolver86 };
+var findAnimalReportDuplicates = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
 var findAnimalReportDuplicates_default = findAnimalReportDuplicates;
 
 // utils/helpers/nearby_petplaces.ts
@@ -46093,7 +46232,7 @@ async function getPetPlacesHelper(context, whereClause) {
 }
 
 // graphql/customs/queries/nearbyPetPlaces.ts
-var typeDefs90 = `
+var typeDefs92 = `
   type PetPlaceType {
     id: ID!
     label: String
@@ -46153,10 +46292,10 @@ var typeDefs90 = `
     getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
   }
 `;
-var definition87 = `
+var definition89 = `
   getNearbyPetPlaces(input: NearbyPetPlacesInput!): NearbyPetPlacesResult!
 `;
-var resolver87 = {
+var resolver89 = {
   getNearbyPetPlaces: async (root, { input }, context) => {
     const { lat, lng, limit = 10, radius = 10, type } = input;
     if (lat === void 0 || lat === null || lng === void 0 || lng === null) {
@@ -46236,10 +46375,10 @@ var resolver87 = {
     };
   }
 };
-var nearbyPetPlaces_default = { typeDefs: typeDefs90, definition: definition87, resolver: resolver87 };
+var nearbyPetPlaces_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
 
 // graphql/customs/queries/saas/stripePaymentMethods.ts
-var typeDefs91 = `
+var typeDefs93 = `
   type StripeCard {
     brand: String
     country: String
@@ -46273,10 +46412,10 @@ var typeDefs91 = `
     StripePaymentMethods(email: String!): StripePaymentMethodsType
   }
 `;
-var definition88 = `
+var definition90 = `
   StripePaymentMethods(email: String!): StripePaymentMethodsType
 `;
-var resolver88 = {
+var resolver90 = {
   StripePaymentMethods: async (_root, { email }, context) => {
     const user = await context.query.User.findOne({
       where: { email },
@@ -46312,10 +46451,10 @@ var resolver88 = {
     }
   }
 };
-var stripePaymentMethods_default = { typeDefs: typeDefs91, definition: definition88, resolver: resolver88 };
+var stripePaymentMethods_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
 
 // graphql/customs/queries/saas/stripePlanCheck.ts
-var typeDefs92 = `
+var typeDefs94 = `
   input StripePlanCheckInput {
     planId: ID!
     """Price ID a revisar. Si no se manda, se usa el guardado en el plan."""
@@ -46353,7 +46492,7 @@ var typeDefs92 = `
     stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
   }
 `;
-var definition89 = `
+var definition91 = `
   stripePlanCheck(input: StripePlanCheckInput!): StripePlanCheckResult!
 `;
 var INTERVAL_BY_FREQUENCY = {
@@ -46373,7 +46512,7 @@ function formatAmount(minorUnits, currency) {
   const value = (minorUnits / 100).toFixed(2);
   return currency ? `${value} ${currency.toUpperCase()}` : value;
 }
-var resolver89 = {
+var resolver91 = {
   stripePlanCheck: async (_root, { input }, context) => {
     if (!isPlatformAdmin(context.session)) {
       return fail13("Solo operaciones puede verificar planes con Stripe.");
@@ -46474,7 +46613,7 @@ var resolver89 = {
     };
   }
 };
-var stripePlanCheck_default = { typeDefs: typeDefs92, definition: definition89, resolver: resolver89 };
+var stripePlanCheck_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
 
 // utils/saas/stripeSubscription.ts
 var STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
@@ -46612,7 +46751,7 @@ function daysUntil(dateStr) {
   const days = Math.ceil(diffMs / (24 * 60 * 60 * 1e3));
   return days < 0 ? 0 : days;
 }
-var typeDefs93 = `
+var typeDefs95 = `
   type SubscriptionData {
     id: ID
     activatedAt: String
@@ -46640,10 +46779,10 @@ var typeDefs93 = `
     subscriptionStatus(companyId: ID): SubscriptionStatusResult
   }
 `;
-var definition90 = `
+var definition92 = `
   subscriptionStatus(companyId: ID): SubscriptionStatusResult
 `;
-var resolver90 = {
+var resolver92 = {
   subscriptionStatus: async (_root, { companyId }, context) => {
     const session2 = context.session;
     const userId = session2?.data?.id;
@@ -46761,11 +46900,11 @@ var resolver90 = {
     };
   }
 };
-var subscriptionStatus_default = { typeDefs: typeDefs93, definition: definition90, resolver: resolver90 };
+var subscriptionStatus_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
 
 // graphql/customs/queries/whatsapp/previewWhatsAppChatExport.ts
 var MAX_SENDERS_FOR_1TO1 = 5;
-var typeDefs94 = `
+var typeDefs96 = `
   type PreviewWhatsAppChatExportResult {
     success: Boolean!
     message: String!
@@ -46777,10 +46916,10 @@ var typeDefs94 = `
     previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
   }
 `;
-var definition91 = `
+var definition93 = `
   previewWhatsAppChatExport(content: String!): PreviewWhatsAppChatExportResult!
 `;
-var resolver91 = {
+var resolver93 = {
   previewWhatsAppChatExport: async (_root, { content }, context) => {
     if (!isSignedIn(context.session)) {
       return {
@@ -46813,10 +46952,10 @@ var resolver91 = {
     }
   }
 };
-var previewWhatsAppChatExport_default = { typeDefs: typeDefs94, definition: definition91, resolver: resolver91 };
+var previewWhatsAppChatExport_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappWebhookInfo.ts
-var typeDefs95 = `
+var typeDefs97 = `
   type CompanyWhatsappWebhookInfoResult {
     success: Boolean!
     message: String!
@@ -46828,10 +46967,10 @@ var typeDefs95 = `
     companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
   }
 `;
-var definition92 = `
+var definition94 = `
   companyWhatsappWebhookInfo(companyId: ID!): CompanyWhatsappWebhookInfoResult!
 `;
-var resolver92 = {
+var resolver94 = {
   companyWhatsappWebhookInfo: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canManageCompanyWhatsapp(session2, companyId)) {
@@ -46853,11 +46992,11 @@ var resolver92 = {
     };
   }
 };
-var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs95, definition: definition92, resolver: resolver92 };
+var companyWhatsappWebhookInfo_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
 
 // graphql/customs/queries/whatsapp/whatsappConversations.ts
 var MAX_MESSAGES_SCANNED = 500;
-var typeDefs96 = `
+var typeDefs98 = `
   type WhatsAppConversationSummary {
     """Id del lead (conversaci\xF3n con un cliente) \u2014 vac\xEDo en las conversaciones internas."""
     leadId: ID
@@ -46886,14 +47025,14 @@ var typeDefs96 = `
     whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
   }
 `;
-var definition93 = `
+var definition95 = `
   whatsappConversations(companyId: ID!): WhatsAppConversationsResult!
 `;
 function fullName3(person) {
   if (!person) return "";
   return [person.name, person.lastName].filter(Boolean).join(" ");
 }
-var resolver93 = {
+var resolver95 = {
   whatsappConversations: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -46949,11 +47088,11 @@ var resolver93 = {
     return { success: true, message: "OK", conversations };
   }
 };
-var whatsappConversations_default = { typeDefs: typeDefs96, definition: definition93, resolver: resolver93 };
+var whatsappConversations_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
 
 // graphql/customs/queries/whatsapp/businessLeadWhatsappStatus.ts
 var REPLY_WINDOW_MS = 24 * 60 * 60 * 1e3;
-var typeDefs97 = `
+var typeDefs99 = `
   type BusinessLeadWhatsappStatusResult {
     success: Boolean!
     message: String!
@@ -46965,10 +47104,10 @@ var typeDefs97 = `
     businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
   }
 `;
-var definition94 = `
+var definition96 = `
   businessLeadWhatsappStatus(businessLeadId: ID, teamMemberId: ID, phone: String): BusinessLeadWhatsappStatusResult!
 `;
-var resolver94 = {
+var resolver96 = {
   businessLeadWhatsappStatus: async (_root, {
     businessLeadId,
     teamMemberId,
@@ -47009,10 +47148,10 @@ var resolver94 = {
     };
   }
 };
-var businessLeadWhatsappStatus_default = { typeDefs: typeDefs97, definition: definition94, resolver: resolver94 };
+var businessLeadWhatsappStatus_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTeam.ts
-var typeDefs98 = `
+var typeDefs100 = `
   type WhatsAppTeamMember {
     id: ID!
     name: String!
@@ -47030,10 +47169,10 @@ var typeDefs98 = `
     companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
   }
 `;
-var definition95 = `
+var definition97 = `
   companyWhatsappTeam(companyId: ID!): CompanyWhatsappTeamResult!
 `;
-var resolver95 = {
+var resolver97 = {
   companyWhatsappTeam: async (_root, { companyId }, context) => {
     const session2 = context.session;
     if (!canUseCompanyWhatsapp(session2, companyId)) {
@@ -47059,10 +47198,10 @@ var resolver95 = {
     return { success: true, message: "OK", members };
   }
 };
-var companyWhatsappTeam_default = { typeDefs: typeDefs98, definition: definition95, resolver: resolver95 };
+var companyWhatsappTeam_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
 
 // graphql/customs/queries/whatsapp/companyWhatsappTemplates.ts
-var typeDefs99 = `
+var typeDefs101 = `
   type WhatsappTemplateOption {
     name: String!
     language: String!
@@ -47088,13 +47227,13 @@ var typeDefs99 = `
     companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
   }
 `;
-var definition96 = `
+var definition98 = `
   companyWhatsappTemplates(companyId: ID, businessLeadId: ID, teamMemberId: ID, phone: String): CompanyWhatsappTemplatesResult!
 `;
 function fail14(message) {
   return { success: false, message, templates: [], recipientName: null, companyName: null };
 }
-var resolver96 = {
+var resolver98 = {
   companyWhatsappTemplates: async (_root, {
     companyId,
     businessLeadId,
@@ -47151,11 +47290,11 @@ var resolver96 = {
     }
   }
 };
-var companyWhatsappTemplates_default = { typeDefs: typeDefs99, definition: definition96, resolver: resolver96 };
+var companyWhatsappTemplates_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
 
 // graphql/customs/queries/googleCalendar/syncGoogleCalendarNow.ts
 var MAX_SELECTIONS = 25;
-var typeDefs100 = `
+var typeDefs102 = `
   type GoogleCalendarPulledEvent {
     id: String!
     selectionId: ID!
@@ -47183,10 +47322,10 @@ var typeDefs100 = `
     syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
   }
 `;
-var definition97 = `
+var definition99 = `
   syncGoogleCalendarNow(selectionIds: [ID!]!, timeMin: String!, timeMax: String!): SyncGoogleCalendarNowResult!
 `;
-var resolver97 = {
+var resolver99 = {
   syncGoogleCalendarNow: async (_root, {
     selectionIds,
     timeMin,
@@ -47238,7 +47377,7 @@ var resolver97 = {
     };
   }
 };
-var syncGoogleCalendarNow_default = { typeDefs: typeDefs100, definition: definition97, resolver: resolver97 };
+var syncGoogleCalendarNow_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
 
 // utils/analytics/health.ts
 var HEALTH_WINDOW_DAYS = 28;
@@ -47538,7 +47677,7 @@ var LIVE_STATUSES = [
   SUBSCRIPTION_STATUS.UNPAID
 ];
 var SORTS = ["risk", "best", "drop", "name"];
-var typeDefs101 = `
+var typeDefs103 = `
   input AdminHealthInput {
     search: String
     """live (por defecto: activas, en prueba y con pago pendiente) | all | active | trialing | past_due | unpaid | cancelled | none"""
@@ -47620,7 +47759,7 @@ var typeDefs101 = `
     adminHealth(input: AdminHealthInput): AdminHealthResult!
   }
 `;
-var definition98 = `
+var definition100 = `
   adminHealth(input: AdminHealthInput): AdminHealthResult!
 `;
 function healthBrief(health) {
@@ -47639,7 +47778,7 @@ function matchesStatus(status, filter) {
   if (filter === "none") return !status;
   return status === filter;
 }
-var resolver98 = {
+var resolver100 = {
   adminHealth: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47740,12 +47879,12 @@ var resolver98 = {
     };
   }
 };
-var adminHealth_default = { typeDefs: typeDefs101, definition: definition98, resolver: resolver98 };
+var adminHealth_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
 
 // graphql/customs/queries/admin/adminCompanies.ts
 var STATUS_NONE = "none";
 var SORTS2 = ["recent", "name", "activity", "health"];
-var typeDefs102 = `
+var typeDefs104 = `
   input AdminCompaniesInput {
     """Nombre de la empresa, correo de contacto o nombre/correo de cualquier integrante."""
     search: String
@@ -47800,7 +47939,7 @@ var typeDefs102 = `
     adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
   }
 `;
-var definition99 = `
+var definition101 = `
   adminCompanies(input: AdminCompaniesInput): AdminCompaniesResult!
 `;
 function pickOwner(users) {
@@ -47809,7 +47948,7 @@ function pickOwner(users) {
   );
   return admin ?? users[0] ?? null;
 }
-var resolver99 = {
+var resolver101 = {
   adminCompanies: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -47946,14 +48085,14 @@ var resolver99 = {
     return { items, total, statusCounts };
   }
 };
-var adminCompanies_default = { typeDefs: typeDefs102, definition: definition99, resolver: resolver99 };
+var adminCompanies_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
 
 // graphql/customs/queries/admin/adminOpsSummary.ts
 var ATTENTION_LIMIT = 25;
 var TRIAL_SOON_DAYS = 3;
 var INACTIVE_DAYS = 14;
 var APP_ERRORS_THRESHOLD = 3;
-var typeDefs103 = `
+var typeDefs105 = `
   type AdminMoney {
     currency: String!
     amount: Float!
@@ -47996,7 +48135,7 @@ var typeDefs103 = `
     adminOpsSummary: AdminOpsSummary!
   }
 `;
-var definition100 = `
+var definition102 = `
   adminOpsSummary: AdminOpsSummary!
 `;
 var SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
@@ -48007,7 +48146,7 @@ function formatDay(date) {
     timeZone: "America/Mexico_City"
   });
 }
-var resolver100 = {
+var resolver102 = {
   adminOpsSummary: async (_root, _args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -48314,14 +48453,14 @@ var resolver100 = {
     };
   }
 };
-var adminOpsSummary_default = { typeDefs: typeDefs103, definition: definition100, resolver: resolver100 };
+var adminOpsSummary_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
 
 // graphql/customs/queries/admin/adminCompanyInsights.ts
 var FOLLOW_UP_PENDING = "Pendiente";
 var WHATSAPP_OUTBOUND = "outbound";
 var WHATSAPP_INBOUND = "inbound";
 var WHATSAPP_FAILED = "failed";
-var typeDefs104 = `
+var typeDefs106 = `
   type AdminTeamMemberStats {
     userId: ID!
     """Accesos correctos en la ventana (login, alta)."""
@@ -48428,7 +48567,7 @@ var typeDefs104 = `
     adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
   }
 `;
-var definition101 = `
+var definition103 = `
   adminCompanyInsights(companyId: ID!, days: Int): AdminCompanyInsights!
 `;
 function groupMap(rows2, key) {
@@ -48566,7 +48705,7 @@ function tourCounts(state) {
   }
   return { completed, skipped };
 }
-var resolver101 = {
+var resolver103 = {
   adminCompanyInsights: async (_root, { companyId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -48897,10 +49036,10 @@ var resolver101 = {
     };
   }
 };
-var adminCompanyInsights_default = { typeDefs: typeDefs104, definition: definition101, resolver: resolver101 };
+var adminCompanyInsights_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
 
 // graphql/customs/queries/admin/adminCompanyTrends.ts
-var typeDefs105 = `
+var typeDefs107 = `
   type AdminUsageWeek {
     """Primer d\xEDa de la semana (YYYY-MM-DD); las semanas terminan ayer."""
     weekStart: String!
@@ -48941,7 +49080,7 @@ var typeDefs105 = `
     adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
   }
 `;
-var definition102 = `
+var definition104 = `
   adminCompanyTrends(companyId: ID!, weeks: Int): AdminCompanyTrends!
 `;
 var WEEK_FIELDS = [
@@ -48973,7 +49112,7 @@ function median(values2) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 var EMPTY4 = { ready: false, weeks: [], planName: null, peers: 0, benchmark: [] };
-var resolver102 = {
+var resolver104 = {
   adminCompanyTrends: async (_root, { companyId, weeks }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -49053,7 +49192,7 @@ var resolver102 = {
     }, EMPTY4);
   }
 };
-var adminCompanyTrends_default = { typeDefs: typeDefs105, definition: definition102, resolver: resolver102 };
+var adminCompanyTrends_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
 
 // graphql/customs/queries/admin/adminActivityFeed.ts
 var FEED_TYPES = [
@@ -49073,7 +49212,7 @@ var FEED_TYPES = [
   "security"
 ];
 var DEFAULT_FEED_TYPES = FEED_TYPES.filter((type) => type !== "product");
-var typeDefs106 = `
+var typeDefs108 = `
   input AdminActivityFeedInput {
     companyId: ID
     userId: ID
@@ -49125,7 +49264,7 @@ var typeDefs106 = `
     adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
   }
 `;
-var definition103 = `
+var definition105 = `
   adminActivityFeed(input: AdminActivityFeedInput): AdminActivityFeedResult!
 `;
 var COMPANY_SELECT = { select: { id: true, name: true } };
@@ -49989,7 +50128,7 @@ var SOURCES = [
   calendarSource,
   activityEventSource
 ];
-var resolver103 = {
+var resolver105 = {
   adminActivityFeed: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const take = clampInt(input?.take, 1, 100, 30);
@@ -50033,10 +50172,10 @@ var resolver103 = {
     };
   }
 };
-var adminActivityFeed_default = { typeDefs: typeDefs106, definition: definition103, resolver: resolver103 };
+var adminActivityFeed_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
 
 // graphql/customs/queries/admin/adminErrorIssues.ts
-var typeDefs107 = `
+var typeDefs109 = `
   input AdminErrorIssuesInput {
     """pet-web | business-web | pet-mobile"""
     app: String
@@ -50096,7 +50235,7 @@ var typeDefs107 = `
     adminOpenErrorIssuesCount: Int!
   }
 `;
-var definition104 = `
+var definition106 = `
   adminErrorIssues(input: AdminErrorIssuesInput): AdminErrorIssuesResult!
   adminOpenErrorIssuesCount: Int!
 `;
@@ -50159,7 +50298,7 @@ async function countOpenErrorIssues(prisma, since) {
     (group) => effectiveStatus(issues.get(group.fingerprint), group.lastSeen).status === ERROR_ISSUE_STATUS.OPEN
   ).length;
 }
-var resolver104 = {
+var resolver106 = {
   adminErrorIssues: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -50258,10 +50397,10 @@ var resolver104 = {
     return countOpenErrorIssues(adminPrisma(context), daysAgo2(1));
   }
 };
-var adminErrorIssues_default = { typeDefs: typeDefs107, definition: definition104, resolver: resolver104 };
+var adminErrorIssues_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
 
 // graphql/customs/queries/admin/adminPersonDevices.ts
-var typeDefs108 = `
+var typeDefs110 = `
   type AdminPersonDevice {
     ip: String
     userAgent: String
@@ -50300,7 +50439,7 @@ var typeDefs108 = `
     adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
   }
 `;
-var definition105 = `
+var definition107 = `
   adminPersonDevices(userId: ID!, days: Int): AdminPersonDevices!
 `;
 var CROWDED_IP_ACCOUNTS = 15;
@@ -50330,7 +50469,7 @@ function mergeDevices(target, rows2, source) {
     current.sources.add(source);
   }
 }
-var resolver105 = {
+var resolver107 = {
   adminPersonDevices: async (_root, { userId, days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -50421,10 +50560,10 @@ function toDeviceOutput(device) {
     sources: [...device.sources]
   };
 }
-var adminPersonDevices_default = { typeDefs: typeDefs108, definition: definition105, resolver: resolver105 };
+var adminPersonDevices_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
 
 // graphql/customs/queries/admin/adminSecurity.ts
-var typeDefs109 = `
+var typeDefs111 = `
   type AdminRateLimitHit {
     ip: String
     rule: String!
@@ -50466,7 +50605,7 @@ var typeDefs109 = `
     adminBlockedIps: [AdminBlockedIp!]!
   }
 `;
-var definition106 = `
+var definition108 = `
   adminSecuritySummary(days: Int): AdminSecuritySummary!
   adminBlockedIps: [AdminBlockedIp!]!
 `;
@@ -50477,7 +50616,7 @@ var SIGNUP_STEPS = [
   USER_AUTH_LOG_STEP.CUSTOM_AUTH_SIGNUP,
   USER_AUTH_LOG_STEP.GOOGLE_AUTH_SIGNUP
 ];
-var resolver106 = {
+var resolver108 = {
   adminSecuritySummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -50572,7 +50711,7 @@ var resolver106 = {
     }));
   }
 };
-var adminSecurity_default = { typeDefs: typeDefs109, definition: definition106, resolver: resolver106 };
+var adminSecurity_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
 
 // graphql/customs/queries/admin/milestones.ts
 function earliest(map, companyId, at) {
@@ -50678,7 +50817,7 @@ async function loadCompanyMilestones(prisma, companyIds) {
 }
 
 // graphql/customs/queries/admin/adminActivationFunnel.ts
-var typeDefs110 = `
+var typeDefs112 = `
   input AdminActivationInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -50717,7 +50856,7 @@ var typeDefs110 = `
     adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
   }
 `;
-var definition107 = `
+var definition109 = `
   adminActivationFunnel(input: AdminActivationInput): AdminActivationFunnel!
 `;
 var STEPS = [
@@ -50735,7 +50874,7 @@ function median2(values2) {
   return Math.round(value * 10) / 10;
 }
 var pct = (part, total) => total ? Math.round(part / total * 1e3) / 10 : 0;
-var resolver107 = {
+var resolver109 = {
   adminActivationFunnel: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -50807,10 +50946,10 @@ var resolver107 = {
     };
   }
 };
-var adminActivationFunnel_default = { typeDefs: typeDefs110, definition: definition107, resolver: resolver107 };
+var adminActivationFunnel_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
 
 // graphql/customs/queries/admin/adminCohorts.ts
-var typeDefs111 = `
+var typeDefs113 = `
   input AdminCohortsInput {
     """Meses de registro a mostrar, contando el actual (3\u201312, por defecto 6)."""
     months: Int
@@ -50832,7 +50971,7 @@ var typeDefs111 = `
     adminCohorts(input: AdminCohortsInput): AdminCohorts!
   }
 `;
-var definition108 = `
+var definition110 = `
   adminCohorts(input: AdminCohortsInput): AdminCohorts!
 `;
 function shiftMonth(month, offset) {
@@ -50845,7 +50984,7 @@ function monthsBetween(from, to) {
   const [ty, tm] = to.split("-").map(Number);
   return (ty - fy) * 12 + (tm - fm);
 }
-var resolver108 = {
+var resolver110 = {
   adminCohorts: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -50915,7 +51054,7 @@ var resolver108 = {
     return { rows: rows2 };
   }
 };
-var adminCohorts_default = { typeDefs: typeDefs111, definition: definition108, resolver: resolver108 };
+var adminCohorts_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
 
 // graphql/customs/queries/admin/adminEngagement.ts
 var MAU_DAYS = 30;
@@ -50928,7 +51067,7 @@ var MODULES = [
   { key: "whatsapp", field: "whatsappSent" },
   { key: "ai", field: "aiCalls" }
 ];
-var typeDefs112 = `
+var typeDefs114 = `
   input AdminEngagementInput {
     """D\xEDas de la serie diaria (14\u201390, por defecto 30)."""
     days: Int
@@ -50982,11 +51121,11 @@ var typeDefs112 = `
     adminEngagement(input: AdminEngagementInput): AdminEngagement!
   }
 `;
-var definition109 = `
+var definition111 = `
   adminEngagement(input: AdminEngagementInput): AdminEngagement!
 `;
 var dayDate2 = (ymd) => /* @__PURE__ */ new Date(`${ymd}T00:00:00.000Z`);
-var resolver109 = {
+var resolver111 = {
   adminEngagement: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -51117,12 +51256,12 @@ var resolver109 = {
     };
   }
 };
-var adminEngagement_default = { typeDefs: typeDefs112, definition: definition109, resolver: resolver109 };
+var adminEngagement_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
 
 // graphql/customs/queries/admin/adminDemandGaps.ts
 var ZONE_STEP = 0.1;
 var LIST_LIMIT = 25;
-var typeDefs113 = `
+var typeDefs115 = `
   input AdminDemandGapsInput {
     """\xDAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -51177,7 +51316,7 @@ var typeDefs113 = `
     adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
   }
 `;
-var definition110 = `
+var definition112 = `
   adminDemandGaps(input: AdminDemandGapsInput): AdminDemandGaps!
 `;
 function emptyBucket() {
@@ -51194,7 +51333,7 @@ var roundZone = (value) => Math.round(value / ZONE_STEP) * ZONE_STEP;
 var zoneKey = (lat, lng) => `${roundZone(lat).toFixed(1)},${roundZone(lng).toFixed(1)}`;
 var avg = (bucket) => bucket.runs ? Math.round(bucket.results / bucket.runs * 10) / 10 : 0;
 var byLowRuns = (a, b) => b.lowRuns - a.lowRuns || b.runs - a.runs;
-var resolver110 = {
+var resolver112 = {
   adminDemandGaps: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -51278,12 +51417,12 @@ var resolver110 = {
     };
   }
 };
-var adminDemandGaps_default = { typeDefs: typeDefs113, definition: definition110, resolver: resolver110 };
+var adminDemandGaps_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
 
 // graphql/customs/queries/admin/adminAcquisition.ts
 var LIST_LIMIT2 = 10;
 var REFERRAL = "Referido";
-var typeDefs114 = `
+var typeDefs116 = `
   input AdminAcquisitionInput {
     """Empresas registradas en los \xFAltimos N d\xEDas (7\u2013365, por defecto 90)."""
     days: Int
@@ -51314,7 +51453,7 @@ var typeDefs114 = `
     adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
   }
 `;
-var definition111 = `
+var definition113 = `
   adminAcquisition(input: AdminAcquisitionInput): AdminAcquisition!
 `;
 function bump2(map, key, activated, paid) {
@@ -51328,7 +51467,7 @@ var sortRows = (map, limit) => {
   const rows2 = [...map.values()].sort((a, b) => b.companies - a.companies || b.paid - a.paid);
   return limit ? rows2.slice(0, limit) : rows2;
 };
-var resolver111 = {
+var resolver113 = {
   adminAcquisition: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -51375,7 +51514,7 @@ var resolver111 = {
     };
   }
 };
-var adminAcquisition_default = { typeDefs: typeDefs114, definition: definition111, resolver: resolver111 };
+var adminAcquisition_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
 
 // utils/analytics/salesVelocity.ts
 var DAY_MS10 = 24 * 60 * 60 * 1e3;
@@ -51703,7 +51842,7 @@ async function computeSalesVelocity(prisma, options) {
 
 // graphql/customs/queries/admin/adminSalesVelocity.ts
 var COMPANY_LIMIT = 25;
-var typeDefs115 = `
+var typeDefs117 = `
   input AdminSalesVelocityInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -51775,10 +51914,10 @@ var typeDefs115 = `
     adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
   }
 `;
-var definition112 = `
+var definition114 = `
   adminSalesVelocity(input: AdminSalesVelocityInput): AdminSalesVelocity!
 `;
-var resolver112 = {
+var resolver114 = {
   adminSalesVelocity: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -51802,10 +51941,10 @@ var resolver112 = {
     return { ...totals, dataSince: toIso(dataSince), companies };
   }
 };
-var adminSalesVelocity_default = { typeDefs: typeDefs115, definition: definition112, resolver: resolver112 };
+var adminSalesVelocity_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
 
 // graphql/customs/queries/admin/adminAnimals.ts
-var typeDefs116 = `
+var typeDefs118 = `
   type AdminAnimalRow {
     id: ID!
     name: String!
@@ -51888,7 +52027,7 @@ var typeDefs116 = `
     facebookPublishedBy: AdminPersonRef
   }
 `;
-var definition113 = `
+var definition115 = `
   adminAnimals(
     search: String
     animalTypeId: ID
@@ -51995,7 +52134,7 @@ function toRow(raw, counts2) {
     facebookPublishedAt: toIso(raw.facebookPublishedAt)
   };
 }
-var resolver113 = {
+var resolver115 = {
   adminAnimals: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const sudo = context.sudo();
@@ -52097,10 +52236,10 @@ var resolver113 = {
     };
   }
 };
-var adminAnimals_default = { typeDefs: typeDefs116, definition: definition113, resolver: resolver113 };
+var adminAnimals_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
 
 // graphql/customs/queries/admin/adminAnimalChannelPost.ts
-var typeDefs117 = `
+var typeDefs119 = `
   type AdminAnimalChannelPost {
     text: String!
     shortUrl: String!
@@ -52108,8 +52247,8 @@ var typeDefs117 = `
     channelUrl: String!
   }
 `;
-var definition114 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
-var resolver114 = {
+var definition116 = `adminAnimalChannelPost(id: ID!): AdminAnimalChannelPost`;
+var resolver116 = {
   adminAnimalChannelPost: async (_root, { id }, context) => {
     assertPlatformAdmin(context);
     const animal = await context.sudo().query.Animal.findOne({
@@ -52127,10 +52266,10 @@ var resolver114 = {
     };
   }
 };
-var adminAnimalChannelPost_default = { typeDefs: typeDefs117, definition: definition114, resolver: resolver114 };
+var adminAnimalChannelPost_default = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
 
 // graphql/customs/queries/admin/adminPet.ts
-var typeDefs118 = `
+var typeDefs120 = `
   type AdminPetTopAnimal {
     id: ID!
     name: String!
@@ -52155,6 +52294,17 @@ var typeDefs118 = `
     topCities: [AdminCount!]!
   }
 
+  type AdminPetTopPlace {
+    id: ID!
+    name: String!
+    slug: String
+    municipality: String
+    state: String
+    verified: Boolean!
+    "All-time views of the clinic page (not limited to the period)."
+    views: Int!
+  }
+
   type AdminPetPlacesSummary {
     total: Int!
     veterinaries: Int!
@@ -52167,6 +52317,10 @@ var typeDefs118 = `
     byClaimStatus: [AdminCount!]!
     byType: [AdminCount!]!
     topStates: [AdminCount!]!
+    "Sum of all clinic page views, all time."
+    views: Int!
+    "Clinics with the most page views, all time."
+    topViewed: [AdminPetTopPlace!]!
   }
 
   type AdminPetUsersSummary {
@@ -52228,7 +52382,7 @@ var typeDefs118 = `
     points: [AdminPetSeriesPoint!]!
   }
 `;
-var definition115 = `
+var definition117 = `
   adminPetSummary(input: AdminPetSummaryInput): AdminPetSummary!
   adminPetSeries(input: AdminPetSeriesInput!): AdminPetSeries!
 `;
@@ -52537,7 +52691,7 @@ async function topViewedAnimals(context, prisma, since) {
     ];
   });
 }
-var resolver115 = {
+var resolver117 = {
   adminPetSummary: async (_root, { input }, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -52584,7 +52738,9 @@ var resolver115 = {
       placesPrev,
       byClaimStatus,
       placeTypes,
-      placeStates
+      placeStates,
+      placeViews,
+      topViewedPlaces
     ] = await Promise.all([
       prisma.petPlace.count(),
       prisma.petPlace.count({ where: { types: { some: { value: "veterinary" } } } }),
@@ -52596,7 +52752,14 @@ var resolver115 = {
       inPrevPeriod ? prisma.petPlace.count({ where: inPrevPeriod }) : 0,
       groupCounts(prisma, "petPlace", "claimStatus", {}),
       placesByType(prisma),
-      placesTopStates(prisma)
+      placesTopStates(prisma),
+      prisma.petPlace.aggregate({ _sum: { views: true } }),
+      prisma.petPlace.findMany({
+        where: { views: { gt: 0 } },
+        orderBy: [{ views: "desc" }, { name: "asc" }],
+        take: TOP_VIEWED,
+        select: { id: true, name: true, slug: true, municipality: true, state: true, verified: true, views: true }
+      })
     ]);
     const [usersTotal, usersNew, usersPrev, views, viewsSignedIn, favorites, comments, topViewed, animalClaims2, placeClaims, services] = await Promise.all([
       prisma.user.count({ where: PET_USER_WHERE }),
@@ -52642,7 +52805,17 @@ var resolver115 = {
         newPrevPeriod: placesPrev,
         byClaimStatus,
         byType: placeTypes,
-        topStates: placeStates
+        topStates: placeStates,
+        views: Number(placeViews?._sum?.views ?? 0),
+        topViewed: topViewedPlaces.map((place) => ({
+          id: place.id,
+          name: place.name,
+          slug: place.slug ?? null,
+          municipality: place.municipality ?? null,
+          state: place.state ?? null,
+          verified: Boolean(place.verified),
+          views: Number(place.views ?? 0)
+        }))
       },
       users: { total: usersTotal, newInPeriod: usersNew, newPrevPeriod: usersPrev },
       engagement: { views, viewsSignedIn, favorites, comments, topViewed },
@@ -52708,10 +52881,10 @@ var resolver115 = {
     return { metric, granularity, breakdown, from, to: lastBucket, total, points };
   }
 };
-var adminPet_default = { typeDefs: typeDefs118, definition: definition115, resolver: resolver115 };
+var adminPet_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
 
 // graphql/customs/queries/admin/adminNotifications.ts
-var typeDefs119 = `
+var typeDefs121 = `
   type AdminNotificationRow {
     id: ID!
     createdAt: String
@@ -52804,7 +52977,7 @@ var typeDefs119 = `
     maxPerDay: Int!
   }
 `;
-var definition116 = `
+var definition118 = `
   adminNotificationLog(
     product: String
     type: String
@@ -52887,7 +53060,7 @@ var USER_SELECT = {
   whatsappNotifications: true,
   whatsappMutedTypes: true
 };
-var resolver116 = {
+var resolver118 = {
   adminNotificationLog: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -53036,8 +53209,8 @@ var resolver116 = {
     }
     const prisma = adminPrisma(context);
     const candidates = await findZoneAlertCandidates(prisma, { lat, lng });
-    const shown = candidates.slice(0, 200);
-    const ids = shown.map((row) => row.id);
+    const shown2 = candidates.slice(0, 200);
+    const ids = shown2.map((row) => row.id);
     const [users, push] = await Promise.all([
       ids.length ? prisma.user.findMany({ where: { id: { in: ids } }, select: USER_SELECT }) : [],
       pushDevicesByUser(prisma, ids)
@@ -53050,7 +53223,7 @@ var resolver116 = {
       wouldReceive: candidates.length - capped,
       capped,
       maxPerDay: MAX_NEARBY_ALERTS_PER_DAY,
-      items: shown.map((row) => {
+      items: shown2.map((row) => {
         const user = userBy.get(row.id) ?? {};
         return {
           id: row.id,
@@ -53068,13 +53241,13 @@ var resolver116 = {
     };
   }
 };
-var adminNotifications = { typeDefs: typeDefs119, definition: definition116, resolver: resolver116 };
+var adminNotifications = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
 var adminNotifications_default = adminNotifications;
 
 // graphql/customs/queries/analytics/companyAnalytics.ts
 var import_graphql14 = require("graphql");
 var STALLED_LIMIT = 50;
-var typeDefs120 = `
+var typeDefs122 = `
   input CompanyAnalyticsInput {
     """\xDAltimos N d\xEDas (30\u2013365, por defecto 90)."""
     days: Int
@@ -53150,13 +53323,13 @@ var typeDefs120 = `
     companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
   }
 `;
-var definition117 = `
+var definition119 = `
   companyAnalytics(input: CompanyAnalyticsInput): CompanyAnalytics!
 `;
 var fail15 = (message, code) => new import_graphql14.GraphQLError(message, { extensions: { code, http: { status: 200 } } });
 var clampDays = (value) => typeof value === "number" && Number.isFinite(value) ? Math.min(365, Math.max(30, Math.floor(value))) : 90;
 var fullName4 = (user) => [user?.name, user?.lastName].filter(Boolean).join(" ").trim() || "Sin nombre";
-var resolver117 = {
+var resolver119 = {
   companyAnalytics: async (_root, { input }, context) => {
     const session2 = context.session;
     const userId = getSessionUserId(session2);
@@ -53239,12 +53412,12 @@ var resolver117 = {
     };
   }
 };
-var companyAnalytics_default = { typeDefs: typeDefs120, definition: definition117, resolver: resolver117 };
+var companyAnalytics_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
 
 // graphql/customs/queries/landingStats.ts
 var CACHE_MS = 6 * 60 * 60 * 1e3;
 var cache3 = null;
-var typeDefs121 = `
+var typeDefs123 = `
   type LandingStats {
     leadsTotal: Int!
     leadsWithPhone: Int!
@@ -53254,7 +53427,7 @@ var typeDefs121 = `
     updatedAt: String!
   }
 `;
-var definition118 = `landingStats: LandingStats!`;
+var definition120 = `landingStats: LandingStats!`;
 function unwrap5(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -53280,7 +53453,7 @@ async function computeLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver118 = {
+var resolver120 = {
   landingStats: async (_root, _args, context) => {
     if (cache3 && Date.now() - cache3.at < CACHE_MS) return cache3.value;
     const value = await computeLandingStats(context);
@@ -53288,13 +53461,13 @@ var resolver118 = {
     return value;
   }
 };
-var landingStats_default = { typeDefs: typeDefs121, definition: definition118, resolver: resolver118 };
+var landingStats_default = { typeDefs: typeDefs123, definition: definition120, resolver: resolver120 };
 
 // graphql/customs/queries/petLandingStats.ts
 var CACHE_MS2 = 60 * 60 * 1e3;
 var HOME_STATUSES2 = ["in_family", "adopted"];
 var cache4 = null;
-var typeDefs122 = `
+var typeDefs124 = `
   type PetLandingStats {
     animals: Int!
     animalsLost: Int!
@@ -53310,7 +53483,7 @@ var typeDefs122 = `
     updatedAt: String!
   }
 `;
-var definition119 = `petLandingStats: PetLandingStats!`;
+var definition121 = `petLandingStats: PetLandingStats!`;
 function unwrap6(value) {
   if (value instanceof Error) throw value;
   return value;
@@ -53377,7 +53550,7 @@ async function computePetLandingStats(context) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var resolver119 = {
+var resolver121 = {
   petLandingStats: async (_root, _args, context) => {
     if (cache4 && Date.now() - cache4.at < CACHE_MS2) return cache4.value;
     const value = await computePetLandingStats(context);
@@ -53385,14 +53558,14 @@ var resolver119 = {
     return value;
   }
 };
-var petLandingStats_default = { typeDefs: typeDefs122, definition: definition119, resolver: resolver119 };
+var petLandingStats_default = { typeDefs: typeDefs124, definition: definition121, resolver: resolver121 };
 
 // graphql/customs/queries/petReunionStories.ts
 var CACHE_MS3 = 10 * 60 * 1e3;
 var DEFAULT_TAKE = 6;
 var MAX_TAKE = 12;
 var STORY_MAX = 280;
-var typeDefs123 = `
+var typeDefs125 = `
   type PetReunionStory {
     id: ID!
     slug: String
@@ -53408,7 +53581,7 @@ var typeDefs123 = `
     coverUrl: String
   }
 `;
-var definition120 = `petReunionStories(take: Int): [PetReunionStory!]!`;
+var definition122 = `petReunionStories(take: Int): [PetReunionStory!]!`;
 var cache5 = null;
 function publicStoryText(raw) {
   const clean6 = raw.replace(/https?:\/\/\S+|www\.\S+/gi, "").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "").replace(/\+?\(?\d[\d\s().-]{6,}\d/g, "").replace(/\s+/g, " ").trim();
@@ -53452,7 +53625,7 @@ async function loadStories(context, take) {
     coverUrl: covers.get(row.id) ?? null
   }));
 }
-var resolver120 = {
+var resolver122 = {
   petReunionStories: async (_root, args, context) => {
     const take = Math.min(Math.max(1, Math.floor(args.take ?? DEFAULT_TAKE)), MAX_TAKE);
     const now = Date.now();
@@ -53467,13 +53640,13 @@ var resolver120 = {
     }
   }
 };
-var petReunionStories_default = { typeDefs: typeDefs123, definition: definition120, resolver: resolver120 };
+var petReunionStories_default = { typeDefs: typeDefs125, definition: definition122, resolver: resolver122 };
 
 // graphql/customs/queries/petEvents.ts
 var MAX_TAKE2 = 48;
 var DAY_MS11 = 24 * 60 * 60 * 1e3;
 var MAX_DATE = /* @__PURE__ */ new Date("9999-12-31T00:00:00.000Z");
-var typeDefs124 = `
+var typeDefs126 = `
   input PetEventsFeedInput {
     "Clave INEGI (16) o slug (michoacan)"
     state: String
@@ -53534,12 +53707,12 @@ var typeDefs124 = `
     sendAt: String
   }
 `;
-var definition121 = `
+var definition123 = `
   petEventsFeed(input: PetEventsFeedInput!): PetEventsFeedResult!
   petEventFacets: [PetEventStateFacet!]!
   adminPetEventAlertPreview(id: ID!): PetEventAlertPreview
 `;
-function prismaOf16(context) {
+function prismaOf17(context) {
   return context.sudo().prisma;
 }
 function validDate(value, fallback) {
@@ -53547,13 +53720,13 @@ function validDate(value, fallback) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
-var resolver121 = {
+var resolver123 = {
   /**
    * Eventos publicados para la sección /eventos, la portada y la app: los próximos (por su próxima
    * fecha) o los pasados. Filtros por estado, municipio, tipo, fecha y distancia.
    */
   petEventsFeed: async (_root, { input }, context) => {
-    const prisma = prismaOf16(context);
+    const prisma = prismaOf17(context);
     const now = /* @__PURE__ */ new Date();
     const take = Math.min(Math.max(Number(input.take) || 12, 1), MAX_TAKE2);
     const skip = Math.max(Number(input.skip) || 0, 0);
@@ -53628,7 +53801,7 @@ var resolver121 = {
   },
   /** Estados y municipios con eventos próximos publicados (para los filtros de /eventos). */
   petEventFacets: async (_root, _args, context) => {
-    const prisma = prismaOf16(context);
+    const prisma = prismaOf17(context);
     const rows2 = await prisma.$queryRaw`
       SELECT e."stateCode" AS "stateCode", e."cityKey" AS "cityKey", MIN(e.city) AS city, COUNT(*)::int AS count
       FROM "PetEvent" e
@@ -53672,11 +53845,11 @@ var resolver121 = {
     };
   }
 };
-var petEvents_default = { typeDefs: typeDefs124, definition: definition121, resolver: resolver121 };
+var petEvents_default = { typeDefs: typeDefs126, definition: definition123, resolver: resolver123 };
 
 // graphql/customs/queries/rescueAllies.ts
 var MAX_TAKE3 = 300;
-var typeDefs125 = `
+var typeDefs127 = `
   type RescueAlly {
     id: ID!
     name: String!
@@ -53695,8 +53868,8 @@ var typeDefs125 = `
     allies: [RescueAlly!]!
   }
 `;
-var definition122 = `rescueAllies(take: Int): RescueAlliesResult!`;
-var resolver122 = {
+var definition124 = `rescueAllies(take: Int): RescueAlliesResult!`;
+var resolver124 = {
   rescueAllies: async (_root, { take }, context) => {
     const limit = Math.min(Math.max(Number(take) || MAX_TAKE3, 1), MAX_TAKE3);
     const rows2 = await context.sudo().query.RescueOrganization.findMany({
@@ -53734,11 +53907,11 @@ var resolver122 = {
     return { total: allies.length, allies: allies.slice(0, limit) };
   }
 };
-var rescueAllies_default = { typeDefs: typeDefs125, definition: definition122, resolver: resolver122 };
+var rescueAllies_default = { typeDefs: typeDefs127, definition: definition124, resolver: resolver124 };
 
 // graphql/customs/queries/myPaws.ts
 var HISTORY_MAX_TAKE = 50;
-var typeDefs126 = `
+var typeDefs128 = `
   type PawHistoryEntry {
     id: ID!
     "report_published | sighting | case_closed | reunion_helped | adoption_completed | event_approved | comment | review | first_pet | first_health_record | rescue_verified | place_verified | referral | purchase | product_review | streak_bonus | admin_adjust"
@@ -53772,15 +53945,15 @@ var typeDefs126 = `
     history: [PawHistoryEntry!]!
   }
 `;
-var definition123 = `
+var definition125 = `
   myPaws: MyPaws
   myPawHistory(take: Int, skip: Int): [PawHistoryEntry!]!
 `;
-function prismaOf17(context) {
+function prismaOf18(context) {
   return context.sudo().prisma;
 }
 async function loadHistory(context, userId, take, skip) {
-  const rows2 = await prismaOf17(context).pawTransaction.findMany({
+  const rows2 = await prismaOf18(context).pawTransaction.findMany({
     where: { userId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take,
@@ -53809,13 +53982,13 @@ function emptyPaws(enabled) {
     history: []
   };
 }
-var resolver123 = {
+var resolver125 = {
   myPaws: async (_root, _args, context) => {
     const userId = getSessionUserId(context.session);
     if (!userId) return null;
     if (!pawsEnabled()) return emptyPaws(false);
     try {
-      const account = await prismaOf17(context).pawAccount.findFirst({
+      const account = await prismaOf18(context).pawAccount.findFirst({
         where: { userId },
         select: {
           balance: true,
@@ -53860,13 +54033,13 @@ var resolver123 = {
     }
   }
 };
-var myPaws_default = { typeDefs: typeDefs126, definition: definition123, resolver: resolver123 };
+var myPaws_default = { typeDefs: typeDefs128, definition: definition125, resolver: resolver125 };
 
 // graphql/customs/queries/publicProfile.ts
 var PROFILE_REPORTS_TAKE = 12;
 var PROFILE_EVENTS_TAKE = 6;
 var REPORTS_MAX_TAKE = 24;
-var typeDefs127 = `
+var typeDefs129 = `
   type PublicUserCard {
     "For the /u/<username> link; null when the person turned their public profile off."
     username: String
@@ -53941,12 +54114,12 @@ var typeDefs127 = `
     clinics: [PublicUserClinic!]!
   }
 `;
-var definition124 = `
+var definition126 = `
   animalAuthor(animalId: ID!): PublicUserCard
   publicUserProfile(username: String!): PublicUserProfile
   publicUserReports(username: String!, take: Int, skip: Int): [PublicUserReport!]!
 `;
-function prismaOf18(context) {
+function prismaOf19(context) {
   return context.sudo().prisma;
 }
 function unwrap7(value) {
@@ -53972,7 +54145,7 @@ async function loadProfileUser(context, username) {
 }
 async function loadReports(context, userId, take, skip) {
   const rows2 = unwrap7(
-    await prismaOf18(context).$queryRaw`
+    await prismaOf19(context).$queryRaw`
       SELECT a.id, a.slug, a.name, a.sex, a.color, t.name AS "typeName", a.outcome, a."createdAt",
              last.status, last.city
       FROM "Animal" a
@@ -54002,7 +54175,7 @@ async function loadReports(context, userId, take, skip) {
 }
 async function countReports(context, userId) {
   const rows2 = unwrap7(
-    await prismaOf18(context).$queryRaw`
+    await prismaOf19(context).$queryRaw`
       SELECT count(*)::int AS n FROM "Animal" a
       WHERE a."user" = ${userId} AND a."duplicateOf" IS NULL
         AND EXISTS (SELECT 1 FROM "AnimalLog" l WHERE l."animal" = a.id)
@@ -54011,7 +54184,7 @@ async function countReports(context, userId) {
   return rows2[0]?.n ?? 0;
 }
 async function loadEvents(context, userId) {
-  const prisma = prismaOf18(context);
+  const prisma = prismaOf19(context);
   const where = { userId, status: "approved" };
   const [rows2, count2] = await Promise.all([
     prisma.petEvent.findMany({
@@ -54055,7 +54228,7 @@ async function loadRescueOrgs(context, userId) {
 }
 async function loadClinics(context, userId) {
   const rows2 = unwrap7(
-    await prismaOf18(context).petPlace.findMany({
+    await prismaOf19(context).petPlace.findMany({
       where: { userId, verified: true },
       orderBy: [{ name: "asc" }],
       take: 20,
@@ -54064,11 +54237,11 @@ async function loadClinics(context, userId) {
   );
   return rows2.map((row) => ({ ...row, municipality: row.municipality || null, state: row.state || null }));
 }
-var resolver124 = {
+var resolver126 = {
   animalAuthor: async (_root, { animalId }, context) => {
     try {
       const animal = unwrap7(
-        await prismaOf18(context).animal.findUnique({ where: { id: animalId }, select: { userId: true } })
+        await prismaOf19(context).animal.findUnique({ where: { id: animalId }, select: { userId: true } })
       );
       const userId = animal?.userId;
       if (!userId || userId === automationUserId()) return null;
@@ -54083,7 +54256,7 @@ var resolver124 = {
   publicUserProfile: async (_root, { username }, context) => {
     const user = await loadProfileUser(context, username);
     if (!user) return null;
-    const prisma = prismaOf18(context);
+    const prisma = prismaOf19(context);
     const [account, reports, reportsCount, events, rescueOrgs, clinics] = await Promise.all([
       pawsEnabled() ? prisma.pawAccount.findFirst({
         where: { userId: user.id },
@@ -54124,7 +54297,7 @@ var resolver124 = {
     return loadReports(context, user.id, take, skip);
   }
 };
-var publicProfile_default = { typeDefs: typeDefs127, definition: definition124, resolver: resolver124 };
+var publicProfile_default = { typeDefs: typeDefs129, definition: definition126, resolver: resolver126 };
 
 // utils/helpers/escapeLike.ts
 function escapeLike2(value) {
@@ -54132,7 +54305,7 @@ function escapeLike2(value) {
 }
 
 // graphql/customs/queries/store/storeCatalog.ts
-var typeDefs128 = `
+var typeDefs130 = `
   input StoreCatalogInput {
     search: String
     categorySlug: String
@@ -54295,7 +54468,7 @@ var typeDefs128 = `
     ratingCount: Int!
   }
 `;
-var definition125 = `
+var definition127 = `
   storeCatalog(input: StoreCatalogInput): StoreCatalogResult!
   storeCatalogProduct(slug: String!): StoreCatalogProduct
   storeCatalogFacets: StoreCatalogFacets!
@@ -54469,7 +54642,7 @@ var REVIEW_SELECT = {
   createdAt: true,
   userId: true
 };
-var resolver125 = {
+var resolver127 = {
   /** Product list for /tienda and the app. Three queries however many products come back. */
   storeCatalog: async (_root, { input }, context) => {
     if (!canBrowse(context)) return { total: 0, items: [] };
@@ -54652,10 +54825,10 @@ var resolver125 = {
     };
   }
 };
-var storeCatalog_default = { typeDefs: typeDefs128, definition: definition125, resolver: resolver125 };
+var storeCatalog_default = { typeDefs: typeDefs130, definition: definition127, resolver: resolver127 };
 
 // graphql/customs/queries/store/myStoreWishlist.ts
-var definition126 = `
+var definition128 = `
   myStoreWishlist(take: Int, skip: Int): StoreCatalogResult!
   myStoreWishlistIds: [ID!]!
 `;
@@ -54667,7 +54840,7 @@ function clamp2(value, min, max, fallback) {
 function canBrowse2(context) {
   return storeEnabled() || isPlatformAdmin(context.session);
 }
-var resolver126 = {
+var resolver128 = {
   /** Saved products, newest first. Products no longer for sale are left out. */
   myStoreWishlist: async (_root, args, context) => {
     const userId = getSessionUserId(context.session);
@@ -54706,10 +54879,10 @@ var resolver126 = {
     return rows2.map((row) => row.productId).filter((id) => Boolean(id));
   }
 };
-var myStoreWishlist_default = { typeDefs: "", definition: definition126, resolver: resolver126 };
+var myStoreWishlist_default = { typeDefs: "", definition: definition128, resolver: resolver128 };
 
 // graphql/customs/queries/store/storeOrders.ts
-var typeDefs129 = `
+var typeDefs131 = `
   type StoreOrderSummary {
     number: String!
     createdAt: String
@@ -54795,7 +54968,7 @@ var typeDefs129 = `
 `;
 var couponAttempts = createRateLimiter(STORE_COUPON_ATTEMPTS);
 var stripeCheck = createDeduper(5e3);
-var definition127 = `
+var definition129 = `
   storeCartQuote(items: [StoreCartItemInput!]!, couponCode: String): StoreCartQuote!
   myStoreOrders(take: Int, skip: Int): StoreOrdersResult!
   myStoreOrder(number: String!): StoreOrderDetail
@@ -54851,7 +55024,7 @@ function toSummary(row, first) {
     expiresAt: row.paymentStatus === STORE_PAYMENT_STATUS.PENDING && row.status === STORE_ORDER_STATUS.OPEN ? iso3(row.expiresAt) : null
   };
 }
-var resolver127 = {
+var resolver129 = {
   /** What the cart costs right now. Called when the cart opens or changes, never on a timer. */
   storeCartQuote: async (_root, { items, couponCode }, context) => {
     if (!storeEnabled() && !isPlatformAdmin(context.session)) {
@@ -54938,7 +55111,7 @@ var resolver127 = {
     if (order.status === STORE_ORDER_STATUS.OPEN && order.paymentMethod === STORE_PAYMENT_METHOD.CARD && (order.paymentStatus === STORE_PAYMENT_STATUS.PENDING || order.paymentStatus === STORE_PAYMENT_STATUS.FAILED) && order.stripePaymentIntentId && stripeCheck(order.id)) {
       try {
         if (await settleStoreCardPayment(context, { id: order.id, stripePaymentIntentId: order.stripePaymentIntentId })) {
-          return resolver127.myStoreOrder(_root, { number }, context);
+          return resolver129.myStoreOrder(_root, { number }, context);
         }
       } catch (error) {
         console.error("[myStoreOrder] could not check the payment with Stripe:", order.number, error);
@@ -55045,7 +55218,7 @@ var resolver127 = {
     return unwrap9(rows2).map((row) => toStoreAddress(row));
   }
 };
-var storeOrders_default2 = { typeDefs: typeDefs129, definition: definition127, resolver: resolver127 };
+var storeOrders_default2 = { typeDefs: typeDefs131, definition: definition129, resolver: resolver129 };
 
 // graphql/customs/queries/store/index.ts
 var storeQueries = {
@@ -55068,7 +55241,7 @@ var storeQueries = {
 var store_default2 = storeQueries;
 
 // graphql/customs/queries/admin/adminStore.ts
-var typeDefs130 = `
+var typeDefs132 = `
   type AdminStoreProductRow {
     id: ID!
     name: String!
@@ -55086,6 +55259,8 @@ var typeDefs130 = `
     ratingAverage: Float!
     ratingCount: Int!
     salesCount: Int!
+    "All-time page views."
+    viewsCount: Int!
     isFeatured: Boolean!
     externalId: String
     category: String
@@ -55102,7 +55277,7 @@ var typeDefs130 = `
     statusCounts: [AdminCount!]!
   }
 `;
-var definition128 = `
+var definition130 = `
   adminStoreProducts(
     search: String
     source: String
@@ -55115,7 +55290,7 @@ var definition128 = `
     skip: Int
   ): AdminStoreProductsResult!
 `;
-var resolver128 = {
+var resolver130 = {
   adminStoreProducts: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -55156,6 +55331,7 @@ var resolver128 = {
           ratingAverage: true,
           ratingCount: true,
           salesCount: true,
+          viewsCount: true,
           isFeatured: true,
           externalId: true,
           createdAt: true,
@@ -55197,6 +55373,7 @@ var resolver128 = {
         ratingAverage: Number(product.ratingAverage) || 0,
         ratingCount: Number(product.ratingCount) || 0,
         salesCount: Number(product.salesCount) || 0,
+        viewsCount: Number(product.viewsCount) || 0,
         isFeatured: Boolean(product.isFeatured),
         externalId: product.externalId,
         category: product.category?.name ?? null,
@@ -55214,10 +55391,10 @@ var resolver128 = {
     };
   }
 };
-var adminStore_default = { typeDefs: typeDefs130, definition: definition128, resolver: resolver128 };
+var adminStore_default = { typeDefs: typeDefs132, definition: definition130, resolver: resolver130 };
 
 // graphql/customs/queries/admin/adminStoreOrders.ts
-var typeDefs131 = `
+var typeDefs133 = `
   type AdminStoreOrderRow {
     id: ID!
     number: String!
@@ -55335,7 +55512,7 @@ var typeDefs131 = `
     events: [AdminStoreOrderEvent!]!
   }
 `;
-var definition129 = `
+var definition131 = `
   adminStoreOrders(
     search: String
     "toReview | toFulfill | awaitingPayment | shipped | completed | cancelled"
@@ -55395,7 +55572,7 @@ function toRow2(order) {
     expiresAt: toIso(order.expiresAt)
   };
 }
-var resolver129 = {
+var resolver131 = {
   adminStoreOrders: async (_root, args, context) => {
     assertPlatformAdmin(context);
     const prisma = adminPrisma(context);
@@ -55623,11 +55800,11 @@ var resolver129 = {
     };
   }
 };
-var adminStoreOrders_default = { typeDefs: typeDefs131, definition: definition129, resolver: resolver129 };
+var adminStoreOrders_default = { typeDefs: typeDefs133, definition: definition131, resolver: resolver131 };
 
 // graphql/customs/queries/admin/adminStoreSummary.ts
 var import_client5 = require("@prisma/client");
-var typeDefs132 = `
+var typeDefs134 = `
   type AdminStoreSummaryPoint {
     "YYYY-MM-DD (seriesUnit day) or YYYY-MM (month)."
     key: String!
@@ -55649,6 +55826,17 @@ var typeDefs132 = `
     name: String!
     units: Int!
     revenueCents: Float!
+  }
+
+  type AdminStoreSummaryViewed {
+    productId: ID!
+    name: String!
+    slug: String
+    coverUrl: String
+    "All-time views of the product page (not limited to the period)."
+    views: Int!
+    "All-time units sold, to compare with the views."
+    salesCount: Int!
   }
 
   type AdminStoreSummaryCoupon {
@@ -55702,9 +55890,11 @@ var typeDefs132 = `
     outOfStock: Int!
     "Active products about to run out, right now."
     lowStock: [AdminStoreSummaryStock!]!
+    "Active products with the most page views, all time."
+    topViewed: [AdminStoreSummaryViewed!]!
   }
 `;
-var definition130 = `
+var definition132 = `
   adminStoreSummary(days: Int): AdminStoreSummary!
 `;
 var cache6 = /* @__PURE__ */ new Map();
@@ -55760,7 +55950,7 @@ async function computeSummary(context, days) {
       FROM "StoreOrder" o WHERE ${inPeriod} GROUP BY 1 ORDER BY 3 DESC
     `
   ]);
-  const [sources, products, coupons, lowStock] = await Promise.all([
+  const [sources, products, coupons, lowStock, viewed] = await Promise.all([
     prisma.$queryRaw`
       SELECT i."source" AS key, COALESCE(sum(i."quantity"), 0)::int AS units,
         COALESCE(sum(i."totalCents" - i."discountCents"), 0)::float8 AS revenue,
@@ -55790,8 +55980,16 @@ async function computeSummary(context, days) {
       orderBy: [{ stockTotal: "asc" }, { name: "asc" }],
       take: STORE_SUMMARY_TOP,
       select: { id: true, name: true, stockTotal: true }
+    }),
+    prisma.storeProduct.findMany({
+      where: { status: STORE_PRODUCT_STATUS.ACTIVE, viewsCount: { gt: 0 } },
+      orderBy: [{ viewsCount: "desc" }, { name: "asc" }],
+      take: STORE_SUMMARY_TOP,
+      select: { id: true, name: true, slug: true, viewsCount: true, salesCount: true }
     })
   ]);
+  const viewedRows = unwrapPrisma(viewed);
+  const viewedCovers = await loadStoreCovers(context, viewedRows.map((row) => row.id));
   const total = unwrapPrisma(totals)[0] ?? {};
   const extra = unwrapPrisma(extras)[0] ?? {};
   const orders = num(total.orders);
@@ -55849,10 +56047,18 @@ async function computeSummary(context, days) {
       productId: row.id,
       name: row.name,
       stockTotal: num(row.stockTotal)
+    })),
+    topViewed: viewedRows.map((row) => ({
+      productId: row.id,
+      name: row.name,
+      slug: row.slug,
+      coverUrl: viewedCovers.get(row.id)?.url ?? null,
+      views: num(row.viewsCount),
+      salesCount: num(row.salesCount)
     }))
   };
 }
-var resolver130 = {
+var resolver132 = {
   adminStoreSummary: async (_root, { days }, context) => {
     assertPlatformAdmin(context);
     const period = STORE_SUMMARY_DAYS.includes(Number(days)) ? Number(days) : STORE_SUMMARY_DEFAULT_DAYS;
@@ -55863,7 +56069,7 @@ var resolver130 = {
     return value;
   }
 };
-var adminStoreSummary_default = { typeDefs: typeDefs132, definition: definition130, resolver: resolver130 };
+var adminStoreSummary_default = { typeDefs: typeDefs134, definition: definition132, resolver: resolver132 };
 
 // graphql/customs/queries/index.ts
 var customQuery = {

@@ -4,6 +4,7 @@ import verifyPetPlace from "./verifyPetPlace";
 import requestPetPlaceService from "./requestPetPlaceService";
 import createPetPlacePatient from "./createPetPlacePatient";
 import createClinicAppointment from "./createClinicAppointment";
+import recordPetPlaceView from "./recordPetPlaceView";
 
 const veterinaryMutations = {
   typeDefs: `
@@ -13,6 +14,7 @@ const veterinaryMutations = {
     ${requestPetPlaceService.typeDefs}
     ${createPetPlacePatient.typeDefs}
     ${createClinicAppointment.typeDefs}
+    ${recordPetPlaceView.typeDefs}
   `,
   definition: `
     ${claimPetPlace.definition}
@@ -21,6 +23,7 @@ const veterinaryMutations = {
     ${requestPetPlaceService.definition}
     ${createPetPlacePatient.definition}
     ${createClinicAppointment.definition}
+    ${recordPetPlaceView.definition}
   `,
   resolver: {
     ...claimPetPlace.resolver,
@@ -29,6 +32,7 @@ const veterinaryMutations = {
     ...requestPetPlaceService.resolver,
     ...createPetPlacePatient.resolver,
     ...createClinicAppointment.resolver,
+    ...recordPetPlaceView.resolver,
   },
 };
 
