@@ -8668,6 +8668,7 @@ type StoreProduct {
   ratingAverage: Float
   ratingCount: Int
   salesCount: Int
+  viewsCount: Int
   metaTitle: String
   metaDescription: String
   variants(where: StoreProductVariantWhereInput! = {}, orderBy: [StoreProductVariantOrderByInput!]! = [], take: Int! = 200, skip: Int! = 0, cursor: StoreProductVariantWhereUniqueInput): [StoreProductVariant!]
@@ -8715,6 +8716,7 @@ input StoreProductWhereInput {
   ratingAverage: FloatNullableFilter
   ratingCount: IntNullableFilter
   salesCount: IntNullableFilter
+  viewsCount: IntFilter
   metaTitle: StringFilter
   metaDescription: StringFilter
   variants: StoreProductVariantManyRelationFilter
@@ -8772,6 +8774,7 @@ input StoreProductOrderByInput {
   ratingAverage: OrderDirection
   ratingCount: OrderDirection
   salesCount: OrderDirection
+  viewsCount: OrderDirection
   metaTitle: OrderDirection
   metaDescription: OrderDirection
   createdAt: OrderDirection
@@ -8804,6 +8807,7 @@ input StoreProductUpdateInput {
   ratingAverage: Float
   ratingCount: Int
   salesCount: Int
+  viewsCount: Int
   metaTitle: String
   metaDescription: String
   variants: StoreProductVariantRelateToManyForUpdateInput
@@ -8877,6 +8881,7 @@ input StoreProductCreateInput {
   ratingAverage: Float
   ratingCount: Int
   salesCount: Int
+  viewsCount: Int
   metaTitle: String
   metaDescription: String
   variants: StoreProductVariantRelateToManyForCreateInput
@@ -13252,6 +13257,7 @@ type Mutation {
   requestPetPlaceService(input: RequestPetPlaceServiceInput!): RequestPetPlaceServiceResult!
   createPetPlacePatient(input: CreatePetPlacePatientInput!): CreatePetPlacePatientResult!
   createClinicAppointment(input: CreateClinicAppointmentInput!): CreateClinicAppointmentResult!
+  recordPetPlaceView(placeId: ID!): PetPlaceViewResult!
   createAnimalReport(input: CreateAnimalReportInput!): CreateAnimalReportResult!
   reportAnimalSighting(input: ReportAnimalSightingInput!): AnimalSightingResult!
   setAnimalSightingHidden(id: ID!, hidden: Boolean!): AnimalSightingResult!
@@ -13266,6 +13272,7 @@ type Mutation {
   saveMyStoreAddress(id: ID, input: StoreShippingAddressInput!, isDefault: Boolean): StoreShippingAddressResult!
   deleteMyStoreAddress(id: ID!): StoreOrderActionResult!
   expireStoreOrders(secret: String!): ExpireStoreOrdersResult!
+  recordStoreProductView(productId: ID!): StoreProductViewResult!
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
@@ -14445,6 +14452,18 @@ type CreateClinicAppointmentResult {
   appointmentId: String
 }
 
+type PetPlaceViewResult {
+  """
+  Whether this visit counted. The owner, admins, bots and repeats within 30 min do not.
+  """
+  counted: Boolean!
+
+  """
+  Total views to show, or null while the clinic has fewer than the public minimum (the owner and admins always get it).
+  """
+  viewsCount: Int
+}
+
 input CreateAnimalReportInput {
   type: String!
   name: String!
@@ -14779,6 +14798,18 @@ type ExpireStoreOrdersResult {
   checked: Int!
   cancelled: Int!
   paid: Int!
+}
+
+type StoreProductViewResult {
+  """
+  Whether this visit counted. Admins, bots and repeats within 30 min do not.
+  """
+  counted: Boolean!
+
+  """
+  Total views to show, or null while the product has fewer than the public minimum.
+  """
+  viewsCount: Int
 }
 
 type SendAnimalFollowUpsResult {
@@ -16699,6 +16730,18 @@ type AdminPetAnimalsSummary {
   topCities: [AdminCount!]!
 }
 
+type AdminPetTopPlace {
+  id: ID!
+  name: String!
+  slug: String
+  municipality: String
+  state: String
+  verified: Boolean!
+
+  """All-time views of the clinic page (not limited to the period)."""
+  views: Int!
+}
+
 type AdminPetPlacesSummary {
   total: Int!
   veterinaries: Int!
@@ -16711,6 +16754,12 @@ type AdminPetPlacesSummary {
   byClaimStatus: [AdminCount!]!
   byType: [AdminCount!]!
   topStates: [AdminCount!]!
+
+  """Sum of all clinic page views, all time."""
+  views: Int!
+
+  """Clinics with the most page views, all time."""
+  topViewed: [AdminPetTopPlace!]!
 }
 
 type AdminPetUsersSummary {
@@ -17566,6 +17615,9 @@ type AdminStoreProductRow {
   ratingAverage: Float!
   ratingCount: Int!
   salesCount: Int!
+
+  """All-time page views."""
+  viewsCount: Int!
   isFeatured: Boolean!
   externalId: String
   category: String
@@ -17737,6 +17789,19 @@ type AdminStoreSummaryProduct {
   revenueCents: Float!
 }
 
+type AdminStoreSummaryViewed {
+  productId: ID!
+  name: String!
+  slug: String
+  coverUrl: String
+
+  """All-time views of the product page (not limited to the period)."""
+  views: Int!
+
+  """All-time units sold, to compare with the views."""
+  salesCount: Int!
+}
+
 type AdminStoreSummaryCoupon {
   code: String!
   uses: Int!
@@ -17802,4 +17867,7 @@ type AdminStoreSummary {
 
   """Active products about to run out, right now."""
   lowStock: [AdminStoreSummaryStock!]!
+
+  """Active products with the most page views, all time."""
+  topViewed: [AdminStoreSummaryViewed!]!
 }

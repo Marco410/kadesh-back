@@ -114,6 +114,17 @@ export default list({
     ratingAverage: float({ defaultValue: 0, ...readOnly }),
     ratingCount: integer({ defaultValue: 0, ...readOnly }),
     salesCount: integer({ defaultValue: 0, ...readOnly }),
+    // Added by `recordStoreProductView` with raw SQL: a Prisma update would move `updatedAt` and
+    // bump the catalog cache on every visit.
+    viewsCount: integer({
+      defaultValue: 0,
+      db: { isNullable: false },
+      ui: {
+        description: "Vistas de la página del producto. No cuentan los admins, los bots ni repetir en 30 min",
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+      },
+    }),
 
     metaTitle: text(),
     metaDescription: text(),

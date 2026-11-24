@@ -175,7 +175,8 @@ Medido con 12 y con 48 productos: el número no cambia.
 | `storeCartQuote` | 2 a 3 (variantes con su producto, portadas; los ajustes salen de memoria); con cupón, de 1 a 3 más |
 | `myStoreOrders` | 4 |
 | `adminStoreOrders` | 5 (en dos rondas) |
-| `adminStoreSummary` | 8 (en dos rondas de 4), una vez cada 5 min por periodo; devuelve como mucho 90 puntos de serie y 10 filas por lista |
+| `adminStoreSummary` | 10 (dos rondas, más las portadas de los más vistos), una vez cada 5 min por periodo; devuelve como mucho 90 puntos de serie y 10 filas por lista |
+| `recordStoreProductView` | 1 si no cuenta (repetida, admin o bot); 2 si cuenta |
 
 Las URLs de las fotos van firmadas por 1 h: los fronts deben cachear estas páginas menos de eso.
 
@@ -236,6 +237,17 @@ Qué no hacer:
 - No escribir `usedCount` ni `StoreCouponRedemption` fuera de `utils/store/coupons.ts`.
 - No dar huellitas al pagar ni por pieza.
 - No premiar una reseña sin compra verificada.
+
+## Vistas
+
+`StoreProduct.viewsCount` cuenta quién abre la página del producto. La suma `recordStoreProductView`, que el landing llama una vez al abrirla (`components/shared/RecordedViews.tsx`):
+
+- Una por persona (o IP + navegador sin sesión) y producto cada 30 min (`STORE_PRODUCT_VIEW_DEDUPE_MS`), en memoria con `createDeduper`.
+- No cuentan los admins, los bots conocidos ni los productos que no están activos.
+- Se suma con SQL directo: un update de Prisma movería `updatedAt` y vaciaría la caché del catálogo en cada vista.
+- Al público el número se le devuelve solo desde 10 vistas (`STORE_PRODUCT_VIEWS_PUBLIC_MIN`); al admin siempre.
+- No viaja en `storeCatalogProduct`: la página cacheada no depende de él.
+- En Operaciones: «Más vistos» en el resumen de la tienda (`adminStoreSummary.topViewed`, de siempre, con las piezas vendidas al lado) y el ojo en la lista de productos (`adminStoreProducts.viewsCount`).
 
 ## Pendientes
 

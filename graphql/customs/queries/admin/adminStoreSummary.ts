@@ -12,15 +12,16 @@ import {
   STORE_SUMMARY_TOP,
 } from "../../../../models/Pet/Store/constants";
 import { mxDayWindow, mxToday, shiftDay } from "../../../../utils/usage/dailyUsageRollup";
+import { loadStoreCovers } from "../../../../utils/store/catalog";
 import { adminPrisma, assertPlatformAdmin, unwrapPrisma } from "./shared";
 
 /**
  * Sales report of the store (Operaciones → Kadesh Pet → Tienda → Resumen). Platform admin only.
  *
  * A sale is an order that is paid today (not refunded), counted on the day it was paid, in Mexico
- * City time. Orders of test accounts are left out. Everything is aggregated in the database: eight
- * statements in two rounds, whatever the number of orders, and the answer is kept 5 minutes per
- * period.
+ * City time. Orders of test accounts are left out. Everything is aggregated in the database: nine
+ * statements in two rounds plus one for the covers of the most viewed, whatever the number of
+ * orders, and the answer is kept 5 minutes per period.
  */
 
 const typeDefs = `
@@ -45,6 +46,17 @@ const typeDefs = `
     name: String!
     units: Int!
     revenueCents: Float!
+  }
+
+  type AdminStoreSummaryViewed {
+    productId: ID!
+    name: String!
+    slug: String
+    coverUrl: String
+    "All-time views of the product page (not limited to the period)."
+    views: Int!
+    "All-time units sold, to compare with the views."
+    salesCount: Int!
   }
 
   type AdminStoreSummaryCoupon {
@@ -98,6 +110,8 @@ const typeDefs = `
     outOfStock: Int!
     "Active products about to run out, right now."
     lowStock: [AdminStoreSummaryStock!]!
+    "Active products with the most page views, all time."
+    topViewed: [AdminStoreSummaryViewed!]!
   }
 `;
 
@@ -170,7 +184,7 @@ async function computeSummary(context: KeystoneContext, days: number): Promise<S
     `,
   ]);
 
-  const [sources, products, coupons, lowStock] = await Promise.all([
+  const [sources, products, coupons, lowStock, viewed] = await Promise.all([
     prisma.$queryRaw`
       SELECT i."source" AS key, COALESCE(sum(i."quantity"), 0)::int AS units,
         COALESCE(sum(i."totalCents" - i."discountCents"), 0)::float8 AS revenue,
@@ -201,7 +215,22 @@ async function computeSummary(context: KeystoneContext, days: number): Promise<S
       take: STORE_SUMMARY_TOP,
       select: { id: true, name: true, stockTotal: true },
     }),
+    prisma.storeProduct.findMany({
+      where: { status: STORE_PRODUCT_STATUS.ACTIVE, viewsCount: { gt: 0 } },
+      orderBy: [{ viewsCount: "desc" }, { name: "asc" }],
+      take: STORE_SUMMARY_TOP,
+      select: { id: true, name: true, slug: true, viewsCount: true, salesCount: true },
+    }),
   ]);
+
+  const viewedRows = unwrapPrisma(viewed) as Array<{
+    id: string;
+    name: string;
+    slug: string | null;
+    viewsCount: number | null;
+    salesCount: number | null;
+  }>;
+  const viewedCovers = await loadStoreCovers(context, viewedRows.map((row) => row.id));
 
   const total = (unwrapPrisma(totals) as Array<Record<string, unknown>>)[0] ?? {};
   const extra = (unwrapPrisma(extras) as Array<Record<string, unknown>>)[0] ?? {};
@@ -265,6 +294,14 @@ async function computeSummary(context: KeystoneContext, days: number): Promise<S
       productId: row.id,
       name: row.name,
       stockTotal: num(row.stockTotal),
+    })),
+    topViewed: viewedRows.map((row) => ({
+      productId: row.id,
+      name: row.name,
+      slug: row.slug,
+      coverUrl: viewedCovers.get(row.id)?.url ?? null,
+      views: num(row.viewsCount),
+      salesCount: num(row.salesCount),
     })),
   };
 }

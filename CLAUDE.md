@@ -93,6 +93,7 @@ Dato de Keystone 6.5 que explica casi todos los N+1 de este repo: las relaciones
 | Búsquedas de área de Google | 180 días | `utils/helpers/nearby_petplaces.ts` |
 | Sync de PetPlaces con Google | apagado con `ENVIROMENT=DEV`, encendido en el resto; `PET_PLACES_GOOGLE_SYNC=true/false` lo fuerza | `isPetPlacesGoogleSyncEnabled` en `utils/helpers/nearby_petplaces.ts` |
 | Vistas de evento repetidas | 30 min | `models/Pet/PetEvent/constants.ts` |
+| Vistas de producto de la tienda y de veterinaria | repetidas 30 min; al público solo desde 10 (dueño y admin siempre) | `models/Pet/Store/constants.ts` (`STORE_PRODUCT_VIEW*`), `models/Pet/PetPlace/const.ts` (`PET_PLACE_VIEW*`) |
 | Perfil público (`publicUserProfile`) | unas 10 consultas por vista sin caché; el landing guarda la página 5 min por persona | `graphql/customs/queries/publicProfile.ts`, kadesh-landing `src/app/u/[username]/page.tsx` |
 | Caché de `pawLeaderboard` | 10 min por periodo, o hasta que cambie un saldo (`pawsLedgerVersion`); el landing la pide cada 5 min | `models/Pet/Paws/constants.ts` (`LEADERBOARD_CACHE_MS`) |
 | Huellitas | tope global 60 al día; tienda: 10 por línea de pedido entregada de $100 o más y 5 por reseñar lo comprado, tope de 3 al día cada una; topes por acción y niveles en el mismo archivo; apagado sin `PAWS_ENABLED=true` | `models/Pet/Paws/constants.ts`, `utils/pet/paws.ts` |
