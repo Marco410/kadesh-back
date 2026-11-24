@@ -13,6 +13,7 @@ import registerWhatsAppWebhook from "./webhooks/whatsapp";
 import registerClickUpWebhook from "./webhooks/clickup";
 import registerMetaDataDeletionWebhook from "./webhooks/metaDataDeletion";
 import registerStripeWebhook from "./webhooks/stripe";
+import registerMetaCatalogFeed from "./feeds/metaCatalogFeed";
 import { logPlatformWhatsappStatus } from "./utils/notifications/whatsapp";
 
 // Setup environment variables
@@ -218,6 +219,8 @@ export default withSessionGuards(withAuth(
         registerClickUpWebhook(app, context);
         registerMetaDataDeletionWebhook(app, context);
         registerStripeWebhook(app, context);
+        // Feed de la tienda de Kadesh Pet para el catálogo de Meta y URLs estables de sus fotos.
+        registerMetaCatalogFeed(app, context);
       },
     },
     storage,

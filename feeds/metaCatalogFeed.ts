@@ -1,0 +1,132 @@
+import crypto from "crypto";
+import type { Express, Request, Response } from "express";
+import type { KeystoneContext } from "@keystone-6/core/types";
+import { STORE_PRODUCT_STATUS } from "../models/Pet/Store/constants";
+import { storeCatalogVersion, storeEnabled } from "../utils/store/config";
+import { storeImageUrl, storePrisma } from "../utils/store/catalog";
+import {
+  META_FEED_CACHE_MS,
+  META_FEED_PATH,
+  STORE_MEDIA_PATH,
+  buildMetaFeedRows,
+  loadMetaFeedProducts,
+  toMetaFeedCsv,
+} from "../utils/store/metaFeed";
+
+/**
+ * Public routes for the Meta catalog of Kadesh Pet (see utils/store/metaFeed.ts):
+ *
+ * - `GET /feeds/meta/kadesh-pet.csv`: the product feed Meta downloads with a scheduled source.
+ *   With `META_FEED_USER` and `META_FEED_PASSWORD` set it asks for Basic Auth; without them it is
+ *   public. Kept in memory 15 min (rebuilt sooner after a catalog edit).
+ * - `GET /media/store/:imageId`: stable URL of a store photo. Redirects to a freshly signed R2 URL,
+ *   so the feed never carries URLs that expire. One primary-key lookup per request.
+ */
+
+/** Signed URLs last 1 h: the redirect must not be cached longer. */
+const MEDIA_REDIRECT_MAX_AGE_S = 30 * 60;
+const IMAGE_ID = /^[a-z0-9]{8,40}$/i;
+
+let cached: { key: string; csv: string; at: number } | null = null;
+
+/** Public base URL of this backend: `PUBLIC_BACKEND_URL`, else the host Meta called. */
+function backendBaseUrl(req: Request): string {
+  const configured = (process.env.PUBLIC_BACKEND_URL ?? "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  const forwardedProto = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim();
+  const proto = forwardedProto || req.protocol || "https";
+  return `${proto}://${req.get("host")}`;
+}
+
+function sha256(value: string): Buffer {
+  return crypto.createHash("sha256").update(value).digest();
+}
+
+/** `true` when no credentials are configured, or the request carries the right ones. */
+function isAuthorized(req: Request): boolean {
+  const user = process.env.META_FEED_USER ?? "";
+  const password = process.env.META_FEED_PASSWORD ?? "";
+  if (!user || !password) return true;
+  const header = req.headers.authorization ?? "";
+  const match = /^Basic\s+(.+)$/i.exec(header);
+  if (!match) return false;
+  const expected = sha256(`${user}:${password}`);
+  const received = sha256(Buffer.from(match[1], "base64").toString("utf8"));
+  return crypto.timingSafeEqual(expected, received);
+}
+
+async function buildCsv(context: KeystoneContext, baseUrl: string): Promise<string> {
+  if (!storeEnabled()) return toMetaFeedCsv([]);
+  const key = `${storeCatalogVersion()}|${baseUrl}`;
+  const now = Date.now();
+  if (cached && cached.key === key && now - cached.at < META_FEED_CACHE_MS) return cached.csv;
+
+  const products = await loadMetaFeedProducts(context);
+  const { rows, skipped } = buildMetaFeedRows(products, { mediaBaseUrl: baseUrl });
+  if (skipped.length > 0) {
+    console.info(
+      `[meta feed] ${rows.length} rows; left out ${skipped.length} products:`,
+      skipped.map((skip) => `${skip.productId} (${skip.reason})`).join(", "),
+    );
+  }
+  const csv = toMetaFeedCsv(rows);
+  cached = { key, csv, at: now };
+  return csv;
+}
+
+async function handleFeed(req: Request, res: Response, context: KeystoneContext) {
+  if (!isAuthorized(req)) {
+    res.set("WWW-Authenticate", 'Basic realm="Kadesh Pet feed", charset="UTF-8"');
+    res.status(401).send("Unauthorized");
+    return;
+  }
+  const csv = await buildCsv(context, backendBaseUrl(req));
+  res.set("Content-Type", "text/csv; charset=utf-8");
+  res.set("Cache-Control", "public, max-age=900");
+  res.set("Content-Disposition", 'inline; filename="kadesh-pet.csv"');
+  res.status(200).send(csv);
+}
+
+async function handleMedia(req: Request, res: Response, context: KeystoneContext) {
+  const imageId = String(req.params.imageId ?? "");
+  if (!IMAGE_ID.test(imageId) || !storeEnabled()) {
+    res.sendStatus(404);
+    return;
+  }
+  const row = await storePrisma(context).storeProductImage.findUnique({
+    where: { id: imageId },
+    select: { image_id: true, image_extension: true, externalUrl: true, product: { select: { status: true } } },
+  });
+  if (row instanceof Error) throw row;
+  if (!row || row.product?.status !== STORE_PRODUCT_STATUS.ACTIVE) {
+    res.sendStatus(404);
+    return;
+  }
+  const url = await storeImageUrl(context, row);
+  if (!url) {
+    res.sendStatus(404);
+    return;
+  }
+  res.set("Cache-Control", `public, max-age=${MEDIA_REDIRECT_MAX_AGE_S}`);
+  res.redirect(302, url);
+}
+
+function run(
+  label: string,
+  handler: (req: Request, res: Response, context: KeystoneContext) => Promise<void>,
+  req: Request,
+  res: Response,
+  context: KeystoneContext,
+) {
+  void handler(req, res, context).catch((error: unknown) => {
+    console.error(`[meta feed] ${label} failed`, error);
+    if (!res.headersSent) res.sendStatus(500);
+  });
+}
+
+export default function registerMetaCatalogFeed(app: Express, context: KeystoneContext) {
+  app.get(META_FEED_PATH, (req: Request, res: Response) => run("feed", handleFeed, req, res, context));
+  app.get(`${STORE_MEDIA_PATH}/:imageId`, (req: Request, res: Response) =>
+    run("media", handleMedia, req, res, context),
+  );
+}
