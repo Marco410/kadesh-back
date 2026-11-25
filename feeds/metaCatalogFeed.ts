@@ -2,9 +2,9 @@ import crypto from "crypto";
 import type { Express, Request, Response } from "express";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { STORE_PRODUCT_STATUS } from "../models/Pet/Store/constants";
-import { storeCatalogVersion, storeEnabled } from "../utils/store/config";
+import { bumpStoreCatalogVersion, storeCatalogVersion, storeEnabled } from "../utils/store/config";
 import { storePrisma } from "../utils/store/catalog";
-import { feedImageVersion, getFeedJpeg } from "../utils/store/feedImages";
+import { feedImageVersion, getFeedJpeg, imageSize } from "../utils/store/feedImages";
 import {
   META_FEED_CACHE_MS,
   META_FEED_PATH,
@@ -90,6 +90,26 @@ async function handleFeed(req: Request, res: Response, context: KeystoneContext)
   res.status(200).send(csv);
 }
 
+/**
+ * Stores the size of a photo that had none, measured on the JPEG copy. The copy is never enlarged
+ * (only shrunk past 2048 px), so it is the original's size wherever the 500×500 check matters.
+ * Prisma `updateMany` guarded by a null size: written once, without list hooks.
+ */
+async function saveImageSize(context: KeystoneContext, id: string, jpeg: Buffer): Promise<void> {
+  const size = await imageSize(jpeg);
+  if (!size) return;
+  try {
+    const result = await storePrisma(context).storeProductImage.updateMany({
+      where: { id, OR: [{ image_width: null }, { image_height: null }] },
+      data: { image_width: size.width, image_height: size.height },
+    });
+    if (result instanceof Error) throw result;
+    if (result.count > 0) bumpStoreCatalogVersion();
+  } catch (error) {
+    console.error("[meta feed] could not save photo size:", id, error);
+  }
+}
+
 async function handleMedia(req: Request, res: Response, context: KeystoneContext) {
   // `<id>` and `<id>.jpg` are the same photo; the feed uses the second.
   const imageId = String(req.params.file ?? "").replace(/\.jpe?g$/i, "");
@@ -104,6 +124,8 @@ async function handleMedia(req: Request, res: Response, context: KeystoneContext
       image_id: true,
       image_extension: true,
       externalUrl: true,
+      image_width: true,
+      image_height: true,
       product: { select: { status: true } },
     },
   });
@@ -112,12 +134,15 @@ async function handleMedia(req: Request, res: Response, context: KeystoneContext
     res.sendStatus(404);
     return;
   }
+  // Photos with no stored size (external links) pass the feed's 500×500 check; the first time they
+  // are served, the size is measured and saved so the next feed build can judge them.
+  const sizeUnknown = row.image_width == null || row.image_height == null;
 
   const etag = `"${feedImageVersion(row)}"`;
   res.set("Cache-Control", `public, max-age=${MEDIA_MAX_AGE_S}`);
   res.set("ETag", etag);
   const ifNoneMatch = String(req.headers["if-none-match"] ?? "");
-  if (ifNoneMatch.split(",").some((tag) => tag.trim().replace(/^W\//, "") === etag)) {
+  if (!sizeUnknown && ifNoneMatch.split(",").some((tag) => tag.trim().replace(/^W\//, "") === etag)) {
     res.status(304).end();
     return;
   }
@@ -129,6 +154,7 @@ async function handleMedia(req: Request, res: Response, context: KeystoneContext
     res.sendStatus(404);
     return;
   }
+  if (sizeUnknown) await saveImageSize(context, row.id, jpeg);
   res.set("Content-Type", "image/jpeg");
   res.set("Content-Length", String(jpeg.length));
   res.status(200).end(jpeg);

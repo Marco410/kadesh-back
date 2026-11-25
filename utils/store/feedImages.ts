@@ -88,7 +88,18 @@ async function downloadExternal(url: string): Promise<Buffer | null> {
   return Buffer.concat(chunks);
 }
 
-async function loadOriginal(row: FeedImageSource): Promise<Buffer | null> {
+/** Width and height of an image, read from its header. `null` when sharp cannot read it. */
+export async function imageSize(buffer: Buffer): Promise<{ width: number; height: number } | null> {
+  try {
+    const { width, height } = await sharp(buffer).metadata();
+    return width && height ? { width, height } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The original of a store photo (R2, local disk or its external URL), up to 25 MB. */
+export async function loadStoreImageOriginal(row: FeedImageSource): Promise<Buffer | null> {
   if (row.image_id) {
     const file = `${row.image_id}.${row.image_extension || "jpg"}`;
     return hasObjectStorage()
@@ -141,7 +152,7 @@ export async function getFeedJpeg(row: FeedImageSource): Promise<Buffer | null> 
     const cached = await readCopy(name);
     if (cached) return cached;
     const jpeg = await withConversionSlot(async () => {
-      const original = await loadOriginal(row);
+      const original = await loadStoreImageOriginal(row);
       return original ? toFeedJpeg(original) : null;
     });
     if (!jpeg) return null;
