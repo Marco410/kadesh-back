@@ -95,7 +95,7 @@ export default list({
     weight: integer({
       defaultValue: 5,
       validation: { isRequired: true, min: AD_WEIGHT.MIN, max: AD_WEIGHT.MAX },
-      ui: { description: "Peso en la rotación (1–10). Los de la casa llevan 1 y solo rellenan." },
+      ui: { description: "Peso en la rotación (1–10): reparte el tiempo en pantalla. Con 2 sale el doble que con 1." },
     }),
 
     geoScope: select({
