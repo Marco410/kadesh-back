@@ -190,7 +190,7 @@ function petFrontendBaseUrl(): string {
   ).replace(/\/$/, "");
 }
 
-function animalPublicUrl(slug: string): string {
+export function animalPublicUrl(slug: string): string {
   return `${petFrontendBaseUrl()}/animales/${slug}`;
 }
 
