@@ -14,6 +14,7 @@ import { syncAnimalOutcomeFromLog } from "../Animal.outcome";
 import { touchAnimalActivity } from "../Animal.followUp";
 import { logAnimalLogActivity } from "../../../../utils/pet/petActivity";
 import { fillCityFromCoordinates } from "../../../../utils/pet/animalReport";
+import { syncAnimalLogFacebookComment } from "./AnimalLog.facebookComment";
 
 export default list({
   access: animalChildAccess,
@@ -55,6 +56,8 @@ export default list({
       await touchAnimalActivity(args);
       // Actividad de Kadesh Pet: cambio de estado o bitácora borrada.
       void logAnimalLogActivity(args);
+      // Comentario en el post de Facebook del animal (si ya tiene post). No frena la operación.
+      void syncAnimalLogFacebookComment(args);
     },
   },
   fields: {
@@ -96,6 +99,13 @@ export default list({
       },
     }),
     last_seen: checkbox(),
+    /** Comentario que dejó este registro en el post de Facebook del animal (se borra con el registro). */
+    facebookCommentId: text({
+      ui: {
+        itemView: { fieldMode: "read" },
+        description: "Id del comentario en el post de la Página de Facebook de Pet",
+      },
+    }),
     createdAt: timestamp({
       defaultValue: {
         kind: "now",
