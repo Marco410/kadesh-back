@@ -1827,6 +1827,118 @@ input AnimalViewCreateInput {
   createdAt: DateTime
 }
 
+type Donation {
+  id: ID!
+  unitCount: Int
+  amountCents: Int
+  currency: String
+  donorName: String
+  donorEmail: String
+  donorKey: String
+  user: User
+  message: String
+  isAnonymous: Boolean
+  hideFromWall: Boolean
+  messageHidden: Boolean
+  status: String
+  checkoutKey: String
+  stripePaymentIntentId: String
+  stripeChargeId: String
+  source: String
+  sourceRef: String
+  errorMessage: String
+  paidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DonationWhereUniqueInput {
+  id: ID
+  checkoutKey: String
+  stripePaymentIntentId: String
+}
+
+input DonationWhereInput {
+  AND: [DonationWhereInput!]
+  OR: [DonationWhereInput!]
+  NOT: [DonationWhereInput!]
+  id: IDFilter
+  unitCount: IntFilter
+  amountCents: IntFilter
+  currency: StringFilter
+  donorName: StringFilter
+  donorEmail: StringFilter
+  donorKey: StringFilter
+  user: UserWhereInput
+  message: StringFilter
+  isAnonymous: BooleanFilter
+  hideFromWall: BooleanFilter
+  messageHidden: BooleanFilter
+  status: StringFilter
+  checkoutKey: StringNullableFilter
+  stripePaymentIntentId: StringNullableFilter
+  stripeChargeId: StringNullableFilter
+  source: StringNullableFilter
+  sourceRef: StringFilter
+  errorMessage: StringFilter
+  paidAt: DateTimeNullableFilter
+  createdAt: DateTimeNullableFilter
+  updatedAt: DateTimeNullableFilter
+}
+
+input DonationOrderByInput {
+  id: OrderDirection
+  unitCount: OrderDirection
+  amountCents: OrderDirection
+  currency: OrderDirection
+  donorName: OrderDirection
+  donorEmail: OrderDirection
+  donorKey: OrderDirection
+  message: OrderDirection
+  isAnonymous: OrderDirection
+  hideFromWall: OrderDirection
+  messageHidden: OrderDirection
+  status: OrderDirection
+  checkoutKey: OrderDirection
+  stripePaymentIntentId: OrderDirection
+  stripeChargeId: OrderDirection
+  source: OrderDirection
+  sourceRef: OrderDirection
+  errorMessage: OrderDirection
+  paidAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input DonationUpdateInput {
+  unitCount: Int
+  amountCents: Int
+  currency: String
+  donorName: String
+  donorEmail: String
+  donorKey: String
+  user: UserRelateToOneForUpdateInput
+  message: String
+  isAnonymous: Boolean
+  hideFromWall: Boolean
+  messageHidden: Boolean
+  status: String
+  checkoutKey: String
+  stripePaymentIntentId: String
+  stripeChargeId: String
+  source: String
+  sourceRef: String
+  errorMessage: String
+  paidAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DonationUpdateArgs {
+  where: DonationWhereUniqueInput!
+  data: DonationUpdateInput!
+}
+
 type BlogSubscription {
   id: ID!
   email: String
@@ -12762,6 +12874,8 @@ type Mutation {
   updateAnimalViews(data: [AnimalViewUpdateArgs!]!): [AnimalView]
   deleteAnimalView(where: AnimalViewWhereUniqueInput!): AnimalView
   deleteAnimalViews(where: [AnimalViewWhereUniqueInput!]!): [AnimalView]
+  updateDonation(where: DonationWhereUniqueInput!, data: DonationUpdateInput!): Donation
+  updateDonations(data: [DonationUpdateArgs!]!): [Donation]
   createBlogSubscription(data: BlogSubscriptionCreateInput!): BlogSubscription
   createBlogSubscriptions(data: [BlogSubscriptionCreateInput!]!): [BlogSubscription]
   updateBlogSubscription(where: BlogSubscriptionWhereUniqueInput!, data: BlogSubscriptionUpdateInput!): BlogSubscription
@@ -13411,6 +13525,8 @@ type Mutation {
   deleteMyStoreAddress(id: ID!): StoreOrderActionResult!
   expireStoreOrders(secret: String!): ExpireStoreOrdersResult!
   recordStoreProductView(productId: ID!): StoreProductViewResult!
+  startDonation(input: StartDonationInput!): StartDonationResult!
+  settleDonation(donationId: ID!): Boolean!
   sendAnimalFollowUps(secret: String!): SendAnimalFollowUpsResult!
   submitAdoptionApplication(animalId: ID!, input: AdoptionApplicationInput!): AdoptionApplicationResult!
 
@@ -13531,6 +13647,9 @@ type Query {
   animalView(where: AnimalViewWhereUniqueInput!): AnimalView
   animalViews(where: AnimalViewWhereInput! = {}, orderBy: [AnimalViewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AnimalViewWhereUniqueInput): [AnimalView!]
   animalViewsCount(where: AnimalViewWhereInput! = {}): Int
+  donation(where: DonationWhereUniqueInput!): Donation
+  donations(where: DonationWhereInput! = {}, orderBy: [DonationOrderByInput!]! = [], take: Int! = 100, skip: Int! = 0, cursor: DonationWhereUniqueInput): [Donation!]
+  donationsCount(where: DonationWhereInput! = {}): Int
   blogSubscription(where: BlogSubscriptionWhereUniqueInput!): BlogSubscription
   blogSubscriptions(where: BlogSubscriptionWhereInput! = {}, orderBy: [BlogSubscriptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BlogSubscriptionWhereUniqueInput): [BlogSubscription!]
   blogSubscriptionsCount(where: BlogSubscriptionWhereInput! = {}): Int
@@ -13916,6 +14035,9 @@ type Query {
   myStoreOrders(take: Int, skip: Int): StoreOrdersResult!
   myStoreOrder(number: String!): StoreOrderDetail
   myStoreAddresses: [StoreShippingAddress!]!
+  donationWall(take: Int, skip: Int): DonationWallPage!
+  donorRanking(period: String, take: Int): [DonorRankingEntry!]!
+  donationSummary: DonationSummary!
   adminStoreProducts(
     search: String
     source: String
@@ -14957,6 +15079,47 @@ type StoreProductViewResult {
   Total views to show, or null while the product has fewer than the public minimum.
   """
   viewsCount: Int
+}
+
+input StartDonationInput {
+  """Patitas (1 = $25 MXN), 1 to 400."""
+  unitCount: Int!
+  donorName: String
+
+  """Required without a session; ignored with one."""
+  donorEmail: String
+  message: String
+  isAnonymous: Boolean
+
+  """
+  Not on the wall nor the donor top (still counts in the summary). The message only reaches the team.
+  """
+  hideFromWall: Boolean
+
+  """
+  Where the form was opened: header | animal | veterinary | blog | blog_post | home | donations_page | reunited | event | profile | footer | about | contact.
+  """
+  source: String
+
+  """Slug of the page (animal, veterinary, post, event)."""
+  sourceRef: String
+
+  """
+  Random key of this form; a retry with it answers the same donation instead of a new charge.
+  """
+  checkoutKey: String
+  turnstileToken: String
+}
+
+type StartDonationResult {
+  success: Boolean!
+
+  """INVALID | DONATIONS_CLOSED | PAYMENT_ERROR"""
+  code: String
+  message: String!
+  donationId: ID
+  clientSecret: String
+  amountCents: Int
 }
 
 type SendAnimalFollowUpsResult {
@@ -17766,6 +17929,47 @@ type StoreOrderDetail {
   canPay: Boolean!
   returnPolicy: String
   supportWhatsapp: String
+}
+
+type DonationWallEntry {
+  id: ID!
+
+  """«Marco C.» or «Alguien anónimo»."""
+  displayName: String!
+
+  """Patitas of this donation (1 = $25 MXN)."""
+  unitCount: Int!
+
+  """Null when there is none or an admin hid it."""
+  message: String
+  paidAt: String!
+}
+
+type DonationWallPage {
+  items: [DonationWallEntry!]!
+  hasMore: Boolean!
+}
+
+type DonorRankingEntry {
+  rank: Int!
+  displayName: String!
+
+  """Patitas in the requested period."""
+  units: Int!
+
+  """How many donations make up those patitas."""
+  donations: Int!
+}
+
+type DonationSummary {
+  """People (or anonymous donations) who gave at least one patita."""
+  supporters: Int!
+  units: Int!
+
+  """
+  Paid donations whose message shows on the wall (the landing shows the wall from 5).
+  """
+  wallMessages: Int!
 }
 
 type AdminStoreProductRow {

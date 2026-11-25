@@ -60,6 +60,7 @@ import StoreOrder from "./Pet/Store/StoreOrder/StoreOrder";
 import StoreOrderItem from "./Pet/Store/StoreOrderItem/StoreOrderItem";
 import StoreOrderEvent from "./Pet/Store/StoreOrderEvent/StoreOrderEvent";
 import StorePayment from "./Pet/Store/StorePayment/StorePayment";
+import Donation from "./Pet/Donation/Donation";
 import StoreShipment from "./Pet/Store/StoreShipment/StoreShipment";
 import StoreSettings from "./Pet/Store/StoreSettings/StoreSettings";
 import TokenNotification from "./TokenNotification/TokenNotification";
@@ -138,6 +139,7 @@ export default withActivityHooks({
   AnimalSighting,
   AnimalType,
   AnimalView,
+  Donation,
   BlogSubscription,
   Cart,
   Category,

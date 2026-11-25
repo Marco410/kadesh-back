@@ -180,6 +180,15 @@ export const RATE_LIMIT_RULES: readonly RateLimitRule[] = [
     windowMs: DAY,
   },
   {
+    // «Dame una patita»: each attempt may open a Stripe PaymentIntent (card testing target).
+    key: "donation_ip",
+    label: "Donaciones («Dame una patita») por IP",
+    fields: ["startDonation", "settleDonation"],
+    scope: "ip",
+    limit: 10,
+    windowMs: HOUR,
+  },
+  {
     // Each attempt reserves stock and may open a Stripe PaymentIntent.
     key: "store_order_ip",
     label: "Pedidos de la tienda por IP",
