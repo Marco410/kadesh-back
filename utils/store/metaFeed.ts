@@ -81,10 +81,12 @@ export type MetaFeedProduct = {
     stock: number | null;
     isActive?: boolean | null;
   }>;
-  images: Array<{ id: string }>;
+  /** Size of the uploaded original; null for external photos (unknown, let through). */
+  images: Array<{ id: string; width?: number | null; height?: number | null }>;
 };
 
-export type MetaFeedSkip = { productId: string; reason: "no_variant_on_sale" | "no_image" };
+/** `no_valid_image`: no photo at all, or none of at least 500×500. */
+export type MetaFeedSkip = { productId: string; reason: "no_variant_on_sale" | "no_valid_image" };
 
 // ─── Text cleanup ────────────────────────────────────────────────────────────────────────────
 
@@ -199,8 +201,18 @@ export function feedProductLink(product: { slug: string | null; id: string }): s
   return `${META_FEED_STORE_URL}/${encodeURIComponent(product.slug || product.id)}?${META_FEED_UTM}`;
 }
 
+/** Meta rejects smaller photos: the feed leaves them out. */
+export const META_FEED_IMAGE_MIN_PX = 500;
+
+/** Size check for the feed. Unknown size (external photos) is let through. */
+export function isFeedImageLargeEnough(width: number | null | undefined, height: number | null | undefined): boolean {
+  if (width == null || height == null) return true;
+  return width >= META_FEED_IMAGE_MIN_PX && height >= META_FEED_IMAGE_MIN_PX;
+}
+
+/** JPEG copy of a store photo, served by `feeds/metaCatalogFeed.ts`. */
 export function storeMediaUrl(baseUrl: string, imageId: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}${STORE_MEDIA_PATH}/${encodeURIComponent(imageId)}`;
+  return `${baseUrl.replace(/\/+$/, "")}${STORE_MEDIA_PATH}/${encodeURIComponent(imageId)}.jpg`;
 }
 
 function productType(category: MetaFeedProduct["category"]): string {
@@ -228,9 +240,11 @@ export function isMetaFeedProduct(product: { status: string; source: string }): 
 export function buildMetaFeedRows(
   products: MetaFeedProduct[],
   options: { mediaBaseUrl: string },
-): { rows: MetaFeedRow[]; skipped: MetaFeedSkip[] } {
+): { rows: MetaFeedRow[]; skipped: MetaFeedSkip[]; smallImages: number } {
   const rows: MetaFeedRow[] = [];
   const skipped: MetaFeedSkip[] = [];
+  /** Photos left out for being under 500×500, in products that made it into the feed or not. */
+  let smallImages = 0;
 
   for (const product of products) {
     if (!isMetaFeedProduct(product)) continue;
@@ -241,14 +255,17 @@ export function buildMetaFeedRows(
       skipped.push({ productId: product.id, reason: "no_variant_on_sale" });
       continue;
     }
-    if (product.images.length === 0) {
-      skipped.push({ productId: product.id, reason: "no_image" });
+    // A small cover gives way to the next photo that is large enough.
+    const images = product.images.filter((image) => isFeedImageLargeEnough(image.width, image.height));
+    smallImages += product.images.length - images.length;
+    if (images.length === 0) {
+      skipped.push({ productId: product.id, reason: "no_valid_image" });
       continue;
     }
 
     const name = cleanInlineText(product.name);
     const description = cleanDescription(product.description) || cleanDescription(product.shortDescription) || name;
-    const [cover, ...rest] = product.images;
+    const [cover, ...rest] = images;
     const shared = {
       description,
       condition: "new",
@@ -278,7 +295,7 @@ export function buildMetaFeedRows(
       });
     }
   }
-  return { rows, skipped };
+  return { rows, skipped, smallImages };
 }
 
 // ─── CSV ────────────────────────────────────────────────────────────────────────────────────
@@ -303,6 +320,8 @@ export function toMetaFeedCsv(rows: MetaFeedRow[]): string {
 }
 
 // ─── Database ───────────────────────────────────────────────────────────────────────────────
+
+type ImageRow = { id: string; image_width: number | null; image_height: number | null };
 
 /**
  * Every product of the feed in one Prisma call (Prisma batches each relation with `IN`: about seven
@@ -337,12 +356,15 @@ export async function loadMetaFeedProducts(context: KeystoneContext): Promise<Me
       images: {
         where: { OR: [{ image_id: { not: null } }, { externalUrl: { not: null } }] },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-        select: { id: true },
+        select: { id: true, image_width: true, image_height: true },
       },
     },
   });
   if (result instanceof Error) throw result;
-  const products = result as MetaFeedProduct[];
+  const products = (result as Array<Omit<MetaFeedProduct, "images"> & { images: ImageRow[] }>).map((product) => ({
+    ...product,
+    images: product.images.map((image) => ({ id: image.id, width: image.image_width, height: image.image_height })),
+  }));
   if (products.length >= META_FEED_MAX_PRODUCTS) {
     console.warn(`[meta feed] reached ${META_FEED_MAX_PRODUCTS} products: raise META_FEED_MAX_PRODUCTS`);
   }
