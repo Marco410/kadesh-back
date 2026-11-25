@@ -27,6 +27,8 @@ import closeAnimalReport from "./pet/closeAnimalReport";
 import animalSightings from "./pet/animalSightings";
 import petPaws from "./pet/paws";
 import storeMutations from "./store";
+import startDonation from "./donations/startDonation";
+import settleDonation from "./donations/settleDonation";
 import sendAnimalFollowUps from "./pet/sendAnimalFollowUps";
 import adoptionApplications from "./pet/adoptionApplications";
 import petCardMutations from "./pet/card";
@@ -95,6 +97,8 @@ const customMutation = {
     ${animalSightings.typeDefs}
     ${petPaws.typeDefs}
     ${storeMutations.typeDefs}
+    ${startDonation.typeDefs}
+    ${settleDonation.typeDefs}
     ${sendAnimalFollowUps.typeDefs}
     ${adoptionApplications.typeDefs}
     ${petCardMutations.typeDefs}
@@ -162,6 +166,8 @@ const customMutation = {
     ${animalSightings.definition}
     ${petPaws.definition}
     ${storeMutations.definition}
+    ${startDonation.definition}
+    ${settleDonation.definition}
     ${sendAnimalFollowUps.definition}
     ${adoptionApplications.definition}
     ${petCardMutations.definition}
@@ -229,6 +235,8 @@ const customMutation = {
     ...animalSightings.resolver,
     ...petPaws.resolver,
     ...storeMutations.resolver,
+    ...startDonation.resolver,
+    ...settleDonation.resolver,
     ...sendAnimalFollowUps.resolver,
     ...adoptionApplications.resolver,
     ...petCardMutations.resolver,

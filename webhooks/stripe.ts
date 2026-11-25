@@ -17,6 +17,11 @@ import {
   handleStorePaymentIntentFailed,
   handleStorePaymentIntentSucceeded,
 } from "./stripeStore";
+import {
+  handleDonationChargeRefunded,
+  handleDonationPaymentIntentFailed,
+  handleDonationPaymentIntentSucceeded,
+} from "./stripeDonation";
 
 /**
  * Webhook de Stripe: lo que pasa con el cobro después del checkout.
@@ -26,6 +31,7 @@ import {
  * - `charge.refunded` → el `SaasPayment` queda `refunded` + `billing.refunded`.
  * - `payment_intent.succeeded` / `.payment_failed` y los `charge.refunded` de la tienda de Kadesh Pet
  *   (PaymentIntent con `metadata.kind = "store_order"`) → `webhooks/stripeStore.ts`.
+ * - Lo mismo para las donaciones «Dame una patita» (`metadata.kind = "donation"`) → `webhooks/stripeDonation.ts`.
  *
  * Firma obligatoria con `STRIPE_WEBHOOK_SECRET`; sin esa variable no procesa nada.
  * Idempotente por estado: Stripe reintenta y a veces repite eventos, así que cada handler revisa
@@ -300,6 +306,7 @@ async function handleChargeRefunded(context: KeystoneContext, event: AnyObject) 
   if (!charge?.id) return;
   // Un cargo de la tienda de Kadesh Pet no es un SaasPayment.
   if (await handleStoreChargeRefunded(context, charge)) return;
+  if (await handleDonationChargeRefunded(context, charge)) return;
   const refs = [charge.id, str(charge.payment_intent), str(charge.invoice)].filter(
     (ref): ref is string => Boolean(ref),
   );
@@ -336,8 +343,15 @@ const HANDLERS: Record<string, (context: KeystoneContext, event: AnyObject) => P
   "customer.subscription.updated": handleSubscriptionChange,
   "customer.subscription.deleted": handleSubscriptionChange,
   "charge.refunded": handleChargeRefunded,
-  "payment_intent.succeeded": handleStorePaymentIntentSucceeded,
-  "payment_intent.payment_failed": handleStorePaymentIntentFailed,
+  // Each handler only acts on its own `metadata.kind` (store order or donation).
+  "payment_intent.succeeded": async (context, event) => {
+    await handleStorePaymentIntentSucceeded(context, event);
+    await handleDonationPaymentIntentSucceeded(context, event);
+  },
+  "payment_intent.payment_failed": async (context, event) => {
+    await handleStorePaymentIntentFailed(context, event);
+    await handleDonationPaymentIntentFailed(context, event);
+  },
 };
 
 /** Aplica un evento ya verificado. Exportado para pruebas y para reprocesar eventos a mano. */
