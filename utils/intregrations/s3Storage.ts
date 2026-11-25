@@ -45,6 +45,36 @@ export async function uploadBufferToStorage({
   );
 }
 
+/**
+ * Reads an object of the bucket into memory, up to `maxBytes` (throws past it). `null` when the key
+ * does not exist.
+ */
+export async function readStorageObject(key: string, maxBytes: number): Promise<Buffer | null> {
+  const client = getClient();
+  let response;
+  try {
+    response = await client.send(new GetObjectCommand({ Bucket: getBucketName(), Key: key }));
+  } catch (error: any) {
+    if (error?.name === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404) return null;
+    throw error;
+  }
+  if (Number(response.ContentLength) > maxBytes) {
+    (response.Body as any)?.destroy?.();
+    throw new Error(`[storage] ${key} is larger than ${maxBytes} bytes`);
+  }
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+    total += chunk.byteLength;
+    if (total > maxBytes) {
+      (response.Body as any)?.destroy?.();
+      throw new Error(`[storage] ${key} is larger than ${maxBytes} bytes`);
+    }
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
 /** URL firmada de lectura, igual criterio que el resto del bucket (privado, 1h de vigencia). */
 export async function getSignedStorageUrl({
   key,
