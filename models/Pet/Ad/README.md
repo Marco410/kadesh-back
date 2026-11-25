@@ -15,7 +15,8 @@ ads and reads the report.
     A new screen that shows ads adds a value to `AD_PLACEMENT` (and to the copies in the fronts).
   - Live when `status = active` and today (Mexico City) is between `startDate` and `endDate`
     (either may be empty). The hourly cron `expireAds` moves past ones to `ended`.
-  - `weight` (1–10) is its share of the rotation. House ads use 1.
+  - `weight` (1–10) is its share of the rotation time. House ads start at 1 and compete like any
+    other.
   - `tone`: color of the card. A name (`orange`, `green`, `sky`, `violet`, `neutral`) that each
     front maps to its own classes, or a custom `#rrggbb` (stored in lowercase; `#abc` and `abcdef`
     are normalized). From a custom color each front derives the same shades: the button is the
@@ -41,8 +42,9 @@ ads and reads the report.
   3. by zone: `radius` ads only within `radiusKm` of the screen's reference point (the animal's or
      clinic's location on its page; the visitor's approximate location on blog and store). Without
      a reference point, only `national` ads;
-  4. weighted rotation; a matching zone ad weighs double. House ads show only when nothing else
-     applies.
+  4. up to 4, shuffled by weight; a matching zone ad weighs double. The weight also splits the
+     time: each turn lasts 10 s and each ad gets as many turns per round as its weight, spread out
+     (weights 5 and 1 → 5 of every 6 turns). House ads take part like the rest.
 
 ## Counting
 
