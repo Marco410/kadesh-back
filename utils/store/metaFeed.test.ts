@@ -126,8 +126,8 @@ describe("Meta feed: which products go in", () => {
       rows[0].link,
       "https://pet.kadesh.com.mx/tienda/cepillo-quita-pelo?utm_source=facebook&utm_medium=catalogo&utm_campaign=tienda",
     );
-    assert.equal(rows[0].image_link, `${MEDIA}/media/store/kp-cover`);
-    assert.equal(rows[0].additional_image_link, `${MEDIA}/media/store/kp-2,${MEDIA}/media/store/kp-3`);
+    assert.equal(rows[0].image_link, `${MEDIA}/media/store/kp-cover.jpg`);
+    assert.equal(rows[0].additional_image_link, `${MEDIA}/media/store/kp-2.jpg,${MEDIA}/media/store/kp-3.jpg`);
   });
 
   it("never mentions Dropi, cost, supplier ids or supplier text", () => {
@@ -156,7 +156,7 @@ describe("Meta feed: which products go in", () => {
     for (const line of parsed) assert.equal(line.length, META_FEED_COLUMNS.length);
     assert.equal(parsed[1][2], rows[0].description);
     // additional_image_link always goes between quotes.
-    assert.ok(csv.includes(`"${MEDIA}/media/store/kp-2,${MEDIA}/media/store/kp-3"`));
+    assert.ok(csv.includes(`"${MEDIA}/media/store/kp-2.jpg,${MEDIA}/media/store/kp-3.jpg"`));
   });
 });
 
@@ -194,6 +194,30 @@ describe("Meta feed: other rules", () => {
     assert.equal(rows[0].description, "Corta");
   });
 
+  it("leaves out photos under 500x500: the next large one becomes the cover", () => {
+    const { rows, skipped, smallImages } = buildMetaFeedRows(
+      [
+        product({
+          id: "mixed",
+          images: [
+            { id: "tiny-cover", width: 340, height: 340 },
+            { id: "big", width: 1024, height: 1024 },
+            { id: "narrow", width: 482, height: 900 },
+            { id: "external", width: null, height: null },
+            { id: "exact", width: 500, height: 500 },
+          ],
+        }),
+        product({ id: "all-small", images: [{ id: "s1", width: 300, height: 300 }, { id: "s2", width: 499, height: 800 }] }),
+      ],
+      { mediaBaseUrl: MEDIA },
+    );
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].image_link, `${MEDIA}/media/store/big.jpg`);
+    assert.equal(rows[0].additional_image_link, `${MEDIA}/media/store/external.jpg,${MEDIA}/media/store/exact.jpg`);
+    assert.deepEqual(skipped, [{ productId: "all-small", reason: "no_valid_image" }]);
+    assert.equal(smallImages, 4);
+  });
+
   it("skips drafts and reports products without photos or variants on sale", () => {
     const { rows, skipped } = buildMetaFeedRows(
       [
@@ -205,7 +229,7 @@ describe("Meta feed: other rules", () => {
     );
     assert.equal(rows.length, 0);
     assert.deepEqual(skipped, [
-      { productId: "no-photo", reason: "no_image" },
+      { productId: "no-photo", reason: "no_valid_image" },
       { productId: "no-price", reason: "no_variant_on_sale" },
     ]);
   });

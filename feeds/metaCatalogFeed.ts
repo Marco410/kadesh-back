@@ -3,7 +3,8 @@ import type { Express, Request, Response } from "express";
 import type { KeystoneContext } from "@keystone-6/core/types";
 import { STORE_PRODUCT_STATUS } from "../models/Pet/Store/constants";
 import { storeCatalogVersion, storeEnabled } from "../utils/store/config";
-import { storeImageUrl, storePrisma } from "../utils/store/catalog";
+import { storePrisma } from "../utils/store/catalog";
+import { feedImageVersion, getFeedJpeg } from "../utils/store/feedImages";
 import {
   META_FEED_CACHE_MS,
   META_FEED_PATH,
@@ -19,12 +20,13 @@ import {
  * - `GET /feeds/meta/kadesh-pet.csv`: the product feed Meta downloads with a scheduled source.
  *   With `META_FEED_USER` and `META_FEED_PASSWORD` set it asks for Basic Auth; without them it is
  *   public. Kept in memory 15 min (rebuilt sooner after a catalog edit).
- * - `GET /media/store/:imageId`: stable URL of a store photo. Redirects to a freshly signed R2 URL,
- *   so the feed never carries URLs that expire. One primary-key lookup per request.
+ * - `GET /media/store/<id>.jpg` (or `<id>`): a store photo as JPEG, answered directly (200, no
+ *   redirect), for Meta, which takes only JPEG or PNG. Converted once and kept in R2 (see
+ *   utils/store/feedImages.ts). One primary-key lookup per request; only photos of active products.
  */
 
-/** Signed URLs last 1 h: the redirect must not be cached longer. */
-const MEDIA_REDIRECT_MAX_AGE_S = 30 * 60;
+/** The JPEG under a URL only changes with the photo (new ETag), so it can be cached a day. */
+const MEDIA_MAX_AGE_S = 24 * 60 * 60;
 const IMAGE_ID = /^[a-z0-9]{8,40}$/i;
 
 let cached: { key: string; csv: string; at: number } | null = null;
@@ -62,11 +64,12 @@ async function buildCsv(context: KeystoneContext, baseUrl: string): Promise<stri
   if (cached && cached.key === key && now - cached.at < META_FEED_CACHE_MS) return cached.csv;
 
   const products = await loadMetaFeedProducts(context);
-  const { rows, skipped } = buildMetaFeedRows(products, { mediaBaseUrl: baseUrl });
-  if (skipped.length > 0) {
+  const { rows, skipped, smallImages } = buildMetaFeedRows(products, { mediaBaseUrl: baseUrl });
+  if (skipped.length > 0 || smallImages > 0) {
     console.info(
-      `[meta feed] ${rows.length} rows; left out ${skipped.length} products:`,
-      skipped.map((skip) => `${skip.productId} (${skip.reason})`).join(", "),
+      `[meta feed] ${rows.length} rows; ${smallImages} photos under 500x500 left out; ` +
+        `left out ${skipped.length} products:`,
+      skipped.map((skip) => `${skip.productId} (${skip.reason})`).join(", ") || "none",
     );
   }
   const csv = toMetaFeedCsv(rows);
@@ -88,27 +91,47 @@ async function handleFeed(req: Request, res: Response, context: KeystoneContext)
 }
 
 async function handleMedia(req: Request, res: Response, context: KeystoneContext) {
-  const imageId = String(req.params.imageId ?? "");
+  // `<id>` and `<id>.jpg` are the same photo; the feed uses the second.
+  const imageId = String(req.params.file ?? "").replace(/\.jpe?g$/i, "");
   if (!IMAGE_ID.test(imageId) || !storeEnabled()) {
     res.sendStatus(404);
     return;
   }
   const row = await storePrisma(context).storeProductImage.findUnique({
     where: { id: imageId },
-    select: { image_id: true, image_extension: true, externalUrl: true, product: { select: { status: true } } },
+    select: {
+      id: true,
+      image_id: true,
+      image_extension: true,
+      externalUrl: true,
+      product: { select: { status: true } },
+    },
   });
   if (row instanceof Error) throw row;
   if (!row || row.product?.status !== STORE_PRODUCT_STATUS.ACTIVE) {
     res.sendStatus(404);
     return;
   }
-  const url = await storeImageUrl(context, row);
-  if (!url) {
+
+  const etag = `"${feedImageVersion(row)}"`;
+  res.set("Cache-Control", `public, max-age=${MEDIA_MAX_AGE_S}`);
+  res.set("ETag", etag);
+  const ifNoneMatch = String(req.headers["if-none-match"] ?? "");
+  if (ifNoneMatch.split(",").some((tag) => tag.trim().replace(/^W\//, "") === etag)) {
+    res.status(304).end();
+    return;
+  }
+
+  const jpeg = await getFeedJpeg(row);
+  if (!jpeg) {
+    res.removeHeader("Cache-Control");
+    res.removeHeader("ETag");
     res.sendStatus(404);
     return;
   }
-  res.set("Cache-Control", `public, max-age=${MEDIA_REDIRECT_MAX_AGE_S}`);
-  res.redirect(302, url);
+  res.set("Content-Type", "image/jpeg");
+  res.set("Content-Length", String(jpeg.length));
+  res.status(200).end(jpeg);
 }
 
 function run(
@@ -126,7 +149,7 @@ function run(
 
 export default function registerMetaCatalogFeed(app: Express, context: KeystoneContext) {
   app.get(META_FEED_PATH, (req: Request, res: Response) => run("feed", handleFeed, req, res, context));
-  app.get(`${STORE_MEDIA_PATH}/:imageId`, (req: Request, res: Response) =>
+  app.get(`${STORE_MEDIA_PATH}/:file`, (req: Request, res: Response) =>
     run("media", handleMedia, req, res, context),
   );
 }

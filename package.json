@@ -41,7 +41,7 @@
     "pipeline:backfill": "tsx scripts/backfillStageChanges.ts",
     "whatsapp:admins-on": "tsx scripts/enableAdminWhatsappNotifications.ts",
     "whatsapp:admins-on:prod": "cross-env KADESH_ENV=prod tsx scripts/enableAdminWhatsappNotifications.ts",
-    "test:meta-feed": "tsx --test utils/store/metaFeed.test.ts"
+    "test:meta-feed": "tsx --test utils/store/metaFeed.test.ts utils/store/feedImages.test.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.23",
@@ -50,13 +50,14 @@
     "@keystone-6/fields-document": "^9.0.0",
     "@prisma/client": "5.22.0",
     "@types/jsonwebtoken": "^9.0.9",
+    "csv-parse": "^7.0.2",
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.2",
     "next": "^14.2.35",
     "nodemailer": "^8.0.9",
+    "sharp": "^0.34.5",
     "slate-dom": "^0.111.0",
     "stripe": "^20.4.0",
-    "csv-parse": "^7.0.2",
     "tsx": "^4.19.2",
     "typescript": "^5.5.0"
   },
