@@ -25,6 +25,8 @@
     "activity:prune": "tsx scripts/pruneActivityEvents.ts",
     "leads:backfill-search-names": "tsx scripts/backfillLeadSearchNames.ts",
     "leads:backfill-search-names:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillLeadSearchNames.ts",
+    "store:backfill-image-sizes": "tsx scripts/backfillStoreImageSizes.ts",
+    "store:backfill-image-sizes:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillStoreImageSizes.ts",
     "events:backfill-city-keys": "tsx scripts/backfillEventCityKeys.ts",
     "events:backfill-city-keys:prod": "cross-env KADESH_ENV=prod tsx scripts/backfillEventCityKeys.ts",
     "paws:backfill": "tsx scripts/backfillPaws.ts",
