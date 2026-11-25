@@ -355,3 +355,144 @@ export function buildAnimalChannelMessage(animal: AnimalPostData, link: string, 
 
   return [blocks.join("\n\n"), "", `🔗 ${link}`].join("\n");
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * Comentario en el post cuando el caso tiene un registro nuevo (`AnimalLog`).
+ * Lo comenta `AnimalLog.facebookComment.ts`. Texto plano, sin hashtags.
+ * --------------------------------------------------------------------------------------------- */
+
+export const LOG_COMMENT_ANIMAL_QUERY = `
+  id name slug sex outcome rewardOffered rewardAmount facebookPostId facebookPublishedAt
+  animal_type { name }
+`;
+
+export type LogCommentAnimal = {
+  name?: string | null;
+  sex?: string | null;
+  outcome?: string | null;
+  rewardOffered?: boolean | null;
+  rewardAmount?: number | null;
+  animal_type?: { name?: string | null } | null;
+};
+
+/** Notas que el servidor pone solo (cierres, cartilla): repiten el encabezado, no se muestran. */
+const AUTO_LOG_NOTES =
+  /^(sin informaci[oó]n adicional|volvi[oó] con su familia|fue adoptad[oa]|encontr[oó] un hogar|falleci[oó]|se cerr[oó] el caso|regres[oó] a casa)\.?$/i;
+
+type LogCommentCopy = {
+  header: (who: string, sex: string | null | undefined, emoji: string) => string;
+  /** Sin `placeLabel` no lleva línea de lugar. */
+  placeLabel?: (sex?: string | null) => string;
+  closing: (sex?: string | null) => string;
+  /** Casos que ya terminaron: sin enlace. */
+  withLink: boolean;
+};
+
+const LOG_COMMENT_COPY: Record<string, LogCommentCopy> = {
+  lost: {
+    header: (who, sex, emoji) => `🆘 ${capitalize(who)} sigue ${g(sex, "perdido", "perdida")} ${emoji}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} vieron por última vez en`,
+    closing: (sex) => `👀 ¿${g(sex, "Lo", "La")} has visto? Entra al enlace para avisarle a su familia.`,
+    withLink: true,
+  },
+  found: {
+    header: (who, sex, emoji) => `📢 ¡${capitalize(who)} fue ${g(sex, "encontrado", "encontrada")}! ${emoji}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} encontraron en`,
+    closing: (sex) => `🏠 ¿Es tuy${g(sex, "o", "a")} o conoces a su familia? Entra al enlace.`,
+    withLink: true,
+  },
+  in_adoption: {
+    header: (who) => `🏡 ${capitalize(who)} ahora busca un hogar 💕`,
+    placeLabel: () => "Está en",
+    closing: (sex) => `💌 ¿Le das un hogar? Entra al enlace para conocer${g(sex, "lo", "la")}.`,
+    withLink: true,
+  },
+  abandoned: {
+    header: (who) => `⚠️ ${capitalize(who)} necesita ayuda`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} vieron en`,
+    closing: () => "🙏 ¿Puedes ayudar o sabes algo? Entra al enlace.",
+    withLink: true,
+  },
+  rescued: {
+    header: (who, sex) => `🙌 ¡${capitalize(who)} fue ${g(sex, "rescatado", "rescatada")} y ya está a salvo! 💛`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} rescataron en`,
+    closing: () => "💛 Sigue su historia en el enlace.",
+    withLink: true,
+  },
+  adopted: {
+    header: (who, sex) => `🎉 ¡${capitalize(who)} fue ${g(sex, "adoptado", "adoptada")}! 💕`,
+    closing: () => "🙏 Gracias a todos los que compartieron.",
+    withLink: false,
+  },
+  in_family: {
+    header: (who) => `🏠 ¡${capitalize(who)} ya está en casa! 🎉`,
+    closing: () => "🙏 Gracias a todos los que compartieron.",
+    withLink: false,
+  },
+  closed: {
+    header: (who) => `📁 El caso de ${who} se cerró.`,
+    closing: () => "🙏 Gracias a todos los que compartieron y ayudaron.",
+    withLink: false,
+  },
+};
+
+const GENERIC_LOG_COPY: LogCommentCopy = {
+  header: (who) => `📝 Nueva información de ${who}`,
+  placeLabel: () => "Lugar",
+  closing: () => "Toda la información en el enlace.",
+  withLink: true,
+};
+
+/** «esta perrita» → «la perrita de este reporte» (para el aviso de fallecimiento sin nombre). */
+function definiteOf(little: string): string {
+  const phrase = little.replace(/^esta /, "la ").replace(/^este /, "el ").replace(/^la ave\b/, "el ave");
+  return `${phrase} de este reporte`;
+}
+
+/**
+ * Texto del comentario para un registro nuevo. Si el caso se cerró porque el animal falleció
+ * (`Animal.outcome = deceased`, que `closeAnimalReport` guarda antes de crear el registro), va un
+ * mensaje sobrio: sin «Actualización», sin lugar ni enlace.
+ */
+export function buildAnimalLogFacebookComment(
+  animal: LogCommentAnimal,
+  log: PostLog,
+  link: string,
+  now = new Date(),
+): string {
+  const type = typeInfo(animal.animal_type?.name);
+  const sex = animal.sex;
+  const name = clean(animal.name);
+  const named = Boolean(name) && !isGenericName(name);
+  const little = type.little[gender(sex)];
+  const who = named ? name : little;
+  const status = clean(log.status).toLowerCase();
+  const rawNotes = clean(log.notes);
+  const notes = rawNotes && !AUTO_LOG_NOTES.test(rawNotes) ? rawNotes : "";
+
+  if (status === "closed" && animal.outcome === "deceased") {
+    const lines = [`🕊️ Con mucha tristeza les compartimos que ${named ? name : definiteOf(little)} falleció.`];
+    if (notes) lines.push(`💬 ${notes}`);
+    lines.push(
+      `Gracias de corazón a todos los que compartieron, buscaron y estuvieron pendientes de ${g(sex, "él", "ella")}. 🤍`,
+    );
+    return lines.join("\n");
+  }
+
+  const copy = LOG_COMMENT_COPY[status] ?? GENERIC_LOG_COPY;
+  const date = dateOf(log.date_status, now);
+  const lines = [date ? `🔄 Actualización · ${date}` : "🔄 Actualización", copy.header(who, sex, type.emoji)];
+
+  const place = copy.placeLabel ? placeOf(log) : "";
+  if (place) lines.push(`📍 ${copy.placeLabel!(sex)}: ${place}`);
+
+  if (status === "lost" && animal.rewardOffered) {
+    const amount = animal.rewardAmount && animal.rewardAmount > 0 ? `: ${formatPesos(animal.rewardAmount)}` : "";
+    lines.push(`💰 Se ofrece recompensa${amount}`);
+  }
+
+  if (notes) lines.push(`💬 ${notes}`);
+  lines.push(copy.closing(sex));
+  if (copy.withLink) lines.push(`👉 ${link}`);
+  return lines.join("\n");
+}

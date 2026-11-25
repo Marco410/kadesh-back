@@ -257,3 +257,11 @@ Qué: `buildAnimalFacebookMessage` pone primero `📍 Zapopan, Jalisco` (ciudad 
 Por qué: quien ve el post en el feed decide en la primera línea si le toca; la ciudad estaba más abajo, después de las señas.
 
 Qué no hacer: no usar `*negritas*` en el post de Facebook (no las interpreta y salen los asteriscos). La línea 📍 de más abajo (lugar exacto y colonia) se queda: la de arriba es solo la zona.
+
+### 2026-11-25 — Cada registro nuevo se comenta en el post de Facebook
+
+Qué: cuando un animal ya tiene `facebookPostId`, cada `AnimalLog` nuevo (del dueño, de un admin o del servidor: cierres, adopciones, «regresó a casa») deja un comentario de la Página en ese post (`AnimalLog.facebookComment.ts`, texto de `buildAnimalLogFacebookComment` en `Animal.facebookPost.ts`). El id queda en `AnimalLog.facebookCommentId`; al borrar el registro se borra el comentario. Cada estatus tiene su texto (perdido, encontrado, en adopción, abandonado, rescatado, adoptado, en familia, caso cerrado y registro genérico), con lugar y enlace solo en casos abiertos. Si el caso se cerró porque el animal falleció (`Animal.outcome = deceased`, que `closeAnimalReport` guarda antes de crear el registro), el comentario es sobrio: sin «Actualización», sin lugar ni enlace. Las notas automáticas («Falleció.», «Regresó a casa.», «Sin información adicional»…) no se repiten.
+
+Por qué: el post se quedaba con el primer estado y quien lo vio nunca se enteraba de que el animal apareció, fue adoptado o falleció.
+
+Qué no hacer: no comentar registros creados antes del post (el post ya los trae). No esperar a Facebook dentro de la mutación (va con `void` y nunca lanza). El token de la Página (`FACEBOOK_PET_PAGE_ACCESS_TOKEN`) necesita `pages_manage_engagement` además de `pages_manage_posts`; sin ese permiso la llamada falla y solo queda en el log. Con `ENVIROMENT=DEV` no se comenta ni se borra nada. Migración pendiente: `yarn migrate` (una columna nueva en `AnimalLog`).
