@@ -93,6 +93,8 @@ export const NOTIFICATION_TYPE = {
   STORE_ADMIN_TRANSFER_REVIEW: "store.admin_transfer_review",
   /** Store: money arrived for an order that was already cancelled. Goes to platform admins. */
   STORE_ADMIN_PAID_AFTER_CANCEL: "store.admin_paid_after_cancel",
+  /** «Dame una patita»: a donation was paid. Goes to platform admins. */
+  DONATION_ADMIN_RECEIVED: "donation.admin_received",
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];

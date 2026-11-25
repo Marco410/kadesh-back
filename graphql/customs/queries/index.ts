@@ -44,6 +44,7 @@ import pawLeaderboard from "./pawLeaderboard";
 import myPaws from "./myPaws";
 import publicProfile from "./publicProfile";
 import storeQueries from "./store";
+import donationQueries from "./donations";
 import adminStore from "./admin/adminStore";
 import adminStoreOrders from "./admin/adminStoreOrders";
 import adminStoreSummary from "./admin/adminStoreSummary";
@@ -95,6 +96,7 @@ const customQuery = {
     ${myPaws.typeDefs}
     ${publicProfile.typeDefs}
     ${storeQueries.typeDefs}
+    ${donationQueries.typeDefs}
     ${adminStore.typeDefs}
     ${adminStoreOrders.typeDefs}
     ${adminStoreSummary.typeDefs}
@@ -147,6 +149,7 @@ const customQuery = {
     ${myPaws.definition}
     ${publicProfile.definition}
     ${storeQueries.definition}
+    ${donationQueries.definition}
     ${adminStore.definition}
     ${adminStoreOrders.definition}
     ${adminStoreSummary.definition}
@@ -199,6 +202,7 @@ const customQuery = {
     ...myPaws.resolver,
     ...publicProfile.resolver,
     ...storeQueries.resolver,
+    ...donationQueries.resolver,
     ...adminStore.resolver,
     ...adminStoreOrders.resolver,
     ...adminStoreSummary.resolver,
