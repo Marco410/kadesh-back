@@ -4561,31 +4561,31 @@ function facebookPageEnv(product) {
 function isFacebookPostingDisabled() {
   return (process.env.ENVIROMENT ?? "").trim().toUpperCase() === "DEV";
 }
-async function postToFacebookPage({
+async function graphRequest({
   product,
-  message,
-  link
+  method,
+  path: path4,
+  params = {},
+  action
 }) {
   if (isFacebookPostingDisabled()) {
-    console.log(`[facebook] ENVIROMENT=DEV: no se publica en la P\xE1gina de "${product}".`);
+    console.log(`[facebook] ENVIROMENT=DEV: no se ${action} en la P\xE1gina de "${product}".`);
     return void 0;
   }
   const { pageId, accessToken } = facebookPageEnv(product);
   if (!pageId || !accessToken) {
     console.warn(
-      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). Post no publicado.`
+      `[facebook] P\xE1gina de "${product}" no configurada (FACEBOOK_${product.toUpperCase()}_PAGE_ID / _ACCESS_TOKEN). No se ${action}.`
     );
     return void 0;
   }
-  const body = new URLSearchParams({ message, link, access_token: accessToken });
-  const response = await fetch(
-    `https://graph.facebook.com/${GRAPH_API_VERSION2}/${pageId}/feed`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    }
-  );
+  const body = new URLSearchParams({ ...params, access_token: accessToken });
+  const target = path4.replace("{pageId}", pageId);
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION2}/${target}`, {
+    method,
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
   const bodyText = await response.text();
   let parsed = null;
   if (bodyText) {
@@ -4595,11 +4595,54 @@ async function postToFacebookPage({
       parsed = null;
     }
   }
-  if (!response.ok || !parsed?.id) {
+  if (!response.ok || !parsed || parsed.error) {
     const detail = parsed?.error?.message || bodyText || `HTTP ${response.status}`;
     throw new Error(`[facebook] Graph API error (${product}): ${detail}`);
   }
+  return parsed;
+}
+async function postToFacebookPage({
+  product,
+  message,
+  link
+}) {
+  const parsed = await graphRequest({
+    product,
+    method: "POST",
+    path: "{pageId}/feed",
+    params: { message, link },
+    action: "publica"
+  });
+  if (!parsed) return void 0;
+  if (!parsed.id) throw new Error(`[facebook] Graph API error (${product}): respuesta sin id`);
   return { id: parsed.id };
+}
+async function commentOnFacebookPost({
+  product,
+  postId,
+  message
+}) {
+  const parsed = await graphRequest({
+    product,
+    method: "POST",
+    path: `${encodeURIComponent(postId)}/comments`,
+    params: { message },
+    action: "comenta"
+  });
+  if (!parsed) return void 0;
+  if (!parsed.id) throw new Error(`[facebook] Graph API error (${product}): respuesta sin id`);
+  return { id: parsed.id };
+}
+async function deleteFacebookObject({
+  product,
+  objectId
+}) {
+  await graphRequest({
+    product,
+    method: "DELETE",
+    path: encodeURIComponent(objectId),
+    action: "borra"
+  });
 }
 
 // utils/intregrations/smtpMail.ts
@@ -6267,6 +6310,100 @@ function buildAnimalChannelMessage(animal, link, now = /* @__PURE__ */ new Date(
   const blocks = buildAnimalFacebookMessage(animal, now, { boldArea: true }).split("\n\n");
   if (blocks.length > 1 && blocks[blocks.length - 1].trim().startsWith("#")) blocks.pop();
   return [blocks.join("\n\n"), "", `\u{1F517} ${link}`].join("\n");
+}
+var LOG_COMMENT_ANIMAL_QUERY = `
+  id name slug sex outcome rewardOffered rewardAmount facebookPostId facebookPublishedAt
+  animal_type { name }
+`;
+var AUTO_LOG_NOTES = /^(sin informaci[oó]n adicional|volvi[oó] con su familia|fue adoptad[oa]|encontr[oó] un hogar|falleci[oó]|se cerr[oó] el caso|regres[oó] a casa)\.?$/i;
+var LOG_COMMENT_COPY = {
+  lost: {
+    header: (who, sex, emoji) => `\u{1F198} ${capitalize(who)} sigue ${g(sex, "perdido", "perdida")} ${emoji}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} vieron por \xFAltima vez en`,
+    closing: (sex) => `\u{1F440} \xBF${g(sex, "Lo", "La")} has visto? Entra al enlace para avisarle a su familia.`,
+    withLink: true
+  },
+  found: {
+    header: (who, sex, emoji) => `\u{1F4E2} \xA1${capitalize(who)} fue ${g(sex, "encontrado", "encontrada")}! ${emoji}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} encontraron en`,
+    closing: (sex) => `\u{1F3E0} \xBFEs tuy${g(sex, "o", "a")} o conoces a su familia? Entra al enlace.`,
+    withLink: true
+  },
+  in_adoption: {
+    header: (who) => `\u{1F3E1} ${capitalize(who)} ahora busca un hogar \u{1F495}`,
+    placeLabel: () => "Est\xE1 en",
+    closing: (sex) => `\u{1F48C} \xBFLe das un hogar? Entra al enlace para conocer${g(sex, "lo", "la")}.`,
+    withLink: true
+  },
+  abandoned: {
+    header: (who) => `\u26A0\uFE0F ${capitalize(who)} necesita ayuda`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} vieron en`,
+    closing: () => "\u{1F64F} \xBFPuedes ayudar o sabes algo? Entra al enlace.",
+    withLink: true
+  },
+  rescued: {
+    header: (who, sex) => `\u{1F64C} \xA1${capitalize(who)} fue ${g(sex, "rescatado", "rescatada")} y ya est\xE1 a salvo! \u{1F49B}`,
+    placeLabel: (sex) => `${g(sex, "Lo", "La")} rescataron en`,
+    closing: () => "\u{1F49B} Sigue su historia en el enlace.",
+    withLink: true
+  },
+  adopted: {
+    header: (who, sex) => `\u{1F389} \xA1${capitalize(who)} fue ${g(sex, "adoptado", "adoptada")}! \u{1F495}`,
+    closing: () => "\u{1F64F} Gracias a todos los que compartieron.",
+    withLink: false
+  },
+  in_family: {
+    header: (who) => `\u{1F3E0} \xA1${capitalize(who)} ya est\xE1 en casa! \u{1F389}`,
+    closing: () => "\u{1F64F} Gracias a todos los que compartieron.",
+    withLink: false
+  },
+  closed: {
+    header: (who) => `\u{1F4C1} El caso de ${who} se cerr\xF3.`,
+    closing: () => "\u{1F64F} Gracias a todos los que compartieron y ayudaron.",
+    withLink: false
+  }
+};
+var GENERIC_LOG_COPY = {
+  header: (who) => `\u{1F4DD} Nueva informaci\xF3n de ${who}`,
+  placeLabel: () => "Lugar",
+  closing: () => "Toda la informaci\xF3n en el enlace.",
+  withLink: true
+};
+function definiteOf(little) {
+  const phrase = little.replace(/^esta /, "la ").replace(/^este /, "el ").replace(/^la ave\b/, "el ave");
+  return `${phrase} de este reporte`;
+}
+function buildAnimalLogFacebookComment(animal, log2, link, now = /* @__PURE__ */ new Date()) {
+  const type = typeInfo(animal.animal_type?.name);
+  const sex = animal.sex;
+  const name = clean(animal.name);
+  const named = Boolean(name) && !isGenericName(name);
+  const little = type.little[gender(sex)];
+  const who = named ? name : little;
+  const status = clean(log2.status).toLowerCase();
+  const rawNotes = clean(log2.notes);
+  const notes = rawNotes && !AUTO_LOG_NOTES.test(rawNotes) ? rawNotes : "";
+  if (status === "closed" && animal.outcome === "deceased") {
+    const lines2 = [`\u{1F54A}\uFE0F Con mucha tristeza les compartimos que ${named ? name : definiteOf(little)} falleci\xF3.`];
+    if (notes) lines2.push(`\u{1F4AC} ${notes}`);
+    lines2.push(
+      `Gracias de coraz\xF3n a todos los que compartieron, buscaron y estuvieron pendientes de ${g(sex, "\xE9l", "ella")}. \u{1F90D}`
+    );
+    return lines2.join("\n");
+  }
+  const copy = LOG_COMMENT_COPY[status] ?? GENERIC_LOG_COPY;
+  const date = dateOf(log2.date_status, now);
+  const lines = [date ? `\u{1F504} Actualizaci\xF3n \xB7 ${date}` : "\u{1F504} Actualizaci\xF3n", copy.header(who, sex, type.emoji)];
+  const place = copy.placeLabel ? placeOf(log2) : "";
+  if (place) lines.push(`\u{1F4CD} ${copy.placeLabel(sex)}: ${place}`);
+  if (status === "lost" && animal.rewardOffered) {
+    const amount = animal.rewardAmount && animal.rewardAmount > 0 ? `: ${formatPesos(animal.rewardAmount)}` : "";
+    lines.push(`\u{1F4B0} Se ofrece recompensa${amount}`);
+  }
+  if (notes) lines.push(`\u{1F4AC} ${notes}`);
+  lines.push(copy.closing(sex));
+  if (copy.withLink) lines.push(`\u{1F449} ${link}`);
+  return lines.join("\n");
 }
 
 // utils/notifications/nearbyAnimalAlerts.ts
@@ -8215,6 +8352,48 @@ async function touchAnimalActivity({
   }
 }
 
+// models/Pet/Animal/AnimalLog/AnimalLog.facebookComment.ts
+async function commentNewLog(log2, context) {
+  const animalId = typeof log2.animalId === "string" ? log2.animalId : null;
+  if (!animalId || log2.facebookCommentId) return;
+  const sudo = context.sudo();
+  const animal = await sudo.query.Animal.findOne({
+    where: { id: animalId },
+    query: LOG_COMMENT_ANIMAL_QUERY
+  });
+  const postId = animal?.facebookPostId?.trim();
+  if (!animal || !postId || !animal.slug) return;
+  const publishedAt = animal.facebookPublishedAt ? new Date(animal.facebookPublishedAt).getTime() : 0;
+  const createdAt = log2.createdAt ? new Date(log2.createdAt).getTime() : Date.now();
+  if (publishedAt && createdAt <= publishedAt) return;
+  const message = buildAnimalLogFacebookComment(animal, log2, animalPublicUrl(animal.slug));
+  const result5 = await commentOnFacebookPost({ product: PRODUCT.PET, postId, message });
+  if (!result5?.id) return;
+  await sudo.db.AnimalLog.updateOne({
+    where: { id: String(log2.id) },
+    data: { facebookCommentId: result5.id }
+  });
+}
+async function deleteLogComment(log2) {
+  const commentId = typeof log2.facebookCommentId === "string" ? log2.facebookCommentId.trim() : "";
+  if (!commentId) return;
+  await deleteFacebookObject({ product: PRODUCT.PET, objectId: commentId });
+}
+async function syncAnimalLogFacebookComment({
+  operation,
+  item,
+  originalItem,
+  context
+}) {
+  try {
+    if (operation === "create" && item?.id) await commentNewLog(item, context);
+    else if (operation === "delete" && originalItem?.id) await deleteLogComment(originalItem);
+  } catch (error) {
+    const logId = item?.id ?? originalItem?.id;
+    console.error("[facebook] No se pudo sincronizar el comentario del registro", { logId }, error);
+  }
+}
+
 // models/Pet/Animal/AnimalLog/AnimalLog.ts
 var AnimalLog_default = (0, import_core6.list)({
   access: animalChildAccess,
@@ -8249,6 +8428,7 @@ var AnimalLog_default = (0, import_core6.list)({
       await syncAnimalOutcomeFromLog(args);
       await touchAnimalActivity(args);
       void logAnimalLogActivity(args);
+      void syncAnimalLogFacebookComment(args);
     }
   },
   fields: {
@@ -8290,6 +8470,13 @@ var AnimalLog_default = (0, import_core6.list)({
       }
     }),
     last_seen: (0, import_fields6.checkbox)(),
+    /** Comentario que dejó este registro en el post de Facebook del animal (se borra con el registro). */
+    facebookCommentId: (0, import_fields6.text)({
+      ui: {
+        itemView: { fieldMode: "read" },
+        description: "Id del comentario en el post de la P\xE1gina de Facebook de Pet"
+      }
+    }),
     createdAt: (0, import_fields6.timestamp)({
       defaultValue: {
         kind: "now"
