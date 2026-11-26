@@ -1476,6 +1476,7 @@ type AnimalLog {
   postalCode: String
   placeLabel: String
   last_seen: Boolean
+  facebookCommentId: String
   createdAt: DateTime
 }
 
@@ -1502,6 +1503,7 @@ input AnimalLogWhereInput {
   postalCode: StringFilter
   placeLabel: StringFilter
   last_seen: BooleanFilter
+  facebookCommentId: StringFilter
   createdAt: DateTimeNullableFilter
 }
 
@@ -1520,6 +1522,7 @@ input AnimalLogOrderByInput {
   postalCode: OrderDirection
   placeLabel: OrderDirection
   last_seen: OrderDirection
+  facebookCommentId: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -1538,6 +1541,7 @@ input AnimalLogUpdateInput {
   postalCode: String
   placeLabel: String
   last_seen: Boolean
+  facebookCommentId: String
   createdAt: DateTime
 }
 
@@ -1561,6 +1565,7 @@ input AnimalLogCreateInput {
   postalCode: String
   placeLabel: String
   last_seen: Boolean
+  facebookCommentId: String
   createdAt: DateTime
 }
 
